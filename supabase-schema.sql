@@ -19,7 +19,9 @@ create table if not exists polls (
   players     jsonb not null default '[]'::jsonb,   -- [{name, slots:[]}]
   teams       jsonb,                                 -- {teamA:[{name}], teamB:[{name}]}
   game_time   timestamptz,                           -- set once status = 'confirmed'
-  version     int not null default 0                 -- bumped on every write, used for optimistic locking
+  version     int not null default 0,                -- bumped on every write, used for optimistic locking
+  score_a     int,                                   -- final score, Team A (set after game)
+  score_b     int                                    -- final score, Team B (set after game)
 );
 
 -- Index for fast lookups
@@ -49,6 +51,8 @@ alter table players enable row level security;
 -- alter table polls add column if not exists status text not null default 'open';
 -- alter table polls add column if not exists game_time timestamptz;
 -- alter table polls add column if not exists version int not null default 0;
+-- alter table polls add column if not exists score_a int;
+-- alter table polls add column if not exists score_b int;
 -- update polls set status = case when closed then 'confirmed' else 'open' end;
 -- -- slots must be manually converted from text[] labels to ISO datetimes
 -- -- (e.g. re-create the column as jsonb and backfill with real dates)

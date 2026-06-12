@@ -16,8 +16,11 @@ export default function Home({ polls }) {
         <h1 style={{ fontSize: 28, fontWeight: 900, letterSpacing: '-1px', margin: '0 0 8px' }}>
           Aldie <span style={{ color: colors.accent }}>FC</span>
         </h1>
-        <p style={{ color: colors.muted, fontSize: 14, margin: 0 }}>
+        <p style={{ color: colors.muted, fontSize: 14, margin: '0 0 8px' }}>
           Pickup soccer, organized.
+        </p>
+        <p style={{ color: colors.muted, fontSize: 13, maxWidth: 380, margin: '0 auto', lineHeight: 1.5 }}>
+          A casual pickup soccer group in Aldie, VA. Vote on game times, see who's in, and join us on the pitch — all skill levels welcome.
         </p>
       </div>
 
@@ -64,7 +67,11 @@ export default function Home({ polls }) {
                     <div style={{ color: colors.muted, fontSize: 12, marginTop: 2 }}>{poll.location}</div>
                   </div>
                   {poll.status === 'confirmed' ? (
-                    <Pill color={colors.accent}>✅ {poll.players.length} players</Pill>
+                    poll.score_a != null && poll.score_b != null ? (
+                      <Pill color={colors.accent}>⚽ {poll.score_a} - {poll.score_b}</Pill>
+                    ) : (
+                      <Pill color={colors.accent}>✅ {poll.players.length} players</Pill>
+                    )
                   ) : (
                     <Pill color={colors.danger}>❌ Cancelled</Pill>
                   )}

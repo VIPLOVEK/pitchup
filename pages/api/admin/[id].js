@@ -47,6 +47,18 @@ export default async function handler(req, res) {
         return res.status(200).json(data)
       }
 
+      if (action === 'setScore') {
+        const { scoreA, scoreB } = req.body
+        if (poll.status !== 'confirmed') return res.status(400).json({ error: 'Game must be confirmed first' })
+        if (!Number.isInteger(scoreA) || !Number.isInteger(scoreB) || scoreA < 0 || scoreB < 0) {
+          return res.status(400).json({ error: 'Scores must be non-negative numbers' })
+        }
+        const { data, error } = await db
+          .from('polls').update({ score_a: scoreA, score_b: scoreB, version: poll.version + 1 }).eq('id', id).select().single()
+        if (error) throw error
+        return res.status(200).json(data)
+      }
+
       if (action === 'removePlayer') {
         const { name } = req.body
         if (!name) return res.status(400).json({ error: 'name is required' })

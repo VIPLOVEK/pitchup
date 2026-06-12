@@ -76,9 +76,25 @@ function GameConfirmed({ poll }) {
       </Card>
 
       <Card>
-        <div style={{ textAlign: 'center', fontWeight: 900, fontSize: 28, color: colors.accent, letterSpacing: '0.1em', margin: '0 0 20px', textShadow: `0 0 20px ${colors.accent}66` }}>
-          VS
-        </div>
+        {poll.score_a != null && poll.score_b != null ? (
+          <div style={{ textAlign: 'center', margin: '0 0 20px' }}>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: colors.muted, marginBottom: 6 }}>
+              Final score
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
+              <span style={{ fontSize: 32, fontWeight: 900, color: poll.score_a > poll.score_b ? colors.teamA : colors.muted }}>{poll.score_a}</span>
+              <span style={{ fontSize: 16, fontWeight: 700, color: colors.muted }}>—</span>
+              <span style={{ fontSize: 32, fontWeight: 900, color: poll.score_b > poll.score_a ? colors.teamB : colors.muted }}>{poll.score_b}</span>
+            </div>
+            <div style={{ fontSize: 12, color: colors.muted, marginTop: 4 }}>
+              {poll.score_a === poll.score_b ? 'Draw' : poll.score_a > poll.score_b ? '🟦 Team A wins' : '🟥 Team B wins'}
+            </div>
+          </div>
+        ) : (
+          <div style={{ textAlign: 'center', fontWeight: 900, fontSize: 28, color: colors.accent, letterSpacing: '0.1em', margin: '0 0 20px', textShadow: `0 0 20px ${colors.accent}66` }}>
+            VS
+          </div>
+        )}
         <div style={{ display: 'flex', gap: 16 }}>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.teamA, marginBottom: 8 }}>

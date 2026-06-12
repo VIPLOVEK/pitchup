@@ -137,6 +137,8 @@ function CreatePollForm({ onCreated }) {
 
 function PollCard({ poll, password, onAction, appUrl }) {
   const [loading, setLoading] = useState(false)
+  const [scoreA, setScoreA] = useState(poll.score_a ?? '')
+  const [scoreB, setScoreB] = useState(poll.score_b ?? '')
   const isOpen = poll.status === 'open'
   const isConfirmed = poll.status === 'confirmed'
   const isCancelled = poll.status === 'cancelled'
@@ -223,6 +225,40 @@ function PollCard({ poll, password, onAction, appUrl }) {
                 onRemove={isOpen ? () => doAction('removePlayer', 'PATCH', { name: p.name }) : undefined}
               />
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Result */}
+      {isConfirmed && (
+        <div style={{ marginTop: 12 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.muted, marginBottom: 6 }}>
+            Result
+          </div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <Input
+              type="number"
+              value={scoreA}
+              onChange={e => setScoreA(e.target.value)}
+              placeholder="A"
+              style={{ width: 60, textAlign: 'center', marginBottom: 0 }}
+            />
+            <span style={{ color: colors.muted, fontSize: 13 }}>🟦 vs 🟥</span>
+            <Input
+              type="number"
+              value={scoreB}
+              onChange={e => setScoreB(e.target.value)}
+              placeholder="B"
+              style={{ width: 60, textAlign: 'center', marginBottom: 0 }}
+            />
+            <Btn
+              small
+              variant="ghost"
+              onClick={() => doAction('setScore', 'PATCH', { scoreA: Number(scoreA), scoreB: Number(scoreB) })}
+              disabled={loading || scoreA === '' || scoreB === ''}
+            >
+              Save
+            </Btn>
           </div>
         </div>
       )}
