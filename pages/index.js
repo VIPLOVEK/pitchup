@@ -24,7 +24,7 @@ export default function Home({ polls }) {
       {/* Active poll */}
       {activePoll ? (
         <Link href={`/poll/${activePoll.id}`} style={{ textDecoration: 'none' }}>
-          <Card style={{ cursor: 'pointer', transition: 'border-color 0.15s' }}>
+          <Card highlight style={{ cursor: 'pointer' }} className="card-link">
             <Label>Active poll — tap to vote</Label>
             <h2 style={{ fontSize: 20, fontWeight: 800, margin: '0 0 4px', letterSpacing: '-0.3px' }}>
               {activePoll.title}
@@ -57,7 +57,7 @@ export default function Home({ polls }) {
           </div>
           {decidedPolls.slice(0, 3).map(poll => (
             <Link key={poll.id} href={`/poll/${poll.id}`} style={{ textDecoration: 'none' }}>
-              <Card style={{ cursor: 'pointer' }}>
+              <Card style={{ cursor: 'pointer' }} className="card-link">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
                     <div style={{ fontWeight: 700, fontSize: 15 }}>{poll.title}</div>

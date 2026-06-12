@@ -26,7 +26,7 @@ export default async function handler(req, res) {
         const teams = generateTeams(activePlayers)
         const gameTime = pickBestSlot(activePlayers, poll.slots)
         const { data, error } = await db
-          .from('polls').update({ status: 'confirmed', teams, game_time: gameTime }).eq('id', id).select().single()
+          .from('polls').update({ status: 'confirmed', teams, game_time: gameTime, version: poll.version + 1 }).eq('id', id).select().single()
         if (error) throw error
 
         try {
@@ -42,7 +42,7 @@ export default async function handler(req, res) {
       if (action === 'shuffle') {
         const teams = generateTeams(getActivePlayers(poll))
         const { data, error } = await db
-          .from('polls').update({ teams }).eq('id', id).select().single()
+          .from('polls').update({ teams, version: poll.version + 1 }).eq('id', id).select().single()
         if (error) throw error
         return res.status(200).json(data)
       }
@@ -53,7 +53,7 @@ export default async function handler(req, res) {
 
         const updatedPlayers = (poll.players || []).filter(p => p.name !== name)
         const { data, error } = await db
-          .from('polls').update({ players: updatedPlayers }).eq('id', id).select().single()
+          .from('polls').update({ players: updatedPlayers, version: poll.version + 1 }).eq('id', id).select().single()
         if (error) throw error
         return res.status(200).json(data)
       }

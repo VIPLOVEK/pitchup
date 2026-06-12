@@ -17,8 +17,9 @@ export default function Layout({ children, title = 'Aldie FC' }) {
       </Head>
 
       <header style={{
-        background: colors.pitchMid,
+        background: `linear-gradient(180deg, ${colors.pitchMid} 0%, ${colors.pitch} 100%)`,
         borderBottom: `2px solid ${colors.accent}`,
+        boxShadow: '0 2px 16px rgba(0,0,0,0.35)',
         padding: '0 20px',
         height: 56,
         display: 'flex',
@@ -29,7 +30,7 @@ export default function Layout({ children, title = 'Aldie FC' }) {
         zIndex: 100,
       }}>
         <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, fontWeight: 800, fontSize: 18, letterSpacing: '-0.5px' }}>
-          <img src="/logo.png" alt="Aldie FC" style={{ height: 32, width: 32, borderRadius: '50%' }} />
+          <img src="/logo.png" alt="Aldie FC" style={{ height: 32, width: 32, borderRadius: '50%', boxShadow: `0 0 0 2px ${colors.accent}33` }} />
           <span>Aldie <span style={{ color: colors.accent }}>FC</span></span>
         </Link>
         <Link
@@ -42,13 +43,14 @@ export default function Layout({ children, title = 'Aldie FC' }) {
             padding: '6px 14px',
             fontWeight: 600,
             fontSize: 13,
+            boxShadow: isAdmin ? 'none' : `0 2px 10px ${colors.accent}33`,
           }}
         >
           {isAdmin ? '← Vote' : 'Admin'}
         </Link>
       </header>
 
-      <main style={{ maxWidth: 480, margin: '0 auto', padding: '24px 16px 80px' }}>
+      <main style={{ maxWidth: 480, margin: '0 auto', padding: '24px 16px 80px', animation: 'fadeInUp 0.3s ease' }}>
         {children}
       </main>
     </>

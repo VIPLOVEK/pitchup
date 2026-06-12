@@ -38,14 +38,17 @@ export function Pill({ color, children }) {
 }
 
 // ── Card ──────────────────────────────────────────────────────────────────────
-export function Card({ children, highlight, style = {} }) {
+export function Card({ children, highlight, style = {}, className }) {
   return (
-    <div style={{
-      background: colors.pitchCard,
-      border: `1px solid ${highlight ? colors.accent + '44' : colors.grass + '22'}`,
+    <div className={className} style={{
+      background: `linear-gradient(155deg, ${colors.pitchCard} 0%, ${colors.pitchMid} 100%)`,
+      border: `1px solid ${highlight ? colors.accent + '55' : colors.grass + '22'}`,
       borderRadius: radius.lg,
       padding: 20,
       marginBottom: 16,
+      boxShadow: highlight
+        ? `0 8px 28px ${colors.accent}1a, 0 2px 10px rgba(0,0,0,0.3)`
+        : '0 2px 10px rgba(0,0,0,0.25)',
       ...style,
     }}>
       {children}

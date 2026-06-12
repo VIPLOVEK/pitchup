@@ -7,17 +7,26 @@ import { sendWhatsAppAnnouncement, sendWhatsAppCancellation } from '../../../lib
 
 // Applies any status change (confirm/cancel) triggered by the cutoff or
 // player count, persists it, and fires the matching WhatsApp message.
+// Uses the `version` column for optimistic locking: if another request
+// already wrote the same change first, just return the fresh row.
 async function applyPollUpdate(db, poll) {
   const update = evaluatePollUpdate(poll)
   if (!update) return poll
 
   const { data: updated, error } = await db
     .from('polls')
-    .update(update)
+    .update({ ...update, version: poll.version + 1 })
     .eq('id', poll.id)
+    .eq('version', poll.version)
     .select()
-    .single()
+    .maybeSingle()
   if (error) throw error
+
+  if (!updated) {
+    const { data: fresh, error: fetchErr } = await db.from('polls').select('*').eq('id', poll.id).single()
+    if (fetchErr) throw fetchErr
+    return fresh
+  }
 
   if (update.status === 'confirmed') {
     try {
@@ -67,33 +76,42 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'name and slots are required' })
     }
 
+    const MAX_RETRIES = 5
     try {
-      const { data: poll, error: fetchErr } = await db.from('polls').select('*').eq('id', id).single()
-      if (fetchErr || !poll) return res.status(404).json({ error: 'Poll not found' })
+      for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+        const { data: poll, error: fetchErr } = await db.from('polls').select('*').eq('id', id).single()
+        if (fetchErr || !poll) return res.status(404).json({ error: 'Poll not found' })
 
-      // Lazy-evaluate the cutoff before accepting a new vote
-      const current = await applyPollUpdate(db, poll)
-      if (current.status !== 'open') {
-        return res.status(400).json({ error: 'Poll is no longer open' })
+        // Lazy-evaluate the cutoff before accepting a new vote
+        const current = await applyPollUpdate(db, poll)
+        if (current.status !== 'open') {
+          return res.status(400).json({ error: 'Poll is no longer open' })
+        }
+
+        const players = current.players || []
+        if (players.some(p => p.name.toLowerCase() === name.trim().toLowerCase())) {
+          return res.status(409).json({ error: 'Name already registered' })
+        }
+
+        const updatedPlayers = [...players, { name: name.trim(), slots: votedSlots }]
+
+        const { data: updated, error: updateErr } = await db
+          .from('polls')
+          .update({ players: updatedPlayers, version: current.version + 1 })
+          .eq('id', id)
+          .eq('version', current.version)
+          .select()
+          .maybeSingle()
+        if (updateErr) throw updateErr
+
+        // Someone else wrote to this poll in between — retry from a fresh read
+        if (!updated) continue
+
+        const final = await applyPollUpdate(db, updated)
+        return res.status(200).json(final)
       }
 
-      const players = current.players || []
-      if (players.some(p => p.name.toLowerCase() === name.trim().toLowerCase())) {
-        return res.status(409).json({ error: 'Name already registered' })
-      }
-
-      const updatedPlayers = [...players, { name: name.trim(), slots: votedSlots }]
-
-      const { data: updated, error: updateErr } = await db
-        .from('polls')
-        .update({ players: updatedPlayers })
-        .eq('id', id)
-        .select()
-        .single()
-      if (updateErr) throw updateErr
-
-      const final = await applyPollUpdate(db, updated)
-      return res.status(200).json(final)
+      return res.status(409).json({ error: 'Poll is busy, please try again' })
     } catch (e) {
       return res.status(500).json({ error: e.message })
     }
