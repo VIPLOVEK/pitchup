@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import Layout from '../components/Layout'
 import { Card, Label, ProgressBar, Btn, Input, Pill, PlayerChip, Toast, CopyBtn } from '../components/UI'
@@ -460,6 +460,7 @@ function GroupsTab({ password, showToast, onGroupsChanged }) {
   const [error, setError] = useState('')
   const [newGroupName, setNewGroupName] = useState('')
   const [addPlayerSelections, setAddPlayerSelections] = useState({})
+  const fileInputRefs = useRef({})
 
   const load = () => {
     fetch('/api/admin/groups', { headers: { authorization: `Bearer ${password}` } })
@@ -640,15 +641,14 @@ function GroupsTab({ password, showToast, onGroupsChanged }) {
                 Logo
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <label>
-                  <input
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp"
-                    onChange={e => uploadLogo(g.id, e.target.files?.[0])}
-                    style={{ display: 'none' }}
-                  />
-                  <span style={{ cursor: 'pointer' }}><Btn small variant="ghost">Upload logo</Btn></span>
-                </label>
+                <input
+                  ref={el => { fileInputRefs.current[g.id] = el }}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  onChange={e => uploadLogo(g.id, e.target.files?.[0])}
+                  style={{ display: 'none' }}
+                />
+                <Btn small variant="ghost" onClick={() => fileInputRefs.current[g.id]?.click()}>Upload logo</Btn>
                 {g.logo_url && <Btn small variant="danger" onClick={() => removeLogo(g.id)}>Remove logo</Btn>}
               </div>
             </div>
