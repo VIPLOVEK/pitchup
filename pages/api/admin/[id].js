@@ -59,6 +59,29 @@ export default async function handler(req, res) {
         return res.status(200).json(data)
       }
 
+      if (action === 'setAudience') {
+        const { visibility, groupIds } = req.body
+        if (poll.status !== 'open') return res.status(400).json({ error: 'Poll is no longer open' })
+
+        const newVisibility = visibility === 'groups' ? 'groups' : 'all'
+        if (newVisibility === 'groups' && (!Array.isArray(groupIds) || groupIds.length === 0)) {
+          return res.status(400).json({ error: 'Select at least one group' })
+        }
+
+        const { data, error } = await db
+          .from('polls')
+          .update({
+            visibility: newVisibility,
+            group_ids: newVisibility === 'groups' ? groupIds : [],
+            version: poll.version + 1,
+          })
+          .eq('id', id)
+          .select()
+          .single()
+        if (error) throw error
+        return res.status(200).json(data)
+      }
+
       if (action === 'removePlayer') {
         const { name } = req.body
         if (!name) return res.status(400).json({ error: 'name is required' })

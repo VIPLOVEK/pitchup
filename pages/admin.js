@@ -18,7 +18,7 @@ const selectStyle = {
   marginBottom: 10,
 }
 
-function CreatePollForm({ onCreated }) {
+function CreatePollForm({ onCreated, groups }) {
   const [title, setTitle] = useState('Weekend Pickup ⚽')
   const [location, setLocation] = useState(LOCATIONS[0].name)
   const [customLocation, setCustomLocation] = useState('')
@@ -28,13 +28,8 @@ function CreatePollForm({ onCreated }) {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [groups, setGroups] = useState([])
   const [visibility, setVisibility] = useState('all')
   const [selectedGroupIds, setSelectedGroupIds] = useState([])
-
-  useEffect(() => {
-    fetch('/api/groups').then(res => res.ok ? res.json() : []).then(setGroups).catch(() => {})
-  }, [])
 
   const toggleGroup = (id) => setSelectedGroupIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id])
 
@@ -169,10 +164,13 @@ function CreatePollForm({ onCreated }) {
   )
 }
 
-function PollCard({ poll, password, onAction, appUrl }) {
+function PollCard({ poll, password, onAction, appUrl, groups }) {
   const [loading, setLoading] = useState(false)
   const [scoreA, setScoreA] = useState(poll.score_a ?? '')
   const [scoreB, setScoreB] = useState(poll.score_b ?? '')
+  const [editingAudience, setEditingAudience] = useState(false)
+  const [audienceVisibility, setAudienceVisibility] = useState(poll.visibility)
+  const [audienceGroupIds, setAudienceGroupIds] = useState(poll.group_ids)
   const isOpen = poll.status === 'open'
   const isConfirmed = poll.status === 'confirmed'
   const isCancelled = poll.status === 'cancelled'
@@ -217,7 +215,11 @@ function PollCard({ poll, password, onAction, appUrl }) {
           <Pill color={statusColor}>
             {poll.players.length}/{poll.max_players}
           </Pill>
-          {poll.visibility === 'groups' && <Pill color={colors.muted}>🔒 Group-only</Pill>}
+          {poll.visibility === 'groups' && (
+            <Pill color={colors.muted}>
+              🔒 {poll.group_ids.map(id => groups.find(g => g.id === id)?.name || '?').join(', ')}
+            </Pill>
+          )}
         </div>
       </div>
 
@@ -300,11 +302,72 @@ function PollCard({ poll, password, onAction, appUrl }) {
         </div>
       )}
 
+      {/* Audience editor */}
+      {isOpen && editingAudience && (
+        <div style={{ marginTop: 12, background: colors.pitchMid, borderRadius: 8, padding: 12 }}>
+          <p style={{ color: colors.muted, fontSize: 12, margin: '0 0 8px' }}>Who can join?</p>
+          <select
+            value={audienceVisibility}
+            onChange={e => setAudienceVisibility(e.target.value)}
+            style={selectStyle}
+          >
+            <option value="all">Everyone</option>
+            <option value="groups">Specific group(s)</option>
+          </select>
+          {audienceVisibility === 'groups' && (
+            <div style={{ marginBottom: 10 }}>
+              {groups.length === 0 && (
+                <p style={{ color: colors.muted, fontSize: 12 }}>No groups yet — create one in the Groups tab first.</p>
+              )}
+              {groups.map(g => (
+                <label key={g.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: colors.white, padding: '4px 0', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={audienceGroupIds.includes(g.id)}
+                    onChange={() => setAudienceGroupIds(ids => ids.includes(g.id) ? ids.filter(x => x !== g.id) : [...ids, g.id])}
+                  />
+                  {g.name}
+                </label>
+              ))}
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Btn
+              small
+              onClick={async () => {
+                await doAction('setAudience', 'PATCH', { visibility: audienceVisibility, groupIds: audienceGroupIds })
+                setEditingAudience(false)
+              }}
+              disabled={loading || (audienceVisibility === 'groups' && audienceGroupIds.length === 0)}
+            >
+              Save
+            </Btn>
+            <Btn small variant="ghost" onClick={() => setEditingAudience(false)} disabled={loading}>
+              Cancel
+            </Btn>
+          </div>
+        </div>
+      )}
+
       {/* Actions */}
       <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
         {isOpen && (
           <Btn small variant="ghost" onClick={() => doAction('close')} disabled={loading}>
             ✅ Confirm game now
+          </Btn>
+        )}
+        {isOpen && !editingAudience && (
+          <Btn
+            small
+            variant="ghost"
+            onClick={() => {
+              setAudienceVisibility(poll.visibility)
+              setAudienceGroupIds(poll.group_ids)
+              setEditingAudience(true)
+            }}
+            disabled={loading}
+          >
+            🔒 Edit audience
           </Btn>
         )}
         {isConfirmed && (
@@ -552,10 +615,15 @@ export default function AdminPage() {
   const [toast, setToast] = useState('')
   const [loading, setLoading] = useState(false)
   const [authErr, setAuthErr] = useState('')
+  const [groups, setGroups] = useState([])
 
   const appUrl = typeof window !== 'undefined' ? window.location.origin : ''
 
   const showToast = msg => { setToast(msg); setTimeout(() => setToast(''), 3000) }
+
+  useEffect(() => {
+    fetch('/api/groups').then(res => res.ok ? res.json() : []).then(setGroups).catch(() => {})
+  }, [])
 
   const login = async () => {
     setLoading(true)
@@ -580,7 +648,12 @@ export default function AdminPage() {
     setPassword(pwd)
     setAuthed(true)
     setTab('manage')
-    showToast('Poll created! Share the link.')
+    if (poll.visibility === 'groups') {
+      const names = poll.group_ids.map(id => groups.find(g => g.id === id)?.name || '?').join(', ')
+      showToast(`Poll created! Restricted to ${names} — share the link with them directly.`)
+    } else {
+      showToast('Poll created! Share the link.')
+    }
   }
 
   const handleAction = (id, updated) => {
@@ -649,7 +722,7 @@ export default function AdminPage() {
         ))}
       </div>
 
-      {tab === 'create' && <CreatePollForm onCreated={handleCreated} />}
+      {tab === 'create' && <CreatePollForm onCreated={handleCreated} groups={groups} />}
 
       {tab === 'roster' && <RosterTab password={password} />}
 
@@ -671,6 +744,7 @@ export default function AdminPage() {
               password={password}
               onAction={handleAction}
               appUrl={appUrl}
+              groups={groups}
             />
           ))}
         </div>

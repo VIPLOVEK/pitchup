@@ -53,10 +53,14 @@ export default async function handler(req, res) {
 
     if (error) throw error
 
-    try {
-      await sendWhatsAppPollCreated({ poll: data })
-    } catch (e) {
-      console.error('WhatsApp notification failed (non-fatal):', e.message)
+    // Skip the club-wide WhatsApp broadcast for group-restricted polls — it
+    // would notify everyone even though only some members can vote.
+    if (pollVisibility !== 'groups') {
+      try {
+        await sendWhatsAppPollCreated({ poll: data })
+      } catch (e) {
+        console.error('WhatsApp notification failed (non-fatal):', e.message)
+      }
     }
 
     return res.status(201).json(data)

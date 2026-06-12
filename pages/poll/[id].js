@@ -175,17 +175,15 @@ export default function PollPage({ poll: initialPoll, error }) {
 
   useEffect(() => {
     if (!initialPoll || initialPoll.visibility !== 'groups') return
-    const saved = localStorage.getItem('pitchup_player')
-    if (!saved) { setHasAccess(false); return }
-    const { id: playerId } = JSON.parse(saved)
-    fetch(`/api/groups?playerId=${playerId}`)
+    if (!profile) { setHasAccess(false); return }
+    fetch(`/api/groups?playerId=${profile.id}`)
       .then(res => res.ok ? res.json() : [])
       .then(groups => {
         const allowed = groups.some(g => g.status === 'approved' && initialPoll.group_ids.includes(g.id))
         setHasAccess(allowed)
       })
       .catch(() => setHasAccess(false))
-  }, [initialPoll])
+  }, [initialPoll, profile])
 
   const matchedPlayer = !profile && players.find(p => p.name.toLowerCase() === name.trim().toLowerCase())
 
