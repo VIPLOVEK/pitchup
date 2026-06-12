@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Layout from '../components/Layout'
 import { Card, Label, ProgressBar, Btn, Input, Pill, PlayerChip, Toast, CopyBtn } from '../components/UI'
@@ -300,6 +300,52 @@ function PollCard({ poll, password, onAction, appUrl }) {
   )
 }
 
+function RosterTab({ password }) {
+  const [players, setPlayers] = useState(null)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    fetch('/api/admin/players', { headers: { authorization: `Bearer ${password}` } })
+      .then(res => res.ok ? res.json() : Promise.reject(new Error('Failed to load roster')))
+      .then(setPlayers)
+      .catch(e => setError(e.message))
+  }, [password])
+
+  if (error) return <Card><p style={{ color: colors.danger, fontSize: 13 }}>{error}</p></Card>
+  if (players === null) return <Card><p style={{ color: colors.muted, fontSize: 13 }}>Loading roster...</p></Card>
+
+  if (players.length === 0) {
+    return (
+      <Card>
+        <div style={{ textAlign: 'center', color: colors.muted, padding: '20px 0', fontSize: 14 }}>
+          No players have signed up yet. Share the <Link href="/profile" style={{ color: colors.accent }}>profile link</Link> with the group.
+        </div>
+      </Card>
+    )
+  }
+
+  return (
+    <Card>
+      <Label>{players.length} player{players.length === 1 ? '' : 's'}</Label>
+      {players.map(p => (
+        <div
+          key={p.id}
+          style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            padding: '10px 0', borderBottom: `1px solid ${colors.grass}22`,
+          }}
+        >
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 14 }}>{p.name}</div>
+            {p.phone && <div style={{ color: colors.muted, fontSize: 12, marginTop: 2 }}>📱 {p.phone}</div>}
+          </div>
+          <Pill color={colors.grassLight}>{p.position}</Pill>
+        </div>
+      ))}
+    </Card>
+  )
+}
+
 export default function AdminPage() {
   const [polls, setPolls] = useState([])
   const [password, setPassword] = useState('')
@@ -384,8 +430,8 @@ export default function AdminPage() {
 
   return (
     <Layout title="Admin — Aldie FC">
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-        {['create', 'manage'].map(t => (
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
+        {['create', 'manage', 'roster'].map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -400,12 +446,14 @@ export default function AdminPage() {
               cursor: 'pointer',
             }}
           >
-            {t === 'create' ? '➕ New Poll' : `📋 Manage (${polls.length})`}
+            {t === 'create' ? '➕ New Poll' : t === 'manage' ? `📋 Manage (${polls.length})` : '👥 Roster'}
           </button>
         ))}
       </div>
 
       {tab === 'create' && <CreatePollForm onCreated={handleCreated} />}
+
+      {tab === 'roster' && <RosterTab password={password} />}
 
       {tab === 'manage' && (
         <div>
