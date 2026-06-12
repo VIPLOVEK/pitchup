@@ -28,6 +28,15 @@ function CreatePollForm({ onCreated }) {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [groups, setGroups] = useState([])
+  const [visibility, setVisibility] = useState('all')
+  const [selectedGroupIds, setSelectedGroupIds] = useState([])
+
+  useEffect(() => {
+    fetch('/api/groups').then(res => res.ok ? res.json() : []).then(setGroups).catch(() => {})
+  }, [])
+
+  const toggleGroup = (id) => setSelectedGroupIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id])
 
   const updateSlot = (i, value) => setSlots(s => s.map((v, idx) => idx === i ? value : v))
   const addSlot = () => setSlots(s => [...s, ''])
@@ -42,6 +51,10 @@ function CreatePollForm({ onCreated }) {
     }
     if (minPlayers < 2 || maxPlayers < minPlayers) {
       setError('Max players must be greater than or equal to min players')
+      return
+    }
+    if (visibility === 'groups' && selectedGroupIds.length === 0) {
+      setError('Select at least one group')
       return
     }
     setLoading(true)
@@ -59,6 +72,8 @@ function CreatePollForm({ onCreated }) {
           slots: filledSlots.map(s => new Date(s).toISOString()),
           minPlayers,
           maxPlayers,
+          visibility,
+          groupIds: selectedGroupIds,
         }),
       })
       const data = await res.json()
@@ -123,6 +138,25 @@ function CreatePollForm({ onCreated }) {
         </div>
       </div>
 
+      <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 8px' }}>Who can join?</p>
+      <select value={visibility} onChange={e => setVisibility(e.target.value)} style={selectStyle}>
+        <option value="all">Everyone</option>
+        <option value="groups">Specific group(s)</option>
+      </select>
+      {visibility === 'groups' && (
+        <div style={{ marginBottom: 14 }}>
+          {groups.length === 0 && (
+            <p style={{ color: colors.muted, fontSize: 12 }}>No groups yet — create one in the Groups tab first.</p>
+          )}
+          {groups.map(g => (
+            <label key={g.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: colors.white, padding: '4px 0', cursor: 'pointer' }}>
+              <input type="checkbox" checked={selectedGroupIds.includes(g.id)} onChange={() => toggleGroup(g.id)} />
+              {g.name}
+            </label>
+          ))}
+        </div>
+      )}
+
       <Input value={password} onChange={e => setPassword(e.target.value)} placeholder="Admin password" type="password" />
       {error && <p style={{ color: colors.danger, fontSize: 13, marginBottom: 10 }}>{error}</p>}
       <p style={{ color: colors.muted, fontSize: 12, margin: '0 0 14px' }}>
@@ -179,9 +213,12 @@ function PollCard({ poll, password, onAction, appUrl }) {
           </Link>
           <div style={{ color: colors.muted, fontSize: 12 }}>{poll.location}</div>
         </div>
-        <Pill color={statusColor}>
-          {poll.players.length}/{poll.max_players}
-        </Pill>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+          <Pill color={statusColor}>
+            {poll.players.length}/{poll.max_players}
+          </Pill>
+          {poll.visibility === 'groups' && <Pill color={colors.muted}>🔒 Group-only</Pill>}
+        </div>
       </div>
 
       <ProgressBar value={active.length} max={poll.min_players} />
@@ -351,6 +388,162 @@ function RosterTab({ password }) {
   )
 }
 
+function GroupsTab({ password, showToast }) {
+  const [groups, setGroups] = useState(null)
+  const [players, setPlayers] = useState([])
+  const [error, setError] = useState('')
+  const [newGroupName, setNewGroupName] = useState('')
+  const [addPlayerSelections, setAddPlayerSelections] = useState({})
+
+  const load = () => {
+    fetch('/api/admin/groups', { headers: { authorization: `Bearer ${password}` } })
+      .then(res => res.ok ? res.json() : Promise.reject(new Error('Failed to load groups')))
+      .then(setGroups)
+      .catch(e => setError(e.message))
+  }
+
+  useEffect(() => {
+    load()
+    fetch('/api/admin/players', { headers: { authorization: `Bearer ${password}` } })
+      .then(res => res.ok ? res.json() : [])
+      .then(setPlayers)
+      .catch(() => {})
+  }, [password])
+
+  const createGroup = async () => {
+    if (!newGroupName.trim()) return
+    try {
+      const res = await fetch('/api/admin/groups', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', authorization: `Bearer ${password}` },
+        body: JSON.stringify({ name: newGroupName.trim() }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setGroups(gs => [...gs, data])
+      setNewGroupName('')
+    } catch (e) {
+      showToast(e.message)
+    }
+  }
+
+  const deleteGroup = async (id) => {
+    try {
+      const res = await fetch(`/api/admin/groups/${id}`, {
+        method: 'DELETE',
+        headers: { authorization: `Bearer ${password}` },
+      })
+      if (!res.ok) throw new Error('Failed to delete group')
+      setGroups(gs => gs.filter(g => g.id !== id))
+    } catch (e) {
+      showToast(e.message)
+    }
+  }
+
+  const memberAction = async (groupId, action, playerId) => {
+    try {
+      const res = await fetch(`/api/admin/groups/${groupId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', authorization: `Bearer ${password}` },
+        body: JSON.stringify({ action, playerId }),
+      })
+      if (!res.ok) throw new Error('Action failed')
+      load()
+    } catch (e) {
+      showToast(e.message)
+    }
+  }
+
+  if (error) return <Card><p style={{ color: colors.danger, fontSize: 13 }}>{error}</p></Card>
+  if (groups === null) return <Card><p style={{ color: colors.muted, fontSize: 13 }}>Loading groups...</p></Card>
+
+  return (
+    <div>
+      <Card>
+        <Label>New group</Label>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Input value={newGroupName} onChange={e => setNewGroupName(e.target.value)} placeholder="Group name" style={{ marginBottom: 0 }} />
+          <Btn small onClick={createGroup} disabled={!newGroupName.trim()}>Create</Btn>
+        </div>
+      </Card>
+
+      {groups.length === 0 && (
+        <Card>
+          <div style={{ textAlign: 'center', color: colors.muted, padding: '20px 0', fontSize: 14 }}>
+            No groups yet. Create one above.
+          </div>
+        </Card>
+      )}
+
+      {groups.map(g => {
+        const approved = g.members.filter(m => m.status === 'approved')
+        const pending = g.members.filter(m => m.status === 'pending')
+        const memberIds = new Set(g.members.map(m => m.id))
+        const addablePlayers = players.filter(p => !memberIds.has(p.id))
+
+        return (
+          <Card key={g.id}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+              <Label>{g.name}</Label>
+              <Btn small variant="danger" onClick={() => deleteGroup(g.id)}>Delete</Btn>
+            </div>
+
+            {pending.length > 0 && (
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.muted, marginBottom: 6 }}>
+                  Pending requests
+                </div>
+                {pending.map(m => (
+                  <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0' }}>
+                    <span style={{ fontSize: 14 }}>{m.name}</span>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <Btn small variant="ghost" onClick={() => memberAction(g.id, 'approve', m.id)}>Approve</Btn>
+                      <Btn small variant="danger" onClick={() => memberAction(g.id, 'reject', m.id)}>Reject</Btn>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.muted, marginBottom: 6 }}>
+              Members ({approved.length})
+            </div>
+            {approved.length === 0 && <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 8px' }}>No members yet.</p>}
+            <div style={{ display: 'flex', flexWrap: 'wrap' }}>
+              {approved.map(m => (
+                <PlayerChip key={m.id} name={m.name} onRemove={() => memberAction(g.id, 'removeMember', m.id)} />
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+              <select
+                value={addPlayerSelections[g.id] || ''}
+                onChange={e => setAddPlayerSelections(s => ({ ...s, [g.id]: e.target.value }))}
+                style={{ ...selectStyle, marginBottom: 0, flex: 1 }}
+              >
+                <option value="">Add a player...</option>
+                {addablePlayers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+              <Btn
+                small
+                onClick={() => {
+                  const playerId = addPlayerSelections[g.id]
+                  if (!playerId) return
+                  memberAction(g.id, 'addMember', playerId)
+                  setAddPlayerSelections(s => ({ ...s, [g.id]: '' }))
+                }}
+                disabled={!addPlayerSelections[g.id]}
+              >
+                Add
+              </Btn>
+            </div>
+          </Card>
+        )
+      })}
+    </div>
+  )
+}
+
 export default function AdminPage() {
   const [polls, setPolls] = useState([])
   const [password, setPassword] = useState('')
@@ -436,7 +629,7 @@ export default function AdminPage() {
   return (
     <Layout title="Admin — Aldie FC">
       <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
-        {['create', 'manage', 'roster'].map(t => (
+        {['create', 'manage', 'roster', 'groups'].map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -451,7 +644,7 @@ export default function AdminPage() {
               cursor: 'pointer',
             }}
           >
-            {t === 'create' ? '➕ New Poll' : t === 'manage' ? `📋 Manage (${polls.length})` : '👥 Roster'}
+            {t === 'create' ? '➕ New Poll' : t === 'manage' ? `📋 Manage (${polls.length})` : t === 'roster' ? '👥 Roster' : '🏷️ Groups'}
           </button>
         ))}
       </div>
@@ -459,6 +652,8 @@ export default function AdminPage() {
       {tab === 'create' && <CreatePollForm onCreated={handleCreated} />}
 
       {tab === 'roster' && <RosterTab password={password} />}
+
+      {tab === 'groups' && <GroupsTab password={password} showToast={showToast} />}
 
       {tab === 'manage' && (
         <div>

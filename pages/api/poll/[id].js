@@ -88,6 +88,23 @@ export default async function handler(req, res) {
           return res.status(400).json({ error: 'Poll is no longer open' })
         }
 
+        if (current.visibility === 'groups') {
+          if (!playerId) {
+            return res.status(403).json({ error: 'This game is restricted to specific groups. Create a profile and request to join one to vote.' })
+          }
+          const { data: membership, error: memErr } = await db
+            .from('group_members')
+            .select('group_id')
+            .eq('player_id', playerId)
+            .eq('status', 'approved')
+            .in('group_id', current.group_ids)
+            .maybeSingle()
+          if (memErr) throw memErr
+          if (!membership) {
+            return res.status(403).json({ error: 'This game is restricted to specific groups you are not a member of.' })
+          }
+        }
+
         const players = current.players || []
         if (players.some(p => p.name.toLowerCase() === name.trim().toLowerCase())) {
           return res.status(409).json({ error: 'Name already registered' })

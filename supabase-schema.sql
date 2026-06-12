@@ -43,6 +43,34 @@ create table if not exists players (
 -- routes using the service role key, which bypasses RLS entirely.
 alter table players enable row level security;
 
+-- groups table — named player groups (e.g. "Wednesday Regulars")
+create table if not exists groups (
+  id          text primary key default encode(gen_random_bytes(6), 'hex'),
+  created_at  timestamptz default now(),
+  name        text not null unique
+);
+
+alter table groups enable row level security;
+
+create policy "Anyone can read groups"
+  on groups for select using (true);
+
+-- group_members table — membership + join requests
+create table if not exists group_members (
+  group_id    text not null references groups(id) on delete cascade,
+  player_id   text not null references players(id) on delete cascade,
+  status      text not null default 'pending',  -- 'pending' | 'approved'
+  created_at  timestamptz default now(),
+  primary key (group_id, player_id)
+);
+
+alter table group_members enable row level security;
+
+-- Polls gain an audience: 'all' (default, visible/joinable by anyone) or
+-- 'groups' (restricted to approved members of group_ids)
+alter table polls add column if not exists visibility text not null default 'all';
+alter table polls add column if not exists group_ids jsonb not null default '[]'::jsonb;
+
 -- ============================================================
 --  Migration for existing databases (run if upgrading from the
 --  old `threshold`/`closed`/text[] slots schema)

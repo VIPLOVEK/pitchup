@@ -158,6 +158,7 @@ export default function PollPage({ poll: initialPoll, error }) {
   const [submitted, setSubmitted] = useState(false)
   const [loading, setLoading] = useState(false)
   const [toast, setToast] = useState('')
+  const [hasAccess, setHasAccess] = useState(null)
 
   useEffect(() => {
     const saved = localStorage.getItem('pitchup_player')
@@ -171,6 +172,20 @@ export default function PollPage({ poll: initialPoll, error }) {
       .then(setPlayers)
       .catch(() => {})
   }, [])
+
+  useEffect(() => {
+    if (!initialPoll || initialPoll.visibility !== 'groups') return
+    const saved = localStorage.getItem('pitchup_player')
+    if (!saved) { setHasAccess(false); return }
+    const { id: playerId } = JSON.parse(saved)
+    fetch(`/api/groups?playerId=${playerId}`)
+      .then(res => res.ok ? res.json() : [])
+      .then(groups => {
+        const allowed = groups.some(g => g.status === 'approved' && initialPoll.group_ids.includes(g.id))
+        setHasAccess(allowed)
+      })
+      .catch(() => setHasAccess(false))
+  }, [initialPoll])
 
   const matchedPlayer = !profile && players.find(p => p.name.toLowerCase() === name.trim().toLowerCase())
 
@@ -326,6 +341,19 @@ export default function PollPage({ poll: initialPoll, error }) {
         )}
       </Card>
 
+      {poll.visibility === 'groups' && hasAccess === false && (
+        <Card>
+          <Label>Restricted game</Label>
+          <p style={{ color: colors.muted, fontSize: 13 }}>
+            This game is only open to members of specific groups.{' '}
+            <Link href="/profile" style={{ color: colors.accent, textDecoration: 'underline' }}>
+              Create or open your profile
+            </Link>{' '}
+            and request to join the group to be able to vote.
+          </p>
+        </Card>
+      )}
+
       <Card>
         <Label>Join the game</Label>
         {profile ? (
@@ -389,7 +417,7 @@ export default function PollPage({ poll: initialPoll, error }) {
           <Btn
             full
             onClick={handleVote}
-            disabled={!name.trim() || selectedSlots.length === 0 || loading || (matchedPlayer && !/^\d{4,6}$/.test(pin))}
+            disabled={!name.trim() || selectedSlots.length === 0 || loading || (matchedPlayer && !/^\d{4,6}$/.test(pin)) || (poll.visibility === 'groups' && hasAccess === false)}
           >
             {loading ? 'Joining...' : "I'm in ⚽"}
           </Btn>

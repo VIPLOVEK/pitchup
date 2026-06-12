@@ -6,6 +6,60 @@ import { POSITIONS } from '../lib/positions'
 
 const STORAGE_KEY = 'pitchup_player'
 
+function GroupsSection({ player, showToast }) {
+  const [groups, setGroups] = useState(null)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    fetch(`/api/groups?playerId=${player.id}`)
+      .then(res => res.ok ? res.json() : Promise.reject(new Error('Failed to load groups')))
+      .then(setGroups)
+      .catch(e => setError(e.message))
+  }, [player.id])
+
+  const requestJoin = async (groupId) => {
+    try {
+      const res = await fetch(`/api/groups/${groupId}/join`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ playerId: player.id }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setGroups(gs => gs.map(g => g.id === groupId ? { ...g, status: data.status } : g))
+      showToast('Request sent — an admin will approve it soon.')
+    } catch (e) {
+      showToast(e.message)
+    }
+  }
+
+  if (error) return null
+  if (groups === null) return null
+  if (groups.length === 0) return null
+
+  return (
+    <Card>
+      <Label>Groups</Label>
+      {groups.map(g => (
+        <div
+          key={g.id}
+          style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            padding: '8px 0', borderBottom: `1px solid ${colors.grass}22`,
+          }}
+        >
+          <div style={{ fontWeight: 600, fontSize: 14 }}>{g.name}</div>
+          {g.status === 'approved' && <span style={{ color: colors.grassLight, fontSize: 12, fontWeight: 700 }}>✓ Member</span>}
+          {g.status === 'pending' && <span style={{ color: colors.muted, fontSize: 12, fontWeight: 700 }}>⏳ Pending</span>}
+          {!g.status && (
+            <Btn small variant="ghost" onClick={() => requestJoin(g.id)}>Request to join</Btn>
+          )}
+        </div>
+      ))}
+    </Card>
+  )
+}
+
 export default function ProfilePage() {
   const [player, setPlayer] = useState(null)
   const [loaded, setLoaded] = useState(false)
@@ -114,6 +168,7 @@ export default function ProfilePage() {
             Log out
           </Btn>
         </Card>
+        <GroupsSection player={player} showToast={showToast} />
         <Toast msg={toast} />
       </Layout>
     )
