@@ -1,6 +1,11 @@
 # ⚽ PitchUp — Deployment Guide
 
-Full pickup soccer organizer. Players vote on time slots via a web link, game auto-confirms at your threshold, teams are generated, and a WhatsApp announcement fires automatically.
+Full pickup soccer organizer. Players vote on real time slots via a web link.
+Voting closes automatically 4 hours before the earliest slot — if enough
+players (`min_players`) have joined, teams are generated and a WhatsApp
+announcement fires automatically; otherwise the game is cancelled and
+everyone is notified. The first `max_players` to join get a spot; anyone
+after that goes on an auto-promoted waiting list.
 
 ---
 
@@ -99,17 +104,19 @@ npm run dev
 ### As organizer (Admin)
 1. Go to `your-app.vercel.app/admin`
 2. Enter admin password
-3. Create a poll — set title, location, time slots, player count
+3. Create a poll — set title, location (pick a venue or "Other"), proposed time slots (real dates/times), min and max players
 4. Copy the share link → paste into your WhatsApp group
-5. Watch players join in real time
-6. Game auto-confirms + WhatsApp fires when threshold is hit
-7. Or manually confirm early via "Confirm game" button
+5. Watch players join in real time — first `max` players are confirmed, the rest go on a waiting list
+6. 4 hours before the earliest slot, voting closes automatically:
+   - If `min` players joined → teams are generated + WhatsApp announcement fires
+   - If not → the poll is cancelled and WhatsApp announces "game is off"
+7. Or manually confirm early via "Confirm game now" button
 
 ### As player
 1. Tap the link from WhatsApp
 2. Enter your name, tap the times that work
 3. Tap **I'm in ⚽**
-4. See who else is joining live
+4. See who else is joining (and the waiting list) live
 
 ---
 
@@ -132,7 +139,9 @@ pitchup/
 │   └── UI.js             # Shared components
 ├── lib/
 │   ├── supabase.js       # DB client
-│   ├── teams.js          # Team generator + slot picker
+│   ├── teams.js          # Team generator, slot picker, waitlist helpers
+│   ├── pollStatus.js     # Cutoff time + confirm/cancel evaluation
+│   ├── locations.js      # Venue presets (map links + boot type)
 │   ├── whatsapp.js       # WhatsApp Cloud API sender
 │   └── tokens.js         # Design tokens
 ├── styles/
@@ -144,8 +153,10 @@ pitchup/
 
 ## Customization
 
-- **Change player threshold default** — edit `THRESHOLD_OPTIONS` in `pages/admin.js`
-- **Custom WhatsApp message** — edit `lib/whatsapp.js` → `sendWhatsAppAnnouncement`
+- **Change the voting cutoff** (default 4 hours before the earliest slot) — edit `CUTOFF_HOURS` in `lib/pollStatus.js`
+- **Change default min/max players** — edit the `minPlayers`/`maxPlayers` initial state in `pages/admin.js`
+- **Add/edit venues** — edit `LOCATIONS` in `lib/locations.js`
+- **Custom WhatsApp message** — edit `lib/whatsapp.js` → `sendWhatsAppAnnouncement` / `sendWhatsAppCancellation`
 - **Add skill ratings for balanced teams** — extend the player object in the vote API and update `lib/teams.js`
 - **Real-time updates** — swap `getServerSideProps` for Supabase Realtime subscriptions
 

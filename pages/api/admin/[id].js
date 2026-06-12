@@ -1,7 +1,7 @@
 // PATCH /api/admin/[id] — close poll, shuffle teams
 // DELETE /api/admin/[id] — delete poll
 import { supabaseAdmin, isSupabaseConfigured } from '../../../lib/supabase'
-import { generateTeams, pickBestSlot } from '../../../lib/teams'
+import { generateTeams, pickBestSlot, formatSlot, getActivePlayers } from '../../../lib/teams'
 import { sendWhatsAppAnnouncement } from '../../../lib/whatsapp'
 
 function isAdmin(req) {
@@ -22,16 +22,17 @@ export default async function handler(req, res) {
       if (!poll) return res.status(404).json({ error: 'Not found' })
 
       if (action === 'close') {
-        const teams = generateTeams(poll.players)
+        const activePlayers = getActivePlayers(poll)
+        const teams = generateTeams(activePlayers)
+        const gameTime = pickBestSlot(activePlayers, poll.slots)
         const { data, error } = await db
-          .from('polls').update({ closed: true, teams }).eq('id', id).select().single()
+          .from('polls').update({ status: 'confirmed', teams, game_time: gameTime }).eq('id', id).select().single()
         if (error) throw error
 
-        const gameTime = pickBestSlot(poll.players, poll.slots)
         try {
           await sendWhatsAppAnnouncement({
-            poll: { ...poll, players_count: poll.players.length },
-            teamA: teams.teamA, teamB: teams.teamB, gameTime,
+            poll: { ...poll, players_count: activePlayers.length },
+            teamA: teams.teamA, teamB: teams.teamB, gameTime: formatSlot(gameTime),
           })
         } catch (e) { console.error('WhatsApp failed:', e.message) }
 
@@ -39,9 +40,20 @@ export default async function handler(req, res) {
       }
 
       if (action === 'shuffle') {
-        const teams = generateTeams(poll.players)
+        const teams = generateTeams(getActivePlayers(poll))
         const { data, error } = await db
           .from('polls').update({ teams }).eq('id', id).select().single()
+        if (error) throw error
+        return res.status(200).json(data)
+      }
+
+      if (action === 'removePlayer') {
+        const { name } = req.body
+        if (!name) return res.status(400).json({ error: 'name is required' })
+
+        const updatedPlayers = (poll.players || []).filter(p => p.name !== name)
+        const { data, error } = await db
+          .from('polls').update({ players: updatedPlayers }).eq('id', id).select().single()
         if (error) throw error
         return res.status(200).json(data)
       }

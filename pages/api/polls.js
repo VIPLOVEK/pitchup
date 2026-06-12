@@ -12,17 +12,34 @@ export default async function handler(req, res) {
     return res.status(503).json({ error: 'Database not configured yet. Add Supabase env vars in Vercel.' })
   }
 
-  const { title, location, slots, threshold } = req.body
+  const { title, location, slots, minPlayers, maxPlayers } = req.body
 
-  if (!title || !location || !Array.isArray(slots) || slots.length === 0 || !threshold) {
+  if (!title || !location || !Array.isArray(slots) || slots.length === 0 || !minPlayers || !maxPlayers) {
     return res.status(400).json({ error: 'Missing required fields' })
+  }
+
+  if (slots.some((s) => isNaN(new Date(s).getTime()))) {
+    return res.status(400).json({ error: 'Slots must be valid dates/times' })
+  }
+
+  if (minPlayers < 2 || maxPlayers < minPlayers) {
+    return res.status(400).json({ error: 'max players must be greater than or equal to min players' })
   }
 
   try {
     const db = supabaseAdmin()
     const { data, error } = await db
       .from('polls')
-      .insert({ title, location, slots, threshold, closed: false, players: [], teams: null })
+      .insert({
+        title,
+        location,
+        slots,
+        min_players: minPlayers,
+        max_players: maxPlayers,
+        status: 'open',
+        players: [],
+        teams: null,
+      })
       .select()
       .single()
 

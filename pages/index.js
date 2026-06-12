@@ -2,18 +2,19 @@ import Link from 'next/link'
 import Layout from '../components/Layout'
 import { Card, Label, ProgressBar, Pill } from '../components/UI'
 import { colors } from '../lib/tokens'
+import { getActivePlayers } from '../lib/teams'
 
 export default function Home({ polls }) {
-  const activePoll = polls.find(p => !p.closed && p.players.length < p.threshold)
-  const confirmedPolls = polls.filter(p => p.closed || p.players.length >= p.threshold)
+  const activePoll = polls.find(p => p.status === 'open')
+  const decidedPolls = polls.filter(p => p.status !== 'open')
 
   return (
-    <Layout title="PitchUp — Pickup Soccer">
+    <Layout title="Aldie FC — Pickup Soccer">
       {/* Hero */}
       <div style={{ textAlign: 'center', padding: '32px 0 24px' }}>
-        <div style={{ fontSize: 52, marginBottom: 12, lineHeight: 1 }}>⚽</div>
+        <img src="/logo.png" alt="Aldie FC" style={{ width: 72, height: 72, borderRadius: '50%', marginBottom: 12 }} />
         <h1 style={{ fontSize: 28, fontWeight: 900, letterSpacing: '-1px', margin: '0 0 8px' }}>
-          Pitch<span style={{ color: colors.accent }}>Up</span>
+          Aldie <span style={{ color: colors.accent }}>FC</span>
         </h1>
         <p style={{ color: colors.muted, fontSize: 14, margin: 0 }}>
           Pickup soccer, organized.
@@ -29,10 +30,10 @@ export default function Home({ polls }) {
               {activePoll.title}
             </h2>
             <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 12px' }}>{activePoll.location}</p>
-            <ProgressBar value={activePoll.players.length} max={activePoll.threshold} />
+            <ProgressBar value={getActivePlayers(activePoll).length} max={activePoll.min_players} />
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
               <span style={{ color: colors.muted, fontSize: 13 }}>
-                {activePoll.players.length} / {activePoll.threshold} players
+                {getActivePlayers(activePoll).length} / {activePoll.min_players}+ players
               </span>
               <span style={{ color: colors.accent, fontSize: 13, fontWeight: 700 }}>Vote →</span>
             </div>
@@ -48,13 +49,13 @@ export default function Home({ polls }) {
         </Card>
       )}
 
-      {/* Confirmed games */}
-      {confirmedPolls.length > 0 && (
+      {/* Confirmed / cancelled games */}
+      {decidedPolls.length > 0 && (
         <div style={{ marginTop: 8 }}>
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: colors.muted, marginBottom: 12 }}>
             Recent games
           </div>
-          {confirmedPolls.slice(0, 3).map(poll => (
+          {decidedPolls.slice(0, 3).map(poll => (
             <Link key={poll.id} href={`/poll/${poll.id}`} style={{ textDecoration: 'none' }}>
               <Card style={{ cursor: 'pointer' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -62,7 +63,11 @@ export default function Home({ polls }) {
                     <div style={{ fontWeight: 700, fontSize: 15 }}>{poll.title}</div>
                     <div style={{ color: colors.muted, fontSize: 12, marginTop: 2 }}>{poll.location}</div>
                   </div>
-                  <Pill color={colors.accent}>✅ {poll.players.length} players</Pill>
+                  {poll.status === 'confirmed' ? (
+                    <Pill color={colors.accent}>✅ {poll.players.length} players</Pill>
+                  ) : (
+                    <Pill color={colors.danger}>❌ Cancelled</Pill>
+                  )}
                 </div>
               </Card>
             </Link>

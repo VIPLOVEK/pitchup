@@ -3,12 +3,48 @@ import { useRouter } from 'next/router'
 import Layout from '../../components/Layout'
 import { Card, Label, ProgressBar, Btn, Input, Pill, PlayerChip, Toast } from '../../components/UI'
 import { colors } from '../../lib/tokens'
-import { pickBestSlot } from '../../lib/teams'
+import { formatSlot, getActivePlayers, getWaitlist } from '../../lib/teams'
+import { findLocation } from '../../lib/locations'
+
+// ── Venue info (map link + boot type) ──────────────────────────────────────────
+function VenueInfo({ location }) {
+  const venue = findLocation(location)
+  if (!venue) return null
+  return (
+    <a
+      href={venue.mapUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: colors.muted, fontSize: 12, textDecoration: 'none' }}
+    >
+      🗺️ Map · {venue.boot} boots
+    </a>
+  )
+}
+
+// ── Cancelled game view ─────────────────────────────────────────────────────────
+function GameCancelled({ poll }) {
+  return (
+    <Card highlight>
+      <Label>Game cancelled</Label>
+      <h1 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 4px', letterSpacing: '-0.5px', color: colors.danger }}>
+        {poll.title}
+      </h1>
+      <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 12px' }}>{poll.location}</p>
+      <div style={{ textAlign: 'center', padding: '12px 0', color: colors.muted }}>
+        <div style={{ fontSize: 32, marginBottom: 10 }}>😕</div>
+        <p style={{ fontSize: 14 }}>
+          Not enough players joined ({poll.players.length}/{poll.min_players} minimum) — game is off.
+        </p>
+      </div>
+    </Card>
+  )
+}
 
 // ── Confirmed game view ───────────────────────────────────────────────────────
 function GameConfirmed({ poll }) {
   const { teamA = [], teamB = [] } = poll.teams || {}
-  const gameTime = pickBestSlot(poll.players, poll.slots)
+  const gameTime = formatSlot(poll.game_time)
   const whatsappText = [
     `⚽ *Game is ON!* ${poll.players.length} players confirmed.`,
     ``,
@@ -28,7 +64,10 @@ function GameConfirmed({ poll }) {
         <h1 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 4px', letterSpacing: '-0.5px', color: colors.accent }}>
           {poll.title}
         </h1>
-        <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 16px' }}>{poll.location}</p>
+        <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 8px' }}>{poll.location}</p>
+        <div style={{ marginBottom: 12 }}>
+          <VenueInfo location={poll.location} />
+        </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <Pill color={colors.accent}>📅 {gameTime}</Pill>
           <Pill color={colors.grassLight}>👥 {poll.players.length} players</Pill>
@@ -114,11 +153,18 @@ export default function PollPage({ poll: initialPoll, error }) {
     )
   }
 
-  const isClosed = poll.closed || poll.players.length >= poll.threshold
-  if (isClosed) {
+  if (poll.status === 'confirmed') {
     return (
       <Layout title={poll.title}>
         <GameConfirmed poll={poll} />
+      </Layout>
+    )
+  }
+
+  if (poll.status === 'cancelled') {
+    return (
+      <Layout title={poll.title}>
+        <GameCancelled poll={poll} />
       </Layout>
     )
   }
@@ -146,24 +192,40 @@ export default function PollPage({ poll: initialPoll, error }) {
   }
 
   if (submitted) {
-    const nowClosed = poll.closed || poll.players.length >= poll.threshold
-    if (nowClosed) return <Layout title={poll.title}><GameConfirmed poll={poll} /></Layout>
+    if (poll.status === 'confirmed') return <Layout title={poll.title}><GameConfirmed poll={poll} /></Layout>
+    if (poll.status === 'cancelled') return <Layout title={poll.title}><GameCancelled poll={poll} /></Layout>
+
+    const active = getActivePlayers(poll)
+    const waitlist = getWaitlist(poll)
+    const myIndex = poll.players.findIndex(p => p.name.toLowerCase() === name.trim().toLowerCase())
+    const onWaitlist = myIndex >= poll.max_players
+
     return (
       <Layout title={poll.title}>
         <Card>
           <div style={{ textAlign: 'center', padding: '20px 0' }}>
-            <div style={{ fontSize: 40, marginBottom: 10 }}>✅</div>
-            <h2 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 8px' }}>You're in!</h2>
+            <div style={{ fontSize: 40, marginBottom: 10 }}>{onWaitlist ? '⏳' : '✅'}</div>
+            <h2 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 8px' }}>
+              {onWaitlist ? "You're on the waiting list" : "You're in!"}
+            </h2>
             <p style={{ color: colors.muted, fontSize: 13 }}>
-              We'll send the game details when we hit {poll.threshold} players.
+              {onWaitlist
+                ? `The first ${poll.max_players} spots are full — you'll be added automatically if someone drops out.`
+                : `We'll send the game details once we have ${poll.min_players}+ players confirmed (and it's at least 4 hours before kickoff).`}
             </p>
-            <ProgressBar value={poll.players.length} max={poll.threshold} />
+            <ProgressBar value={active.length} max={poll.min_players} />
             <p style={{ color: colors.muted, fontSize: 13, textAlign: 'center', marginBottom: 16 }}>
-              {poll.players.length} / {poll.threshold} confirmed
+              {active.length} / {poll.min_players}+ confirmed · {poll.max_players} max
+              {waitlist.length > 0 ? ` · ${waitlist.length} waiting` : ''}
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center' }}>
-              {poll.players.map((p, i) => <PlayerChip key={i} name={p.name} />)}
+              {active.map((p, i) => <PlayerChip key={i} name={p.name} />)}
             </div>
+            {waitlist.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', marginTop: 8 }}>
+                {waitlist.map((p, i) => <PlayerChip key={i} name={p.name} color={colors.muted} />)}
+              </div>
+            )}
           </div>
         </Card>
         <Toast msg={toast} />
@@ -171,17 +233,36 @@ export default function PollPage({ poll: initialPoll, error }) {
     )
   }
 
+  const active = getActivePlayers(poll)
+  const waitlist = getWaitlist(poll)
+
   return (
     <Layout title={poll.title}>
       <Card>
         <Label>Open poll</Label>
         <h1 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 4px', letterSpacing: '-0.5px' }}>{poll.title}</h1>
-        <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 16px' }}>{poll.location} · Need {poll.threshold} players</p>
-        <ProgressBar value={poll.players.length} max={poll.threshold} />
-        <p style={{ color: colors.muted, fontSize: 13, margin: '4px 0 16px' }}>{poll.players.length} / {poll.threshold} confirmed</p>
-        <div style={{ display: 'flex', flexWrap: 'wrap' }}>
-          {poll.players.map((p, i) => <PlayerChip key={i} name={p.name} />)}
+        <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 4px' }}>{poll.location} · Need {poll.min_players}+ players</p>
+        <div style={{ margin: '0 0 12px' }}>
+          <VenueInfo location={poll.location} />
         </div>
+        <ProgressBar value={active.length} max={poll.min_players} />
+        <p style={{ color: colors.muted, fontSize: 13, margin: '4px 0 16px' }}>
+          {active.length} / {poll.min_players}+ confirmed · {poll.max_players} max
+          {waitlist.length > 0 ? ` · ${waitlist.length} waiting` : ''}
+        </p>
+        <div style={{ display: 'flex', flexWrap: 'wrap' }}>
+          {active.map((p, i) => <PlayerChip key={i} name={p.name} />)}
+        </div>
+        {waitlist.length > 0 && (
+          <>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.muted, margin: '10px 0 6px' }}>
+              Waiting list
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap' }}>
+              {waitlist.map((p, i) => <PlayerChip key={i} name={p.name} color={colors.muted} />)}
+            </div>
+          </>
+        )}
       </Card>
 
       <Card>
@@ -205,7 +286,7 @@ export default function PollPage({ poll: initialPoll, error }) {
                 transition: 'all 0.15s',
               }}
             >
-              {slot}
+              {formatSlot(slot)}
             </button>
           ))}
         </div>

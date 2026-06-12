@@ -1,23 +1,46 @@
 import { useState } from 'react'
 import Layout from '../components/Layout'
 import { Card, Label, ProgressBar, Btn, Input, Pill, PlayerChip, Toast, CopyBtn } from '../components/UI'
-import { colors } from '../lib/tokens'
+import { colors, radius } from '../lib/tokens'
+import { getActivePlayers, getWaitlist } from '../lib/teams'
+import { LOCATIONS } from '../lib/locations'
 
-const THRESHOLD_OPTIONS = [6, 8, 10, 12, 14]
+const selectStyle = {
+  width: '100%',
+  background: colors.pitchMid,
+  border: `1px solid ${colors.grass}44`,
+  borderRadius: radius.md,
+  color: colors.white,
+  padding: '10px 12px',
+  fontSize: 14,
+  outline: 'none',
+  marginBottom: 10,
+}
 
 function CreatePollForm({ onCreated }) {
   const [title, setTitle] = useState('Weekend Pickup ⚽')
-  const [location, setLocation] = useState('')
-  const [slotsRaw, setSlotsRaw] = useState('Sat 6PM, Sat 8PM, Sun 10AM')
-  const [threshold, setThreshold] = useState(10)
+  const [location, setLocation] = useState(LOCATIONS[0].name)
+  const [customLocation, setCustomLocation] = useState('')
+  const [slots, setSlots] = useState(['', ''])
+  const [minPlayers, setMinPlayers] = useState(8)
+  const [maxPlayers, setMaxPlayers] = useState(18)
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
+  const updateSlot = (i, value) => setSlots(s => s.map((v, idx) => idx === i ? value : v))
+  const addSlot = () => setSlots(s => [...s, ''])
+  const removeSlot = (i) => setSlots(s => s.filter((_, idx) => idx !== i))
+
   const handleCreate = async () => {
-    const slots = slotsRaw.split(',').map(s => s.trim()).filter(Boolean)
-    if (!title || !location || slots.length === 0 || !password) {
+    const filledSlots = slots.filter(Boolean)
+    const finalLocation = location === 'Other' ? customLocation.trim() : location
+    if (!title || !finalLocation || filledSlots.length === 0 || !password) {
       setError('Fill in all fields including admin password')
+      return
+    }
+    if (minPlayers < 2 || maxPlayers < minPlayers) {
+      setError('Max players must be greater than or equal to min players')
       return
     }
     setLoading(true)
@@ -29,14 +52,20 @@ function CreatePollForm({ onCreated }) {
           'Content-Type': 'application/json',
           authorization: `Bearer ${password}`,
         },
-        body: JSON.stringify({ title, location, slots, threshold }),
+        body: JSON.stringify({
+          title,
+          location: finalLocation,
+          slots: filledSlots.map(s => new Date(s).toISOString()),
+          minPlayers,
+          maxPlayers,
+        }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
       onCreated(data, password)
-      setSlotsRaw('')
+      setSlots(['', ''])
       setTitle('Weekend Pickup ⚽')
-      setLocation('')
+      setCustomLocation('')
     } catch (e) {
       setError(e.message)
     } finally {
@@ -48,35 +77,56 @@ function CreatePollForm({ onCreated }) {
     <Card>
       <Label>Create a poll</Label>
       <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="Game title" />
-      <Input value={location} onChange={e => setLocation(e.target.value)} placeholder="Location / field name" />
-      <Input
-        value={slotsRaw}
-        onChange={e => setSlotsRaw(e.target.value)}
-        placeholder="Time slots, comma-separated: Sat 6PM, Sun 10AM"
-      />
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
-        <span style={{ color: colors.muted, fontSize: 13 }}>Players needed:</span>
-        {THRESHOLD_OPTIONS.map(n => (
-          <button
-            key={n}
-            onClick={() => setThreshold(n)}
-            style={{
-              background: threshold === n ? colors.accent : 'transparent',
-              color: threshold === n ? colors.pitch : colors.muted,
-              border: 'none',
-              borderRadius: 6,
-              padding: '6px 14px',
-              fontWeight: 600,
-              fontSize: 13,
-              cursor: 'pointer',
-            }}
-          >
-            {n}
-          </button>
+
+      <select value={location} onChange={e => setLocation(e.target.value)} style={selectStyle}>
+        {LOCATIONS.map(l => (
+          <option key={l.name} value={l.name}>{l.name} ({l.boot} boots)</option>
         ))}
+        <option value="Other">Other...</option>
+      </select>
+      {location === 'Other' && (
+        <Input value={customLocation} onChange={e => setCustomLocation(e.target.value)} placeholder="Location / field name" />
+      )}
+
+      <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 8px' }}>Proposed time slots:</p>
+      {slots.map((slot, i) => (
+        <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <Input
+            type="datetime-local"
+            value={slot}
+            onChange={e => updateSlot(i, e.target.value)}
+            style={{ flex: 1 }}
+          />
+          {slots.length > 1 && (
+            <button
+              onClick={() => removeSlot(i)}
+              style={{ background: 'none', border: 'none', color: colors.muted, fontSize: 18, cursor: 'pointer', padding: '0 4px 10px' }}
+            >
+              ×
+            </button>
+          )}
+        </div>
+      ))}
+      <div style={{ marginBottom: 14 }}>
+        <Btn small variant="ghost" onClick={addSlot}>+ Add another time</Btn>
       </div>
+
+      <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
+        <div style={{ flex: 1 }}>
+          <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 8px' }}>Min players</p>
+          <Input type="number" value={minPlayers} onChange={e => setMinPlayers(Number(e.target.value))} />
+        </div>
+        <div style={{ flex: 1 }}>
+          <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 8px' }}>Max players</p>
+          <Input type="number" value={maxPlayers} onChange={e => setMaxPlayers(Number(e.target.value))} />
+        </div>
+      </div>
+
       <Input value={password} onChange={e => setPassword(e.target.value)} placeholder="Admin password" type="password" />
       {error && <p style={{ color: colors.danger, fontSize: 13, marginBottom: 10 }}>{error}</p>}
+      <p style={{ color: colors.muted, fontSize: 12, margin: '0 0 14px' }}>
+        Voting closes automatically 4 hours before the earliest time slot. If fewer than {minPlayers} players have joined by then, the game is cancelled. The first {maxPlayers} players get a spot — anyone after that goes on the waiting list and is auto-promoted if a spot opens up.
+      </p>
       <Btn full onClick={handleCreate} disabled={loading}>
         {loading ? 'Creating...' : 'Create poll & get link'}
       </Btn>
@@ -86,16 +136,20 @@ function CreatePollForm({ onCreated }) {
 
 function PollCard({ poll, password, onAction, appUrl }) {
   const [loading, setLoading] = useState(false)
-  const isClosed = poll.closed || poll.players.length >= poll.threshold
+  const isOpen = poll.status === 'open'
+  const isConfirmed = poll.status === 'confirmed'
+  const isCancelled = poll.status === 'cancelled'
   const shareUrl = `${appUrl}/poll/${poll.id}`
+  const active = getActivePlayers(poll)
+  const waitlist = getWaitlist(poll)
 
-  const doAction = async (action, method = 'PATCH') => {
+  const doAction = async (action, method = 'PATCH', extra = {}) => {
     setLoading(true)
     try {
       const res = await fetch(`/api/admin/${poll.id}`, {
         method,
         headers: { 'Content-Type': 'application/json', authorization: `Bearer ${password}` },
-        ...(method === 'PATCH' ? { body: JSON.stringify({ action }) } : {}),
+        ...(method === 'PATCH' ? { body: JSON.stringify({ action, ...extra }) } : {}),
       })
       if (!res.ok) throw new Error('Action failed')
       const data = method === 'DELETE' ? null : await res.json()
@@ -107,33 +161,41 @@ function PollCard({ poll, password, onAction, appUrl }) {
     }
   }
 
+  const statusLabel = isConfirmed ? 'Confirmed ✅' : isCancelled ? 'Cancelled ❌' : 'Open 🟢'
+  const statusColor = isConfirmed ? colors.accent : isCancelled ? colors.danger : colors.grassLight
+
   return (
-    <Card highlight={isClosed}>
+    <Card highlight={isConfirmed}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
         <div>
-          <Label>{isClosed ? 'Confirmed ✅' : 'Active 🟢'}</Label>
+          <Label>{statusLabel}</Label>
           <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 2 }}>{poll.title}</div>
           <div style={{ color: colors.muted, fontSize: 12 }}>{poll.location}</div>
         </div>
-        <Pill color={isClosed ? colors.accent : colors.grassLight}>
-          {poll.players.length}/{poll.threshold}
+        <Pill color={statusColor}>
+          {poll.players.length}/{poll.max_players}
         </Pill>
       </div>
 
-      <ProgressBar value={poll.players.length} max={poll.threshold} />
+      <ProgressBar value={active.length} max={poll.min_players} />
+      <div style={{ color: colors.muted, fontSize: 12, margin: '4px 0 8px' }}>
+        {active.length} confirmed (need {poll.min_players}+) · {poll.max_players} max
+        {waitlist.length > 0 ? ` · ${waitlist.length} waiting` : ''}
+      </div>
 
-      {/* Player list */}
+      {isCancelled && (
+        <p style={{ color: colors.danger, fontSize: 13, margin: '0 0 8px' }}>
+          Not enough players joined by the cutoff — game was cancelled.
+        </p>
+      )}
+
+      {/* Active players */}
       <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap' }}>
-        {poll.players.map((p, i) => (
+        {active.map((p, i) => (
           <PlayerChip
             key={i}
             name={p.name}
-            onRemove={!isClosed ? async () => {
-              // Remove via a simple workaround: re-fetch & patch players
-              // In a real app this would be its own endpoint
-              const updated = { ...poll, players: poll.players.filter((_, idx) => idx !== i) }
-              onAction(poll.id, updated)
-            } : undefined}
+            onRemove={isOpen ? () => doAction('removePlayer', 'PATCH', { name: p.name }) : undefined}
           />
         ))}
         {poll.players.length === 0 && (
@@ -141,14 +203,33 @@ function PollCard({ poll, password, onAction, appUrl }) {
         )}
       </div>
 
+      {/* Waiting list */}
+      {waitlist.length > 0 && (
+        <div style={{ marginTop: 10 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.muted, marginBottom: 6 }}>
+            Waiting list
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap' }}>
+            {waitlist.map((p, i) => (
+              <PlayerChip
+                key={i}
+                name={p.name}
+                color={colors.muted}
+                onRemove={isOpen ? () => doAction('removePlayer', 'PATCH', { name: p.name }) : undefined}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Actions */}
       <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
-        {!isClosed && (
+        {isOpen && (
           <Btn small variant="ghost" onClick={() => doAction('close')} disabled={loading}>
-            ✅ Confirm game
+            ✅ Confirm game now
           </Btn>
         )}
-        {isClosed && (
+        {isConfirmed && (
           <Btn small variant="ghost" onClick={() => doAction('shuffle')} disabled={loading}>
             🔀 Reshuffle teams
           </Btn>
@@ -230,7 +311,7 @@ export default function AdminPage() {
   // Login gate
   if (!authed) {
     return (
-      <Layout title="Admin — PitchUp">
+      <Layout title="Admin — Aldie FC">
         <Card>
           <Label>Admin access</Label>
           <h2 style={{ fontSize: 20, fontWeight: 800, margin: '0 0 16px' }}>Enter your password</h2>
@@ -261,7 +342,7 @@ export default function AdminPage() {
   }
 
   return (
-    <Layout title="Admin — PitchUp">
+    <Layout title="Admin — Aldie FC">
       <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
         {['create', 'manage'].map(t => (
           <button

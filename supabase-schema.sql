@@ -12,16 +12,32 @@ create table if not exists polls (
   created_at  timestamptz default now(),
   title       text not null,
   location    text not null,
-  slots       text[] not null,          -- e.g. {"Sat 6PM","Sun 10AM"}
-  threshold   int not null default 10,
-  closed      boolean not null default false,
+  slots       jsonb not null,           -- e.g. ["2026-06-13T18:00:00.000Z","2026-06-14T10:00:00.000Z"]
+  min_players int not null default 8,
+  max_players int not null default 18,
+  status      text not null default 'open',  -- 'open' | 'confirmed' | 'cancelled'
   players     jsonb not null default '[]'::jsonb,   -- [{name, slots:[]}]
-  teams       jsonb                                  -- {teamA:[{name}], teamB:[{name}]}
+  teams       jsonb,                                 -- {teamA:[{name}], teamB:[{name}]}
+  game_time   timestamptz                            -- set once status = 'confirmed'
 );
 
 -- Index for fast lookups
 create index if not exists polls_created_at_idx on polls(created_at desc);
-create index if not exists polls_closed_idx on polls(closed);
+create index if not exists polls_status_idx on polls(status);
+
+-- ============================================================
+--  Migration for existing databases (run if upgrading from the
+--  old `threshold`/`closed`/text[] slots schema)
+-- ============================================================
+-- alter table polls add column if not exists min_players int not null default 8;
+-- alter table polls add column if not exists max_players int not null default 18;
+-- alter table polls add column if not exists status text not null default 'open';
+-- alter table polls add column if not exists game_time timestamptz;
+-- update polls set status = case when closed then 'confirmed' else 'open' end;
+-- -- slots must be manually converted from text[] labels to ISO datetimes
+-- -- (e.g. re-create the column as jsonb and backfill with real dates)
+-- alter table polls drop column if exists threshold;
+-- alter table polls drop column if exists closed;
 
 -- Row Level Security — allow anon reads, service role writes
 alter table polls enable row level security;
