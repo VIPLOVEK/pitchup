@@ -1,5 +1,6 @@
 // POST /api/polls — create a new poll (admin only)
 import { supabaseAdmin, isSupabaseConfigured } from '../../lib/supabase'
+import { sendWhatsAppPollCreated } from '../../lib/whatsapp'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
@@ -44,6 +45,13 @@ export default async function handler(req, res) {
       .single()
 
     if (error) throw error
+
+    try {
+      await sendWhatsAppPollCreated({ poll: data })
+    } catch (e) {
+      console.error('WhatsApp notification failed (non-fatal):', e.message)
+    }
+
     return res.status(201).json(data)
   } catch (e) {
     return res.status(500).json({ error: e.message })

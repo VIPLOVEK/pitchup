@@ -3,17 +3,26 @@ import Link from 'next/link'
 import { useRouter } from 'next/router'
 import { colors } from '../lib/tokens'
 
-export default function Layout({ children, title = 'Aldie FC' }) {
+export default function Layout({ children, title = 'Aldie FC', description = 'Aldie FC pickup soccer organizer' }) {
   const router = useRouter()
   const isAdmin = router.pathname.startsWith('/admin')
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || ''
+  const ogImage = appUrl ? `${appUrl}/logo.png` : '/logo.png'
 
   return (
     <>
       <Head>
         <title>{title}</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="description" content="Aldie FC pickup soccer organizer" />
+        <meta name="description" content={description} />
         <link rel="icon" href="/logo.png" />
+
+        {/* Open Graph / WhatsApp link preview */}
+        <meta property="og:title" content={title} />
+        <meta property="og:description" content={description} />
+        <meta property="og:image" content={ogImage} />
+        <meta property="og:type" content="website" />
+        <meta name="twitter:card" content="summary" />
       </Head>
 
       <header style={{

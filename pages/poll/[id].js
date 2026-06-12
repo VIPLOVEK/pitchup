@@ -155,7 +155,7 @@ export default function PollPage({ poll: initialPoll, error }) {
 
   if (poll.status === 'confirmed') {
     return (
-      <Layout title={poll.title}>
+      <Layout title={poll.title} description={`Game is on at ${poll.location} — ${formatSlot(poll.game_time)}.`}>
         <GameConfirmed poll={poll} />
       </Layout>
     )
@@ -163,7 +163,7 @@ export default function PollPage({ poll: initialPoll, error }) {
 
   if (poll.status === 'cancelled') {
     return (
-      <Layout title={poll.title}>
+      <Layout title={poll.title} description={`Cancelled — not enough players joined (${poll.players.length}/${poll.min_players} minimum).`}>
         <GameCancelled poll={poll} />
       </Layout>
     )
@@ -237,7 +237,7 @@ export default function PollPage({ poll: initialPoll, error }) {
   const waitlist = getWaitlist(poll)
 
   return (
-    <Layout title={poll.title}>
+    <Layout title={poll.title} description={`${poll.location} · ${active.length}/${poll.min_players}+ players — tap to vote on a time`}>
       <Card>
         <Label>Open poll</Label>
         <h1 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 4px', letterSpacing: '-0.5px' }}>{poll.title}</h1>
