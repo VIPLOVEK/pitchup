@@ -324,10 +324,12 @@ function RosterTab({ password }) {
     )
   }
 
+  const sorted = [...players].sort((a, b) => b.gamesPlayed - a.gamesPlayed)
+
   return (
     <Card>
       <Label>{players.length} player{players.length === 1 ? '' : 's'}</Label>
-      {players.map(p => (
+      {sorted.map(p => (
         <div
           key={p.id}
           style={{
@@ -338,6 +340,9 @@ function RosterTab({ password }) {
           <div>
             <div style={{ fontWeight: 700, fontSize: 14 }}>{p.name}</div>
             {p.phone && <div style={{ color: colors.muted, fontSize: 12, marginTop: 2 }}>📱 {p.phone}</div>}
+            <div style={{ color: colors.muted, fontSize: 12, marginTop: 2 }}>
+              ⚽ {p.gamesPlayed} game{p.gamesPlayed === 1 ? '' : 's'} played
+            </div>
           </div>
           <Pill color={colors.grassLight}>{p.position}</Pill>
         </div>
