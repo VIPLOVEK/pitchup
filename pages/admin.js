@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import Link from 'next/link'
 import Layout from '../components/Layout'
 import { Card, Label, ProgressBar, Btn, Input, Pill, PlayerChip, Toast, CopyBtn } from '../components/UI'
 import { colors, radius } from '../lib/tokens'
@@ -169,7 +170,11 @@ function PollCard({ poll, password, onAction, appUrl }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
         <div>
           <Label>{statusLabel}</Label>
-          <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 2 }}>{poll.title}</div>
+          <Link href={`/poll/${poll.id}`} target="_blank" style={{ textDecoration: 'none' }}>
+            <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 2, color: colors.white }}>
+              {poll.title} {(isConfirmed || isCancelled) && <span style={{ color: colors.accent, fontSize: 12, fontWeight: 600 }}>↗ View</span>}
+            </div>
+          </Link>
           <div style={{ color: colors.muted, fontSize: 12 }}>{poll.location}</div>
         </div>
         <Pill color={statusColor}>
