@@ -136,6 +136,8 @@ export default function PollPage({ poll: initialPoll, error }) {
   const [poll, setPoll] = useState(initialPoll)
   const [name, setName] = useState('')
   const [profile, setProfile] = useState(null)
+  const [pin, setPin] = useState('')
+  const [players, setPlayers] = useState([])
   const [selectedSlots, setSelectedSlots] = useState([])
   const [submitted, setSubmitted] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -143,11 +145,18 @@ export default function PollPage({ poll: initialPoll, error }) {
 
   useEffect(() => {
     const saved = localStorage.getItem('pitchup_player')
-    if (!saved) return
-    const p = JSON.parse(saved)
-    setProfile(p)
-    setName(p.name)
+    if (saved) {
+      const p = JSON.parse(saved)
+      setProfile(p)
+      setName(p.name)
+    }
+    fetch('/api/players')
+      .then(res => res.ok ? res.json() : [])
+      .then(setPlayers)
+      .catch(() => {})
   }, [])
+
+  const matchedPlayer = !profile && players.find(p => p.name.toLowerCase() === name.trim().toLowerCase())
 
   if (error) {
     return (
@@ -183,16 +192,37 @@ export default function PollPage({ poll: initialPoll, error }) {
 
   const handleVote = async () => {
     if (!name.trim() || selectedSlots.length === 0) return
+    if (matchedPlayer && !/^\d{4,6}$/.test(pin)) {
+      setToast(`"${matchedPlayer.name}" already has a profile — enter their PIN to confirm it's you`)
+      return
+    }
     setLoading(true)
     try {
+      let playerId = profile?.id || null
+      let position = profile?.position || null
+
+      if (matchedPlayer && !profile) {
+        const loginRes = await fetch('/api/players/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: name.trim(), pin }),
+        })
+        const loginData = await loginRes.json()
+        if (!loginRes.ok) throw new Error(loginData.error || 'Incorrect PIN')
+        playerId = loginData.id
+        position = loginData.position
+        setProfile(loginData)
+        localStorage.setItem('pitchup_player', JSON.stringify(loginData))
+      }
+
       const res = await fetch(`/api/poll/${poll.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: name.trim(),
           slots: selectedSlots,
-          playerId: profile?.id || null,
-          position: profile?.position || null,
+          playerId,
+          position,
         }),
       })
       const data = await res.json()
@@ -289,10 +319,32 @@ export default function PollPage({ poll: initialPoll, error }) {
           </p>
         ) : (
           <>
-            <Input value={name} onChange={e => setName(e.target.value)} placeholder="Your name" />
-            <p style={{ color: colors.muted, fontSize: 12, margin: '0 0 10px' }}>
-              <Link href="/profile" style={{ color: colors.accent, textDecoration: 'underline' }}>Create a profile</Link> to save your name and position for next time.
-            </p>
+            <Input
+              value={name}
+              onChange={e => { setName(e.target.value); setPin('') }}
+              placeholder="Your name"
+              list="player-names"
+            />
+            <datalist id="player-names">
+              {players.map(p => <option key={p.id} value={p.name} />)}
+            </datalist>
+            {matchedPlayer ? (
+              <>
+                <Input
+                  value={pin}
+                  onChange={e => setPin(e.target.value.replace(/\D/g, ''))}
+                  placeholder={`PIN for ${matchedPlayer.name}`}
+                  type="password"
+                />
+                <p style={{ color: colors.muted, fontSize: 12, margin: '0 0 10px' }}>
+                  "{matchedPlayer.name}" has a profile — enter their PIN to vote as them.
+                </p>
+              </>
+            ) : (
+              <p style={{ color: colors.muted, fontSize: 12, margin: '0 0 10px' }}>
+                <Link href="/profile" style={{ color: colors.accent, textDecoration: 'underline' }}>Create a profile</Link> to save your name and position for next time.
+              </p>
+            )}
           </>
         )}
         <p style={{ color: colors.muted, fontSize: 13, marginBottom: 10 }}>Pick times that work for you:</p>
@@ -321,7 +373,7 @@ export default function PollPage({ poll: initialPoll, error }) {
           <Btn
             full
             onClick={handleVote}
-            disabled={!name.trim() || selectedSlots.length === 0 || loading}
+            disabled={!name.trim() || selectedSlots.length === 0 || loading || (matchedPlayer && !/^\d{4,6}$/.test(pin))}
           >
             {loading ? 'Joining...' : "I'm in ⚽"}
           </Btn>

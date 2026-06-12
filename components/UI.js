@@ -101,13 +101,14 @@ export function Btn({ children, onClick, variant = 'primary', small, disabled, f
 }
 
 // ── Input ─────────────────────────────────────────────────────────────────────
-export function Input({ value, onChange, placeholder, type = 'text', style = {} }) {
+export function Input({ value, onChange, placeholder, type = 'text', style = {}, ...rest }) {
   return (
     <input
       type={type}
       value={value}
       onChange={onChange}
       placeholder={placeholder}
+      {...rest}
       style={{
         width: '100%',
         background: colors.pitchMid,
