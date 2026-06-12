@@ -3,7 +3,7 @@ import { useRouter } from 'next/router'
 import Link from 'next/link'
 import Layout from '../../components/Layout'
 import { Card, Label, ProgressBar, Btn, Input, Pill, PlayerChip, Toast } from '../../components/UI'
-import { colors } from '../../lib/tokens'
+import { colors, radius } from '../../lib/tokens'
 import { formatSlot, getActivePlayers, getWaitlist } from '../../lib/teams'
 import { findLocation } from '../../lib/locations'
 
@@ -159,6 +159,7 @@ export default function PollPage({ poll: initialPoll, error }) {
   const [loading, setLoading] = useState(false)
   const [toast, setToast] = useState('')
   const [hasAccess, setHasAccess] = useState(null)
+  const [pollGroups, setPollGroups] = useState([])
 
   useEffect(() => {
     const saved = localStorage.getItem('pitchup_player')
@@ -175,10 +176,12 @@ export default function PollPage({ poll: initialPoll, error }) {
 
   useEffect(() => {
     if (!initialPoll || initialPoll.visibility !== 'groups') return
-    if (!profile) { setHasAccess(false); return }
-    fetch(`/api/groups?playerId=${profile.id}`)
+    const url = profile ? `/api/groups?playerId=${profile.id}` : '/api/groups'
+    fetch(url)
       .then(res => res.ok ? res.json() : [])
       .then(groups => {
+        setPollGroups(groups.filter(g => initialPoll.group_ids.includes(g.id)))
+        if (!profile) { setHasAccess(false); return }
         const allowed = groups.some(g => g.status === 'approved' && initialPoll.group_ids.includes(g.id))
         setHasAccess(allowed)
       })
@@ -312,8 +315,18 @@ export default function PollPage({ poll: initialPoll, error }) {
 
   return (
     <Layout title={poll.title} description={`${poll.location} · ${active.length}/${poll.min_players}+ players — tap to vote on a time`}>
-      <Card>
+      <Card style={pollGroups.length > 0 ? { borderLeft: `4px solid ${pollGroups[0].color || colors.grassLight}` } : {}}>
         <Label>Open poll</Label>
+        {pollGroups.length > 0 && (
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
+            {pollGroups.map(g => (
+              <Pill key={g.id} color={g.color || colors.muted}>
+                {g.logo_url ? <img src={g.logo_url} alt="" style={{ width: 12, height: 12, borderRadius: radius.full, verticalAlign: 'middle', marginRight: 4, objectFit: 'cover' }} /> : '🔒 '}
+                {g.name}
+              </Pill>
+            ))}
+          </div>
+        )}
         <h1 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 4px', letterSpacing: '-0.5px' }}>{poll.title}</h1>
         <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 4px' }}>{poll.location} · Need {poll.min_players}+ players</p>
         <div style={{ margin: '0 0 12px' }}>

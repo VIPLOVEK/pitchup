@@ -47,13 +47,24 @@ alter table players enable row level security;
 create table if not exists groups (
   id          text primary key default encode(gen_random_bytes(6), 'hex'),
   created_at  timestamptz default now(),
-  name        text not null unique
+  name        text not null unique,
+  color       text not null default '#a52a4a',  -- hex accent color for theming polls/badges
+  logo_url    text                              -- optional group crest/logo (stored in 'group-logos' bucket)
 );
 
 alter table groups enable row level security;
 
 create policy "Anyone can read groups"
   on groups for select using (true);
+
+-- Group color/logo for groups created before this migration
+alter table groups add column if not exists color text not null default '#a52a4a';
+alter table groups add column if not exists logo_url text;
+
+-- Storage bucket for group logos (public read, service-role write)
+insert into storage.buckets (id, name, public)
+values ('group-logos', 'group-logos', true)
+on conflict (id) do nothing;
 
 -- group_members table — membership + join requests
 create table if not exists group_members (

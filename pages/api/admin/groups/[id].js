@@ -14,7 +14,24 @@ export default async function handler(req, res) {
   const db = supabaseAdmin()
 
   if (req.method === 'PATCH') {
-    const { action, playerId } = req.body
+    const { action, playerId, color } = req.body
+
+    if (action === 'updateSettings') {
+      if (!color) return res.status(400).json({ error: 'color is required' })
+      try {
+        const { data, error } = await db
+          .from('groups')
+          .update({ color })
+          .eq('id', id)
+          .select('id, name, color, logo_url, created_at')
+          .single()
+        if (error) throw error
+        return res.status(200).json(data)
+      } catch (e) {
+        return res.status(500).json({ error: e.message })
+      }
+    }
+
     if (!playerId) return res.status(400).json({ error: 'playerId is required' })
 
     try {

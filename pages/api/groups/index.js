@@ -9,7 +9,7 @@ export default async function handler(req, res) {
 
   try {
     const db = supabaseAdmin()
-    const { data: groups, error } = await db.from('groups').select('id, name').order('name')
+    const { data: groups, error } = await db.from('groups').select('id, name, color, logo_url').order('name')
     if (error) throw error
 
     if (!playerId) return res.status(200).json(groups.map(g => ({ ...g, status: null })))

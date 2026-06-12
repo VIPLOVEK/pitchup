@@ -14,7 +14,7 @@ export default async function handler(req, res) {
 
   if (req.method === 'GET') {
     try {
-      const { data: groups, error } = await db.from('groups').select('id, name, created_at').order('name')
+      const { data: groups, error } = await db.from('groups').select('id, name, color, logo_url, created_at').order('name')
       if (error) throw error
 
       const { data: members, error: memErr } = await db
@@ -35,14 +35,14 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'POST') {
-    const { name } = req.body
+    const { name, color } = req.body
     if (!name || !name.trim()) return res.status(400).json({ error: 'Group name is required' })
 
     try {
       const { data, error } = await db
         .from('groups')
-        .insert({ name: name.trim() })
-        .select('id, name, created_at')
+        .insert({ name: name.trim(), ...(color ? { color } : {}) })
+        .select('id, name, color, logo_url, created_at')
         .single()
       if (error) throw error
       return res.status(201).json({ ...data, members: [] })

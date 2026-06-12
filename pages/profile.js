@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import Layout from '../components/Layout'
 import { Card, Label, Btn, Input, Select, Toast } from '../components/UI'
-import { colors } from '../lib/tokens'
+import { colors, radius } from '../lib/tokens'
 import { POSITIONS } from '../lib/positions'
 
 const STORAGE_KEY = 'pitchup_player'
@@ -48,7 +48,14 @@ function GroupsSection({ player, showToast }) {
             padding: '8px 0', borderBottom: `1px solid ${colors.grass}22`,
           }}
         >
-          <div style={{ fontWeight: 600, fontSize: 14 }}>{g.name}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {g.logo_url ? (
+              <img src={g.logo_url} alt="" style={{ width: 20, height: 20, borderRadius: radius.full, objectFit: 'cover' }} />
+            ) : (
+              <span style={{ width: 10, height: 10, borderRadius: radius.full, background: g.color || colors.grassLight, flexShrink: 0 }} />
+            )}
+            <div style={{ fontWeight: 600, fontSize: 14 }}>{g.name}</div>
+          </div>
           {g.status === 'approved' && <span style={{ color: colors.grassLight, fontSize: 12, fontWeight: 700 }}>✓ Member</span>}
           {g.status === 'pending' && <span style={{ color: colors.muted, fontSize: 12, fontWeight: 700 }}>⏳ Pending</span>}
           {!g.status && (

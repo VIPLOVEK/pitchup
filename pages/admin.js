@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Layout from '../components/Layout'
 import { Card, Label, ProgressBar, Btn, Input, Pill, PlayerChip, Toast, CopyBtn } from '../components/UI'
-import { colors, radius } from '../lib/tokens'
+import { colors, radius, groupColorPalette } from '../lib/tokens'
 import { getActivePlayers, getWaitlist } from '../lib/teams'
 import { LOCATIONS } from '../lib/locations'
 
@@ -146,6 +146,7 @@ function CreatePollForm({ onCreated, groups }) {
           {groups.map(g => (
             <label key={g.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: colors.white, padding: '4px 0', cursor: 'pointer' }}>
               <input type="checkbox" checked={selectedGroupIds.includes(g.id)} onChange={() => toggleGroup(g.id)} />
+              <span style={{ width: 10, height: 10, borderRadius: radius.full, background: g.color || colors.grassLight, flexShrink: 0 }} />
               {g.name}
             </label>
           ))}
@@ -198,9 +199,10 @@ function PollCard({ poll, password, onAction, appUrl, groups }) {
 
   const statusLabel = isConfirmed ? 'Confirmed ✅' : isCancelled ? 'Cancelled ❌' : 'Open 🟢'
   const statusColor = isConfirmed ? colors.cardGreen : isCancelled ? colors.cardRed : colors.cardYellow
+  const pollGroups = poll.visibility === 'groups' ? poll.group_ids.map(id => groups.find(g => g.id === id)).filter(Boolean) : []
 
   return (
-    <Card highlight={isConfirmed}>
+    <Card highlight={isConfirmed} style={pollGroups.length > 0 ? { borderLeft: `4px solid ${pollGroups[0].color || colors.grassLight}` } : {}}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
         <div>
           <Label>{statusLabel}</Label>
@@ -215,9 +217,9 @@ function PollCard({ poll, password, onAction, appUrl, groups }) {
           <Pill color={statusColor}>
             {poll.players.length}/{poll.max_players}
           </Pill>
-          {poll.visibility === 'groups' && (
-            <Pill color={colors.muted}>
-              🔒 {poll.group_ids.map(id => groups.find(g => g.id === id)?.name || '?').join(', ')}
+          {pollGroups.length > 0 && (
+            <Pill color={pollGroups[0].color || colors.muted}>
+              🔒 {pollGroups.map(g => g.name).join(', ')}
             </Pill>
           )}
         </div>
@@ -326,6 +328,7 @@ function PollCard({ poll, password, onAction, appUrl, groups }) {
                     checked={audienceGroupIds.includes(g.id)}
                     onChange={() => setAudienceGroupIds(ids => ids.includes(g.id) ? ids.filter(x => x !== g.id) : [...ids, g.id])}
                   />
+                  <span style={{ width: 10, height: 10, borderRadius: radius.full, background: g.color || colors.grassLight, flexShrink: 0 }} />
                   {g.name}
                 </label>
               ))}
@@ -476,15 +479,67 @@ function GroupsTab({ password, showToast, onGroupsChanged }) {
   const createGroup = async () => {
     if (!newGroupName.trim()) return
     try {
+      const color = groupColorPalette[groups.length % groupColorPalette.length]
       const res = await fetch('/api/admin/groups', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', authorization: `Bearer ${password}` },
-        body: JSON.stringify({ name: newGroupName.trim() }),
+        body: JSON.stringify({ name: newGroupName.trim(), color }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
       setGroups(gs => [...gs, data])
       setNewGroupName('')
+      onGroupsChanged?.()
+    } catch (e) {
+      showToast(e.message)
+    }
+  }
+
+  const updateColor = async (groupId, color) => {
+    setGroups(gs => gs.map(g => g.id === groupId ? { ...g, color } : g))
+    try {
+      const res = await fetch(`/api/admin/groups/${groupId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', authorization: `Bearer ${password}` },
+        body: JSON.stringify({ action: 'updateSettings', color }),
+      })
+      if (!res.ok) throw new Error('Failed to update color')
+      onGroupsChanged?.()
+    } catch (e) {
+      showToast(e.message)
+    }
+  }
+
+  const uploadLogo = async (groupId, file) => {
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = async () => {
+      try {
+        const res = await fetch(`/api/admin/groups/${groupId}/logo`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', authorization: `Bearer ${password}` },
+          body: JSON.stringify({ image: reader.result }),
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error)
+        setGroups(gs => gs.map(g => g.id === groupId ? { ...g, logo_url: data.logo_url } : g))
+        onGroupsChanged?.()
+      } catch (e) {
+        showToast(e.message)
+      }
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const removeLogo = async (groupId) => {
+    try {
+      const res = await fetch(`/api/admin/groups/${groupId}/logo`, {
+        method: 'DELETE',
+        headers: { authorization: `Bearer ${password}` },
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setGroups(gs => gs.map(g => g.id === groupId ? { ...g, logo_url: null } : g))
       onGroupsChanged?.()
     } catch (e) {
       showToast(e.message)
@@ -547,10 +602,55 @@ function GroupsTab({ password, showToast, onGroupsChanged }) {
         const addablePlayers = players.filter(p => !memberIds.has(p.id))
 
         return (
-          <Card key={g.id}>
+          <Card key={g.id} style={{ borderLeft: `4px solid ${g.color || colors.grassLight}` }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-              <Label>{g.name}</Label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                {g.logo_url ? (
+                  <img src={g.logo_url} alt="" style={{ width: 32, height: 32, borderRadius: radius.full, objectFit: 'cover', border: `1px solid ${g.color || colors.grassLight}66` }} />
+                ) : (
+                  <div style={{ width: 32, height: 32, borderRadius: radius.full, background: g.color || colors.grassLight, flexShrink: 0 }} />
+                )}
+                <Label>{g.name}</Label>
+              </div>
               <Btn small variant="danger" onClick={() => deleteGroup(g.id)}>Delete</Btn>
+            </div>
+
+            {/* Theme settings */}
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.muted, marginBottom: 6 }}>
+                Theme color
+              </div>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+                {groupColorPalette.map(c => (
+                  <button
+                    key={c}
+                    onClick={() => updateColor(g.id, c)}
+                    style={{
+                      width: 24,
+                      height: 24,
+                      borderRadius: radius.full,
+                      background: c,
+                      border: (g.color || colors.grassLight).toLowerCase() === c.toLowerCase() ? `2px solid ${colors.white}` : '2px solid transparent',
+                      cursor: 'pointer',
+                    }}
+                  />
+                ))}
+              </div>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.muted, marginBottom: 6 }}>
+                Logo
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <label>
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    onChange={e => uploadLogo(g.id, e.target.files?.[0])}
+                    style={{ display: 'none' }}
+                  />
+                  <span style={{ cursor: 'pointer' }}><Btn small variant="ghost">Upload logo</Btn></span>
+                </label>
+                {g.logo_url && <Btn small variant="danger" onClick={() => removeLogo(g.id)}>Remove logo</Btn>}
+              </div>
             </div>
 
             {pending.length > 0 && (

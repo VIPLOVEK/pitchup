@@ -1,10 +1,32 @@
 import Link from 'next/link'
 import Layout from '../components/Layout'
 import { Card, Label, ProgressBar, Pill } from '../components/UI'
-import { colors } from '../lib/tokens'
+import { colors, radius } from '../lib/tokens'
 import { getActivePlayers } from '../lib/teams'
 
-export default function Home({ polls }) {
+function GroupBadges({ poll, groups }) {
+  if (poll.visibility !== 'groups') return null
+  const pollGroups = poll.group_ids.map(id => groups.find(g => g.id === id)).filter(Boolean)
+  if (pollGroups.length === 0) return null
+  return (
+    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
+      {pollGroups.map(g => (
+        <Pill key={g.id} color={g.color || colors.muted}>
+          {g.logo_url ? <img src={g.logo_url} alt="" style={{ width: 12, height: 12, borderRadius: radius.full, verticalAlign: 'middle', marginRight: 4, objectFit: 'cover' }} /> : '🔒 '}
+          {g.name}
+        </Pill>
+      ))}
+    </div>
+  )
+}
+
+function groupAccent(poll, groups) {
+  if (poll.visibility !== 'groups') return {}
+  const first = groups.find(g => poll.group_ids.includes(g.id))
+  return first ? { borderLeft: `4px solid ${first.color || colors.grassLight}` } : {}
+}
+
+export default function Home({ polls, groups }) {
   const activePoll = polls.find(p => p.status === 'open')
   const decidedPolls = polls.filter(p => p.status !== 'open')
 
@@ -27,8 +49,9 @@ export default function Home({ polls }) {
       {/* Active poll */}
       {activePoll ? (
         <Link href={`/poll/${activePoll.id}`} style={{ textDecoration: 'none' }}>
-          <Card highlight style={{ cursor: 'pointer' }} className="card-link">
+          <Card highlight style={{ cursor: 'pointer', ...groupAccent(activePoll, groups) }} className="card-link">
             <Label>Active poll — tap to vote</Label>
+            <GroupBadges poll={activePoll} groups={groups} />
             <h2 style={{ fontSize: 20, fontWeight: 800, margin: '0 0 4px', letterSpacing: '-0.3px' }}>
               {activePoll.title}
             </h2>
@@ -60,7 +83,8 @@ export default function Home({ polls }) {
           </div>
           {decidedPolls.slice(0, 3).map(poll => (
             <Link key={poll.id} href={`/poll/${poll.id}`} style={{ textDecoration: 'none' }}>
-              <Card style={{ cursor: 'pointer' }} className="card-link">
+              <Card style={{ cursor: 'pointer', ...groupAccent(poll, groups) }} className="card-link">
+                <GroupBadges poll={poll} groups={groups} />
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
                     <div style={{ fontWeight: 700, fontSize: 15 }}>{poll.title}</div>
@@ -107,10 +131,14 @@ export async function getServerSideProps() {
     const res = await fetch(`${baseUrl}/api/admin/polls`, {
       headers: { authorization: `Bearer ${process.env.ADMIN_PASSWORD}` },
     })
-    if (!res.ok) return { props: { polls: [] } }
+    if (!res.ok) return { props: { polls: [], groups: [] } }
     const polls = await res.json()
-    return { props: { polls } }
+
+    const groupsRes = await fetch(`${baseUrl}/api/groups`)
+    const groups = groupsRes.ok ? await groupsRes.json() : []
+
+    return { props: { polls, groups } }
   } catch {
-    return { props: { polls: [] } }
+    return { props: { polls: [], groups: [] } }
   }
 }
