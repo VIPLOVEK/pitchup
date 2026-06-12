@@ -297,7 +297,7 @@ export default function PollPage({ poll: initialPoll, error }) {
             </div>
             {waitlist.length > 0 && (
               <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', marginTop: 8 }}>
-                {waitlist.map((p, i) => <PlayerChip key={i} name={p.name} color={colors.muted} />)}
+                {waitlist.map((p, i) => <PlayerChip key={i} name={p.name} color={colors.cardYellow} />)}
               </div>
             )}
           </div>
@@ -333,7 +333,7 @@ export default function PollPage({ poll: initialPoll, error }) {
               Waiting list
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap' }}>
-              {waitlist.map((p, i) => <PlayerChip key={i} name={p.name} color={colors.muted} />)}
+              {waitlist.map((p, i) => <PlayerChip key={i} name={p.name} color={colors.cardYellow} />)}
             </div>
           </>
         )}

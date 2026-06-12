@@ -197,7 +197,7 @@ function PollCard({ poll, password, onAction, appUrl, groups }) {
   }
 
   const statusLabel = isConfirmed ? 'Confirmed ✅' : isCancelled ? 'Cancelled ❌' : 'Open 🟢'
-  const statusColor = isConfirmed ? colors.accent : isCancelled ? colors.danger : colors.grassLight
+  const statusColor = isConfirmed ? colors.cardGreen : isCancelled ? colors.cardRed : colors.cardYellow
 
   return (
     <Card highlight={isConfirmed}>
@@ -260,7 +260,7 @@ function PollCard({ poll, password, onAction, appUrl, groups }) {
               <PlayerChip
                 key={i}
                 name={p.name}
-                color={colors.muted}
+                color={colors.cardYellow}
                 onRemove={isOpen ? () => doAction('removePlayer', 'PATCH', { name: p.name }) : undefined}
               />
             ))}
@@ -451,7 +451,7 @@ function RosterTab({ password }) {
   )
 }
 
-function GroupsTab({ password, showToast }) {
+function GroupsTab({ password, showToast, onGroupsChanged }) {
   const [groups, setGroups] = useState(null)
   const [players, setPlayers] = useState([])
   const [error, setError] = useState('')
@@ -485,6 +485,7 @@ function GroupsTab({ password, showToast }) {
       if (!res.ok) throw new Error(data.error)
       setGroups(gs => [...gs, data])
       setNewGroupName('')
+      onGroupsChanged?.()
     } catch (e) {
       showToast(e.message)
     }
@@ -498,6 +499,7 @@ function GroupsTab({ password, showToast }) {
       })
       if (!res.ok) throw new Error('Failed to delete group')
       setGroups(gs => gs.filter(g => g.id !== id))
+      onGroupsChanged?.()
     } catch (e) {
       showToast(e.message)
     }
@@ -621,8 +623,12 @@ export default function AdminPage() {
 
   const showToast = msg => { setToast(msg); setTimeout(() => setToast(''), 3000) }
 
-  useEffect(() => {
+  const loadGroups = () => {
     fetch('/api/groups').then(res => res.ok ? res.json() : []).then(setGroups).catch(() => {})
+  }
+
+  useEffect(() => {
+    loadGroups()
   }, [])
 
   const login = async () => {
@@ -726,7 +732,7 @@ export default function AdminPage() {
 
       {tab === 'roster' && <RosterTab password={password} />}
 
-      {tab === 'groups' && <GroupsTab password={password} showToast={showToast} />}
+      {tab === 'groups' && <GroupsTab password={password} showToast={showToast} onGroupsChanged={loadGroups} />}
 
       {tab === 'manage' && (
         <div>

@@ -3,8 +3,16 @@
 html { font-size: 15px; }
 
 body {
-  background: radial-gradient(circle at 50% -10%, #1b3157 0%, #0a1628 55%, #060d18 100%);
+  background:
+    /* center-circle marking */
+    radial-gradient(circle at 50% 230px, transparent 96px, rgba(245, 240, 225, 0.05) 97px, rgba(245, 240, 225, 0.05) 99px, transparent 100px),
+    /* halfway line */
+    linear-gradient(to bottom, transparent 229px, rgba(245, 240, 225, 0.05) 229px, rgba(245, 240, 225, 0.05) 231px, transparent 231px),
+    /* mowed-grass stripes */
+    repeating-linear-gradient(115deg, rgba(245, 240, 225, 0.015) 0px, rgba(245, 240, 225, 0.015) 60px, transparent 60px, transparent 120px),
+    radial-gradient(circle at 50% -10%, #1b3157 0%, #0a1628 55%, #060d18 100%);
   background-attachment: fixed;
+  background-repeat: no-repeat, no-repeat, repeat, no-repeat;
   color: #f5f0e1;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;

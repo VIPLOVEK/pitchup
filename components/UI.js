@@ -41,6 +41,8 @@ export function Pill({ color, children }) {
 export function Card({ children, highlight, style = {}, className }) {
   return (
     <div className={className} style={{
+      position: 'relative',
+      overflow: 'hidden',
       background: `linear-gradient(155deg, ${colors.pitchCard} 0%, ${colors.pitchMid} 100%)`,
       border: `1px solid ${highlight ? colors.accent + '55' : colors.grass + '22'}`,
       borderRadius: radius.lg,
@@ -51,6 +53,18 @@ export function Card({ children, highlight, style = {}, className }) {
         : '0 2px 10px rgba(0,0,0,0.25)',
       ...style,
     }}>
+      {highlight && (
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          right: 0,
+          width: 0,
+          height: 0,
+          borderStyle: 'solid',
+          borderWidth: '0 36px 36px 0',
+          borderColor: `transparent ${colors.accent}26 transparent transparent`,
+        }} />
+      )}
       {children}
     </div>
   )
