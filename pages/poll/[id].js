@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
+import Link from 'next/link'
 import Layout from '../../components/Layout'
 import { Card, Label, ProgressBar, Btn, Input, Pill, PlayerChip, Toast } from '../../components/UI'
 import { colors } from '../../lib/tokens'
@@ -134,10 +135,19 @@ export default function PollPage({ poll: initialPoll, error }) {
   const router = useRouter()
   const [poll, setPoll] = useState(initialPoll)
   const [name, setName] = useState('')
+  const [profile, setProfile] = useState(null)
   const [selectedSlots, setSelectedSlots] = useState([])
   const [submitted, setSubmitted] = useState(false)
   const [loading, setLoading] = useState(false)
   const [toast, setToast] = useState('')
+
+  useEffect(() => {
+    const saved = localStorage.getItem('pitchup_player')
+    if (!saved) return
+    const p = JSON.parse(saved)
+    setProfile(p)
+    setName(p.name)
+  }, [])
 
   if (error) {
     return (
@@ -178,7 +188,12 @@ export default function PollPage({ poll: initialPoll, error }) {
       const res = await fetch(`/api/poll/${poll.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name.trim(), slots: selectedSlots }),
+        body: JSON.stringify({
+          name: name.trim(),
+          slots: selectedSlots,
+          playerId: profile?.id || null,
+          position: profile?.position || null,
+        }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
@@ -219,7 +234,7 @@ export default function PollPage({ poll: initialPoll, error }) {
               {waitlist.length > 0 ? ` · ${waitlist.length} waiting` : ''}
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center' }}>
-              {active.map((p, i) => <PlayerChip key={i} name={p.name} />)}
+              {active.map((p, i) => <PlayerChip key={i} name={p.name} meta={p.position !== 'Any' ? p.position : undefined} />)}
             </div>
             {waitlist.length > 0 && (
               <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', marginTop: 8 }}>
@@ -251,7 +266,7 @@ export default function PollPage({ poll: initialPoll, error }) {
           {waitlist.length > 0 ? ` · ${waitlist.length} waiting` : ''}
         </p>
         <div style={{ display: 'flex', flexWrap: 'wrap' }}>
-          {active.map((p, i) => <PlayerChip key={i} name={p.name} />)}
+          {active.map((p, i) => <PlayerChip key={i} name={p.name} meta={p.position !== 'Any' ? p.position : undefined} />)}
         </div>
         {waitlist.length > 0 && (
           <>
@@ -267,7 +282,19 @@ export default function PollPage({ poll: initialPoll, error }) {
 
       <Card>
         <Label>Join the game</Label>
-        <Input value={name} onChange={e => setName(e.target.value)} placeholder="Your name" />
+        {profile ? (
+          <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 10px' }}>
+            Voting as <strong style={{ color: colors.white }}>{profile.name}</strong> ({profile.position}) ·{' '}
+            <Link href="/profile" style={{ color: colors.accent, textDecoration: 'underline' }}>Not you?</Link>
+          </p>
+        ) : (
+          <>
+            <Input value={name} onChange={e => setName(e.target.value)} placeholder="Your name" />
+            <p style={{ color: colors.muted, fontSize: 12, margin: '0 0 10px' }}>
+              <Link href="/profile" style={{ color: colors.accent, textDecoration: 'underline' }}>Create a profile</Link> to save your name and position for next time.
+            </p>
+          </>
+        )}
         <p style={{ color: colors.muted, fontSize: 13, marginBottom: 10 }}>Pick times that work for you:</p>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
           {poll.slots.map((slot, i) => (

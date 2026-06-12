@@ -124,6 +124,30 @@ export function Input({ value, onChange, placeholder, type = 'text', style = {} 
   )
 }
 
+// ── Select ────────────────────────────────────────────────────────────────────
+export function Select({ value, onChange, children, style = {} }) {
+  return (
+    <select
+      value={value}
+      onChange={onChange}
+      style={{
+        width: '100%',
+        background: colors.pitchMid,
+        border: `1px solid ${colors.grass}44`,
+        borderRadius: radius.md,
+        color: colors.white,
+        padding: '10px 12px',
+        fontSize: 14,
+        outline: 'none',
+        marginBottom: 10,
+        ...style,
+      }}
+    >
+      {children}
+    </select>
+  )
+}
+
 // ── Toast ─────────────────────────────────────────────────────────────────────
 export function Toast({ msg }) {
   if (!msg) return null
@@ -150,7 +174,7 @@ export function Toast({ msg }) {
 }
 
 // ── Player chips ──────────────────────────────────────────────────────────────
-export function PlayerChip({ name, onRemove, color }) {
+export function PlayerChip({ name, onRemove, color, meta }) {
   const c = color || colors.grassLight
   return (
     <span style={{
@@ -167,6 +191,7 @@ export function PlayerChip({ name, onRemove, color }) {
       margin: 3,
     }}>
       <span style={{ fontSize: 10 }}>⚽</span> {name}
+      {meta && <span style={{ color: colors.muted, fontWeight: 500, fontSize: 11 }}>· {meta}</span>}
       {onRemove && (
         <button
           onClick={onRemove}

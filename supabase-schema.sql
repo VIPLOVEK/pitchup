@@ -26,6 +26,20 @@ create table if not exists polls (
 create index if not exists polls_created_at_idx on polls(created_at desc);
 create index if not exists polls_status_idx on polls(status);
 
+-- players table — lightweight profiles (name + PIN, no email/password flow)
+create table if not exists players (
+  id          text primary key default encode(gen_random_bytes(6), 'hex'),
+  created_at  timestamptz default now(),
+  name        text not null unique,
+  phone       text,
+  position    text not null default 'Any',  -- Goalkeeper | Defender | Midfielder | Forward | Any
+  pin_hash    text not null
+);
+
+-- Row Level Security — no anon access; all reads/writes go through API
+-- routes using the service role key, which bypasses RLS entirely.
+alter table players enable row level security;
+
 -- ============================================================
 --  Migration for existing databases (run if upgrading from the
 --  old `threshold`/`closed`/text[] slots schema)

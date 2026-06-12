@@ -42,21 +42,36 @@ export default function Layout({ children, title = 'Aldie FC', description = 'Al
           <img src="/logo.png" alt="Aldie FC" style={{ height: 32, width: 32, borderRadius: '50%', boxShadow: `0 0 0 2px ${colors.accent}33` }} />
           <span>Aldie <span style={{ color: colors.accent }}>FC</span></span>
         </Link>
-        <Link
-          href={isAdmin ? '/' : '/admin'}
-          style={{
-            background: isAdmin ? 'transparent' : colors.accent,
-            color: isAdmin ? colors.muted : colors.pitch,
-            border: isAdmin ? `1px solid ${colors.grass}44` : 'none',
-            borderRadius: 6,
-            padding: '6px 14px',
-            fontWeight: 600,
-            fontSize: 13,
-            boxShadow: isAdmin ? 'none' : `0 2px 10px ${colors.accent}33`,
-          }}
-        >
-          {isAdmin ? '← Vote' : 'Admin'}
-        </Link>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Link
+            href="/profile"
+            style={{
+              color: colors.muted,
+              border: `1px solid ${colors.grass}44`,
+              borderRadius: 6,
+              padding: '6px 14px',
+              fontWeight: 600,
+              fontSize: 13,
+            }}
+          >
+            👤 Profile
+          </Link>
+          <Link
+            href={isAdmin ? '/' : '/admin'}
+            style={{
+              background: isAdmin ? 'transparent' : colors.accent,
+              color: isAdmin ? colors.muted : colors.pitch,
+              border: isAdmin ? `1px solid ${colors.grass}44` : 'none',
+              borderRadius: 6,
+              padding: '6px 14px',
+              fontWeight: 600,
+              fontSize: 13,
+              boxShadow: isAdmin ? 'none' : `0 2px 10px ${colors.accent}33`,
+            }}
+          >
+            {isAdmin ? '← Vote' : 'Admin'}
+          </Link>
+        </div>
       </header>
 
       <main style={{ maxWidth: 480, margin: '0 auto', padding: '24px 16px 80px', animation: 'fadeInUp 0.3s ease' }}>
