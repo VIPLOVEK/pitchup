@@ -415,7 +415,7 @@ function RosterTab({ password, showToast }) {
   }, [password])
 
   const resetPin = async (player) => {
-    if (!window.confirm(`Reset ${player.name}'s PIN? They'll need a new PIN to log in.`)) return
+    if (!window.confirm(`Reset ${player.name}'s PIN? They'll be able to set a new PIN next time they log in with their name.`)) return
     try {
       const res = await fetch(`/api/admin/players/${player.id}`, {
         method: 'PATCH',
@@ -424,7 +424,7 @@ function RosterTab({ password, showToast }) {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
-      window.alert(`${player.name}'s new PIN is: ${data.pin}\n\nShare this with them — it won't be shown again.`)
+      showToast(`${player.name}'s PIN was reset — tell them to log in with their name and a new PIN.`)
     } catch (e) {
       showToast(e.message)
     }

@@ -39,6 +39,10 @@ create table if not exists players (
   pin_hash    text not null
 );
 
+-- Allow admins to reset a player's PIN (set to null) so the player can
+-- choose a new one on their next login, without the admin ever seeing it.
+alter table players alter column pin_hash drop not null;
+
 -- Row Level Security — no anon access; all reads/writes go through API
 -- routes using the service role key, which bypasses RLS entirely.
 alter table players enable row level security;
