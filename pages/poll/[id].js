@@ -221,7 +221,41 @@ export default function PollPage({ poll: initialPoll, error }) {
     )
   }
 
+  const myEntry = poll.players.find(p => profile
+    ? p.playerId === profile.id
+    : (name.trim() && p.name.toLowerCase() === name.trim().toLowerCase()))
+
   const toggleSlot = (i) => setSelectedSlots(s => s.includes(i) ? s.filter(x => x !== i) : [...s, i])
+
+  const handleRemoveVote = async () => {
+    if (!myEntry) return
+    if (!window.confirm('Remove your vote and leave this game?')) return
+
+    let pinInput = ''
+    if (myEntry.playerId) {
+      pinInput = window.prompt('Enter your PIN to confirm:')
+      if (!pinInput) return
+    }
+
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/poll/${poll.id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: myEntry.name, pin: pinInput || undefined }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setPoll(data)
+      setSubmitted(false)
+      setSelectedSlots([])
+      setToast("You've left the game")
+    } catch (e) {
+      setToast(e.message || 'Something went wrong')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleVote = async () => {
     if (!name.trim() || selectedSlots.length === 0) return
@@ -308,6 +342,11 @@ export default function PollPage({ poll: initialPoll, error }) {
                 {waitlist.map((p, i) => <PlayerChip key={i} name={p.name} color={colors.cardYellow} />)}
               </div>
             )}
+            {myEntry && (
+              <Btn small variant="ghost" onClick={handleRemoveVote} disabled={loading} style={{ marginTop: 16 }}>
+                Leave game
+              </Btn>
+            )}
           </div>
         </Card>
         <Toast msg={toast} />
@@ -370,8 +409,20 @@ export default function PollPage({ poll: initialPoll, error }) {
         </Card>
       )}
 
+      {myEntry && (
+        <Card>
+          <Label>You're in</Label>
+          <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 12px' }}>
+            You're already registered for this game as <strong style={{ color: colors.white }}>{myEntry.name}</strong>.
+          </p>
+          <Btn small variant="ghost" onClick={handleRemoveVote} disabled={loading}>
+            Leave game
+          </Btn>
+        </Card>
+      )}
+
       <Card>
-        <Label>Join the game</Label>
+        <Label>{myEntry ? 'Change your vote' : 'Join the game'}</Label>
         {profile ? (
           <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 10px' }}>
             Voting as <strong style={{ color: colors.white }}>{profile.name}</strong> ({profile.positions?.length ? profile.positions.join(', ') : 'Any'}) ·{' '}

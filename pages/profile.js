@@ -2,9 +2,97 @@ import { useState, useEffect } from 'react'
 import Layout from '../components/Layout'
 import { Card, Label, Btn, Input, Toast } from '../components/UI'
 import { colors, radius } from '../lib/tokens'
-import { POSITIONS } from '../lib/positions'
+import { POSITIONS, SKILL_LABELS, DEFAULT_SKILL_RATING, SKILL_RATING_STALE_DAYS } from '../lib/positions'
 
 const STORAGE_KEY = 'pitchup_player'
+
+// Converts a base64url VAPID public key into the Uint8Array format
+// required by PushManager.subscribe's applicationServerKey option.
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+  const rawData = atob(base64)
+  return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)))
+}
+
+function NotificationsSection({ player, showToast }) {
+  const [supported, setSupported] = useState(false)
+  const [subscribed, setSubscribed] = useState(false)
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) return
+    setSupported(true)
+
+    navigator.serviceWorker.register('/sw.js')
+      .then(reg => reg.pushManager.getSubscription())
+      .then(sub => setSubscribed(!!sub))
+      .catch(() => {})
+  }, [])
+
+  const enable = async () => {
+    setLoading(true)
+    try {
+      const permission = await Notification.requestPermission()
+      if (permission !== 'granted') {
+        showToast('Notifications permission denied')
+        return
+      }
+      const reg = await navigator.serviceWorker.ready
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY),
+      })
+      await fetch('/api/push/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscription: sub.toJSON(), playerId: player?.id || null }),
+      })
+      setSubscribed(true)
+      showToast('Notifications enabled!')
+    } catch (e) {
+      showToast('Could not enable notifications')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const disable = async () => {
+    setLoading(true)
+    try {
+      const reg = await navigator.serviceWorker.ready
+      const sub = await reg.pushManager.getSubscription()
+      if (sub) {
+        await fetch('/api/push/unsubscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ endpoint: sub.endpoint }),
+        })
+        await sub.unsubscribe()
+      }
+      setSubscribed(false)
+      showToast('Notifications disabled')
+    } catch (e) {
+      showToast('Could not disable notifications')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (!supported) return null
+
+  return (
+    <Card>
+      <Label>Notifications</Label>
+      <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 12px' }}>
+        Get a push notification when a game is confirmed, cancelled, or about to close for voting.
+      </p>
+      <Btn full variant={subscribed ? 'ghost' : 'primary'} onClick={subscribed ? disable : enable} disabled={loading}>
+        {loading ? 'Please wait...' : subscribed ? 'Disable notifications' : 'Enable notifications'}
+      </Btn>
+    </Card>
+  )
+}
 
 function PositionPicker({ positions, onToggle }) {
   return (
@@ -28,6 +116,35 @@ function PositionPicker({ positions, onToggle }) {
             }}
           >
             {pos}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+function SkillPicker({ rating, onChange }) {
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+      {Object.entries(SKILL_LABELS).map(([value, label]) => {
+        const selected = rating === Number(value)
+        return (
+          <button
+            key={value}
+            type="button"
+            onClick={() => onChange(Number(value))}
+            style={{
+              background: selected ? colors.accent + '22' : colors.pitchMid,
+              border: `1.5px solid ${selected ? colors.accent : colors.grass + '33'}`,
+              color: selected ? colors.accent : colors.muted,
+              borderRadius: 8,
+              padding: '6px 12px',
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            {value} · {label}
           </button>
         )
       })}
@@ -106,6 +223,7 @@ export default function ProfilePage() {
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [positions, setPositions] = useState([])
+  const [skillRating, setSkillRating] = useState(DEFAULT_SKILL_RATING)
   const [pin, setPin] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -129,7 +247,10 @@ export default function ProfilePage() {
   }, [])
 
   useEffect(() => {
-    if (player) setPositions(player.positions || [])
+    if (player) {
+      setPositions(player.positions || [])
+      setSkillRating(player.skill_rating || DEFAULT_SKILL_RATING)
+    }
   }, [player])
 
   const handleSubmit = async () => {
@@ -142,7 +263,7 @@ export default function ProfilePage() {
     try {
       const url = mode === 'create' ? '/api/players' : '/api/players/login'
       const body = mode === 'create'
-        ? { name: name.trim(), phone: phone.trim(), positions, pin }
+        ? { name: name.trim(), phone: phone.trim(), positions, skillRating, pin }
         : { name: name.trim(), pin }
 
       const res = await fetch(url, {
@@ -163,20 +284,20 @@ export default function ProfilePage() {
     }
   }
 
-  const handleSavePositions = async () => {
-    const enteredPin = window.prompt('Enter your PIN to update your positions:')
+  const handleSaveProfile = async () => {
+    const enteredPin = window.prompt('Enter your PIN to update your profile:')
     if (!enteredPin) return
     try {
       const res = await fetch(`/api/players/${player.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pin: enteredPin, positions }),
+        body: JSON.stringify({ pin: enteredPin, positions, skillRating }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
       setPlayer(data)
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
-      showToast('Positions updated!')
+      showToast('Profile updated!')
     } catch (e) {
       showToast(e.message)
     }
@@ -188,12 +309,17 @@ export default function ProfilePage() {
     setName('')
     setPin('')
     setPositions([])
+    setSkillRating(DEFAULT_SKILL_RATING)
   }
 
   if (!loaded) return null
 
   if (player) {
     const positionsDirty = JSON.stringify([...positions].sort()) !== JSON.stringify([...(player.positions || [])].sort())
+    const skillDirty = skillRating !== (player.skill_rating || DEFAULT_SKILL_RATING)
+    const profileDirty = positionsDirty || skillDirty
+    const skillRatingStale = player.skill_rating_updated_at &&
+      (Date.now() - new Date(player.skill_rating_updated_at).getTime()) / 86400000 > SKILL_RATING_STALE_DAYS
     return (
       <Layout title="My Profile — Aldie FC">
         <Card>
@@ -208,15 +334,25 @@ export default function ProfilePage() {
             Preferred positions <span style={{ color: colors.muted, fontWeight: 400 }}>(pick as many as you like — leave blank for "Any")</span>
           </p>
           <PositionPicker positions={positions} onToggle={togglePosition} />
-          {positionsDirty && (
-            <Btn small variant="ghost" onClick={handleSavePositions} style={{ marginTop: 8 }}>
-              Save positions
+          <p style={{ color: colors.muted, fontSize: 13, margin: '12px 0 8px' }}>
+            Skill level <span style={{ color: colors.muted, fontWeight: 400 }}>(used to balance teams — an admin can adjust this too)</span>
+          </p>
+          {skillRatingStale && (
+            <p style={{ color: colors.accent, fontSize: 12, margin: '0 0 8px' }}>
+              🔄 It's been a while since you updated this — still feels right?
+            </p>
+          )}
+          <SkillPicker rating={skillRating} onChange={setSkillRating} />
+          {profileDirty && (
+            <Btn small variant="ghost" onClick={handleSaveProfile} style={{ marginTop: 8 }}>
+              Save profile
             </Btn>
           )}
           <Btn full variant="ghost" onClick={handleLogout} style={{ marginTop: 12 }}>
             Log out
           </Btn>
         </Card>
+        <NotificationsSection player={player} showToast={showToast} />
         <GroupsSection player={player} showToast={showToast} />
         <Toast msg={toast} />
       </Layout>
@@ -258,6 +394,12 @@ export default function ProfilePage() {
             <div style={{ marginBottom: 12 }}>
               <PositionPicker positions={positions} onToggle={togglePosition} />
             </div>
+            <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 8px' }}>
+              Skill level <span style={{ color: colors.muted, fontWeight: 400 }}>(used to balance teams — an admin can adjust this too)</span>
+            </p>
+            <div style={{ marginBottom: 12 }}>
+              <SkillPicker rating={skillRating} onChange={setSkillRating} />
+            </div>
           </>
         )}
 
@@ -275,6 +417,8 @@ export default function ProfilePage() {
           {loading ? 'Please wait...' : mode === 'create' ? 'Create profile' : 'Log in'}
         </Btn>
       </Card>
+      <NotificationsSection player={null} showToast={showToast} />
+      <Toast msg={toast} />
     </Layout>
   )
 }

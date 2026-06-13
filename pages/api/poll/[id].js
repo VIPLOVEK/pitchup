@@ -4,6 +4,8 @@ import { supabaseAdmin, isSupabaseConfigured } from '../../../lib/supabase'
 import { formatSlot } from '../../../lib/teams'
 import { evaluatePollUpdate } from '../../../lib/pollStatus'
 import { sendWhatsAppAnnouncement, sendWhatsAppCancellation } from '../../../lib/whatsapp'
+import { sendPushToAll } from '../../../lib/push'
+import { verifyPin } from '../../../lib/players'
 
 // Applies any status change (confirm/cancel) triggered by the cutoff or
 // player count, persists it, and fires the matching WhatsApp message.
@@ -39,11 +41,29 @@ async function applyPollUpdate(db, poll) {
     } catch (e) {
       console.error('WhatsApp notification failed (non-fatal):', e.message)
     }
+    try {
+      await sendPushToAll({
+        title: '⚽ Game on!',
+        body: `${updated.title} is confirmed for ${formatSlot(updated.game_time)} at ${updated.location}.`,
+        url: `/poll/${updated.id}`,
+      })
+    } catch (e) {
+      console.error('Push notification failed (non-fatal):', e.message)
+    }
   } else if (update.status === 'cancelled') {
     try {
       await sendWhatsAppCancellation({ poll: updated })
     } catch (e) {
       console.error('WhatsApp cancellation failed (non-fatal):', e.message)
+    }
+    try {
+      await sendPushToAll({
+        title: '❌ Game cancelled',
+        body: `${updated.title} at ${updated.location} has been cancelled — not enough players joined.`,
+        url: `/poll/${updated.id}`,
+      })
+    } catch (e) {
+      console.error('Push notification failed (non-fatal):', e.message)
     }
   }
 
@@ -132,6 +152,42 @@ export default async function handler(req, res) {
       }
 
       return res.status(409).json({ error: 'Poll is busy, please try again' })
+    } catch (e) {
+      return res.status(500).json({ error: e.message })
+    }
+  }
+
+  if (req.method === 'DELETE') {
+    const { name, pin } = req.body
+    if (!name) return res.status(400).json({ error: 'name is required' })
+
+    try {
+      const { data: poll, error: fetchErr } = await db.from('polls').select('*').eq('id', id).single()
+      if (fetchErr || !poll) return res.status(404).json({ error: 'Poll not found' })
+      if (poll.status !== 'open') return res.status(400).json({ error: 'Voting is closed for this poll' })
+
+      const entry = (poll.players || []).find(p => p.name.toLowerCase() === name.trim().toLowerCase())
+      if (!entry) return res.status(404).json({ error: 'You are not in this poll' })
+
+      if (entry.playerId) {
+        if (!pin) return res.status(400).json({ error: 'PIN is required' })
+        const { data: player, error: playerErr } = await db.from('players').select('pin_hash').eq('id', entry.playerId).maybeSingle()
+        if (playerErr) throw playerErr
+        if (!player || !verifyPin(pin, player.pin_hash)) {
+          return res.status(401).json({ error: 'PIN is incorrect' })
+        }
+      }
+
+      const updatedPlayers = poll.players.filter(p => p.name.toLowerCase() !== name.trim().toLowerCase())
+      const { data: updated, error } = await db
+        .from('polls')
+        .update({ players: updatedPlayers, version: poll.version + 1 })
+        .eq('id', id)
+        .select()
+        .single()
+      if (error) throw error
+
+      return res.status(200).json(updated)
     } catch (e) {
       return res.status(500).json({ error: e.message })
     }

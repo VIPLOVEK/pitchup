@@ -8,10 +8,11 @@
     "start": "next start"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.43.4",
     "next": "14.2.3",
     "react": "^18",
     "react-dom": "^18",
-    "@supabase/supabase-js": "^2.43.4",
-    "twilio": "^5.1.0"
+    "twilio": "^5.1.0",
+    "web-push": "^3.6.7"
   }
 }

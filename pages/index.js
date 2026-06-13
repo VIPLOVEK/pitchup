@@ -79,8 +79,13 @@ export default function Home({ polls, groups }) {
       {/* Confirmed / cancelled games */}
       {decidedPolls.length > 0 && (
         <div style={{ marginTop: 8 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: colors.muted, marginBottom: 12 }}>
-            Recent games
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: colors.muted }}>
+              Recent games
+            </div>
+            <Link href="/leaderboard" style={{ fontSize: 12, fontWeight: 700, color: colors.accent, textDecoration: 'none' }}>
+              🏆 Leaderboard
+            </Link>
           </div>
           {decidedPolls.slice(0, 3).map(poll => (
             <Link key={poll.id} href={`/poll/${poll.id}`} style={{ textDecoration: 'none' }}>

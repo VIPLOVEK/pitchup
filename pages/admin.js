@@ -5,6 +5,7 @@ import { Card, Label, ProgressBar, Btn, Input, Pill, PlayerChip, Toast, CopyBtn,
 import { colors, radius, groupColorPalette } from '../lib/tokens'
 import { getActivePlayers, getWaitlist } from '../lib/teams'
 import { LOCATIONS } from '../lib/locations'
+import { SKILL_LABELS, DEFAULT_SKILL_RATING } from '../lib/positions'
 
 const selectStyle = {
   width: '100%',
@@ -445,6 +446,21 @@ function RosterTab({ password, showToast }) {
     }
   }
 
+  const setSkillRating = async (player, skillRating) => {
+    try {
+      const res = await fetch(`/api/admin/players/${player.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', authorization: `Bearer ${password}` },
+        body: JSON.stringify({ action: 'setSkillRating', skillRating }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setPlayers(ps => ps.map(p => p.id === player.id ? { ...p, skill_rating: data.skill_rating } : p))
+    } catch (e) {
+      showToast(e.message)
+    }
+  }
+
   if (error) return <Card><p style={{ color: colors.danger, fontSize: 13 }}>{error}</p></Card>
   if (players === null) return <Card><Spinner label="Loading roster..." /></Card>
 
@@ -482,6 +498,23 @@ function RosterTab({ password, showToast }) {
             {p.positions?.length
               ? p.positions.map(pos => <Pill key={pos} color={colors.grassLight}>{pos}</Pill>)
               : <Pill color={colors.grassLight}>Any</Pill>}
+            <select
+              value={p.skill_rating || DEFAULT_SKILL_RATING}
+              onChange={e => setSkillRating(p, Number(e.target.value))}
+              style={{
+                background: colors.pitchMid,
+                border: `1.5px solid ${colors.grass}33`,
+                color: colors.muted,
+                borderRadius: 8,
+                padding: '5px 8px',
+                fontSize: 13,
+                fontWeight: 600,
+              }}
+            >
+              {Object.entries(SKILL_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>{value} · {label}</option>
+              ))}
+            </select>
             <Btn small variant="ghost" onClick={() => resetPin(p)}>Reset PIN</Btn>
             <Btn small variant="danger" onClick={() => deletePlayer(p)}>Delete</Btn>
           </div>
@@ -765,12 +798,42 @@ function RecurringTab({ password, groups, showToast }) {
   const [visibility, setVisibility] = useState('all')
   const [selectedGroupIds, setSelectedGroupIds] = useState([])
   const [creating, setCreating] = useState(false)
+  const [editingId, setEditingId] = useState(null)
 
   const toggleGroup = (id) => setSelectedGroupIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id])
 
   const updateSlot = (i, field, value) => setSlotOffsets(s => s.map((slot, idx) => idx === i ? { ...slot, [field]: value } : slot))
   const addSlot = () => setSlotOffsets(s => [...s, { dayOffset: 0, time: '18:00' }])
   const removeSlot = (i) => setSlotOffsets(s => s.filter((_, idx) => idx !== i))
+
+  const resetForm = () => {
+    setEditingId(null)
+    setTitle('Weekend Pickup ⚽')
+    setLocation(LOCATIONS[0].name)
+    setCustomLocation('')
+    setWeekday(6)
+    setSlotOffsets([{ dayOffset: 0, time: '18:00' }])
+    setMinPlayers(8)
+    setMaxPlayers(18)
+    setLeadDays(6)
+    setVisibility('all')
+    setSelectedGroupIds([])
+  }
+
+  const startEdit = (t) => {
+    setEditingId(t.id)
+    setTitle(t.title)
+    const known = LOCATIONS.some(l => l.name === t.location)
+    setLocation(known ? t.location : 'Other')
+    setCustomLocation(known ? '' : t.location)
+    setWeekday(t.weekday)
+    setSlotOffsets(t.slot_offsets.map(s => ({ dayOffset: s.dayOffset, time: `${pad2(s.hour)}:${pad2(s.minute)}` })))
+    setMinPlayers(t.min_players)
+    setMaxPlayers(t.max_players)
+    setLeadDays(t.lead_days)
+    setVisibility(t.visibility)
+    setSelectedGroupIds(t.group_ids || [])
+  }
 
   const load = () => {
     fetch('/api/admin/templates', { headers: { authorization: `Bearer ${password}` } })
@@ -781,7 +844,7 @@ function RecurringTab({ password, groups, showToast }) {
 
   useEffect(() => { load() }, [password])
 
-  const create = async () => {
+  const submit = async () => {
     const finalLocation = location === 'Other' ? customLocation.trim() : location
     if (!title || !finalLocation) {
       showToast('Fill in a title and location')
@@ -793,28 +856,37 @@ function RecurringTab({ password, groups, showToast }) {
     }
     setCreating(true)
     try {
-      const res = await fetch('/api/admin/templates', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', authorization: `Bearer ${password}` },
-        body: JSON.stringify({
-          title,
-          location: finalLocation,
-          weekday,
-          slotOffsets: slotOffsets.map(s => {
-            const [hour, minute] = s.time.split(':').map(Number)
-            return { dayOffset: Number(s.dayOffset), hour, minute }
-          }),
-          minPlayers,
-          maxPlayers,
-          visibility,
-          groupIds: selectedGroupIds,
-          leadDays,
+      const body = {
+        title,
+        location: finalLocation,
+        weekday,
+        slotOffsets: slotOffsets.map(s => {
+          const [hour, minute] = s.time.split(':').map(Number)
+          return { dayOffset: Number(s.dayOffset), hour, minute }
         }),
+        minPlayers,
+        maxPlayers,
+        visibility,
+        groupIds: selectedGroupIds,
+        leadDays,
+      }
+
+      const res = await fetch(editingId ? `/api/admin/templates/${editingId}` : '/api/admin/templates', {
+        method: editingId ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json', authorization: `Bearer ${password}` },
+        body: JSON.stringify(body),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
-      setTemplates(ts => [...ts, data])
-      showToast('Recurring poll created!')
+
+      if (editingId) {
+        setTemplates(ts => ts.map(t => t.id === editingId ? data : t))
+        showToast('Recurring poll updated!')
+        resetForm()
+      } else {
+        setTemplates(ts => [...ts, data])
+        showToast('Recurring poll created!')
+      }
     } catch (e) {
       showToast(e.message)
     } finally {
@@ -846,6 +918,7 @@ function RecurringTab({ password, groups, showToast }) {
       })
       if (!res.ok) throw new Error('Failed to delete')
       setTemplates(ts => ts.filter(t => t.id !== id))
+      if (editingId === id) resetForm()
     } catch (e) {
       showToast(e.message)
     }
@@ -854,7 +927,7 @@ function RecurringTab({ password, groups, showToast }) {
   return (
     <div>
       <Card>
-        <Label>Recurring poll</Label>
+        <Label>{editingId ? 'Edit recurring poll' : 'Recurring poll'}</Label>
         <p style={{ color: colors.muted, fontSize: 12, margin: '0 0 12px' }}>
           Automatically creates a new poll every week, {leadDays} day{leadDays === 1 ? '' : 's'} before game day.
         </p>
@@ -942,9 +1015,14 @@ function RecurringTab({ password, groups, showToast }) {
           </div>
         )}
 
-        <Btn full onClick={create} disabled={creating}>
-          {creating ? 'Creating...' : 'Create recurring poll'}
-        </Btn>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Btn full onClick={submit} disabled={creating}>
+            {creating ? 'Saving...' : editingId ? 'Save changes' : 'Create recurring poll'}
+          </Btn>
+          {editingId && (
+            <Btn variant="ghost" onClick={resetForm}>Cancel</Btn>
+          )}
+        </div>
       </Card>
 
       {error && <Card><p style={{ color: colors.danger, fontSize: 13 }}>{error}</p></Card>}
@@ -975,6 +1053,7 @@ function RecurringTab({ password, groups, showToast }) {
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
                 <Pill color={t.active ? colors.cardGreen : colors.muted}>{t.active ? 'Active' : 'Paused'}</Pill>
                 <div style={{ display: 'flex', gap: 8 }}>
+                  <Btn small variant="ghost" onClick={() => startEdit(t)}>Edit</Btn>
                   <Btn small variant="ghost" onClick={() => toggleActive(t)}>{t.active ? 'Pause' : 'Resume'}</Btn>
                   <Btn small variant="danger" onClick={() => deleteTemplate(t.id)}>Delete</Btn>
                 </div>

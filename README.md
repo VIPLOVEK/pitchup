@@ -59,6 +59,10 @@ In Vercel → your project → **Settings → Environment Variables**, add:
 | `WHATSAPP_PHONE_NUMBER_ID` | from Meta (see Step 3) |
 | `WHATSAPP_ACCESS_TOKEN` | from Meta (see Step 3) |
 | `WHATSAPP_GROUP_RECIPIENT` | phone number to notify (e.g. `15551234567`) |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | Web Push public key (see "Push notifications" below) |
+| `VAPID_PUBLIC_KEY` | same value as above |
+| `VAPID_PRIVATE_KEY` | Web Push private key — keep secret |
+| `VAPID_CONTACT_EMAIL` | contact email for push services, e.g. `you@example.com` |
 
 After adding variables, **redeploy** from Vercel dashboard.
 
@@ -79,6 +83,22 @@ This sends the game confirmation message automatically.
 > **Note on groups:** The Cloud API sends to individual numbers, not WhatsApp groups directly.
 > Best workflow: send to the organizer's number → they forward to the group.
 > Or set up a WhatsApp Broadcast List and use that number as the recipient.
+
+---
+
+## Step 3b — Push notifications (optional, ~2 min)
+
+Players can opt into browser push notifications (game confirmed/cancelled,
+voting-closes-soon reminders) from their Profile page — no app store needed.
+
+1. Generate a VAPID key pair: `npx web-push generate-vapid-keys`
+2. Add the keys to your env vars (table above): `NEXT_PUBLIC_VAPID_PUBLIC_KEY` and
+   `VAPID_PUBLIC_KEY` get the **public** key, `VAPID_PRIVATE_KEY` gets the **private** key.
+3. Set `VAPID_CONTACT_EMAIL` to any contact address.
+4. Redeploy. Players visit `/profile` → "Enable notifications".
+
+If these env vars aren't set, the notifications section is hidden and push
+sends are silently skipped — everything else still works.
 
 ---
 

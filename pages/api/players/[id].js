@@ -13,7 +13,7 @@ export default async function handler(req, res) {
     try {
       const { data, error } = await db
         .from('players')
-        .select('id, name, phone, positions')
+        .select('id, name, phone, positions, skill_rating, skill_rating_updated_at')
         .eq('id', id)
         .maybeSingle()
       if (error) throw error
@@ -25,10 +25,13 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'PATCH') {
-    const { pin, phone, positions } = req.body
+    const { pin, phone, positions, skillRating } = req.body
     if (!pin) return res.status(400).json({ error: 'Current PIN is required' })
     if (positions && (!Array.isArray(positions) || positions.some(p => !POSITIONS.includes(p)))) {
       return res.status(400).json({ error: 'Invalid position' })
+    }
+    if (skillRating !== undefined && (!Number.isInteger(skillRating) || skillRating < 1 || skillRating > 5)) {
+      return res.status(400).json({ error: 'Skill rating must be between 1 and 5' })
     }
 
     try {
@@ -41,12 +44,16 @@ export default async function handler(req, res) {
       const update = {}
       if (phone !== undefined) update.phone = phone?.trim() || null
       if (positions !== undefined) update.positions = positions
+      if (skillRating !== undefined) {
+        update.skill_rating = skillRating
+        update.skill_rating_updated_at = new Date().toISOString()
+      }
 
       const { data, error } = await db
         .from('players')
         .update(update)
         .eq('id', id)
-        .select('id, name, phone, positions')
+        .select('id, name, phone, positions, skill_rating, skill_rating_updated_at')
         .single()
       if (error) throw error
 

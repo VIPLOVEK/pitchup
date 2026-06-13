@@ -4,6 +4,7 @@
 import { supabaseAdmin, isSupabaseConfigured } from '../../../lib/supabase'
 import { shouldSendReminder } from '../../../lib/pollStatus'
 import { sendWhatsAppReminder } from '../../../lib/whatsapp'
+import { sendPushToAll } from '../../../lib/push'
 
 export default async function handler(req, res) {
   if (process.env.CRON_SECRET && req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -23,6 +24,15 @@ export default async function handler(req, res) {
 
       try {
         await sendWhatsAppReminder({ poll })
+        try {
+          await sendPushToAll({
+            title: '⏰ Voting closes soon',
+            body: `${poll.title} needs more players before voting closes — tap to join!`,
+            url: `/poll/${poll.id}`,
+          })
+        } catch (e) {
+          console.error(`Push reminder failed for poll ${poll.id}:`, e.message)
+        }
         await db
           .from('polls')
           .update({ reminder_sent: true, version: poll.version + 1 })

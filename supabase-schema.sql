@@ -51,6 +51,19 @@ update players set positions = array[position]
   where positions = '{}' and position is not null and position <> 'Any';
 alter table players drop column if exists position;
 
+-- Self-rated skill level (1-5), used to balance teams. Admins can adjust
+-- a player's rating from the roster tab.
+alter table players add column if not exists skill_rating int not null default 3;
+do $$ begin
+  alter table players add constraint players_skill_rating_range
+    check (skill_rating between 1 and 5);
+exception when duplicate_object then null;
+end $$;
+
+-- Tracks when skill_rating was last set, so the profile page can nudge
+-- players to re-rate themselves after a long stretch.
+alter table players add column if not exists skill_rating_updated_at timestamptz not null default now();
+
 -- Row Level Security — no anon access; all reads/writes go through API
 -- routes using the service role key, which bypasses RLS entirely.
 alter table players enable row level security;
@@ -115,6 +128,19 @@ create table if not exists poll_templates (
 );
 
 alter table poll_templates enable row level security;
+
+-- push_subscriptions table — Web Push subscriptions for the PWA.
+-- Optionally linked to a player profile; anonymous subscriptions (no
+-- profile) still receive broadcast reminders/announcements.
+create table if not exists push_subscriptions (
+  id          text primary key default encode(gen_random_bytes(6), 'hex'),
+  created_at  timestamptz default now(),
+  player_id   text references players(id) on delete cascade,
+  endpoint    text not null unique,
+  keys        jsonb not null  -- {p256dh, auth}
+);
+
+alter table push_subscriptions enable row level security;
 
 -- ============================================================
 --  Migration for existing databases (run if upgrading from the

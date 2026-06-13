@@ -3,9 +3,25 @@
 import { supabaseAdmin, isSupabaseConfigured } from '../../../lib/supabase'
 import { generateTeams, pickBestSlot, formatSlot, getActivePlayers } from '../../../lib/teams'
 import { sendWhatsAppAnnouncement } from '../../../lib/whatsapp'
+import { sendPushToAll } from '../../../lib/push'
 
 function isAdmin(req) {
   return req.headers.authorization === `Bearer ${process.env.ADMIN_PASSWORD}`
+}
+
+// Attaches each player's self-reported/admin-set skill_rating (looked up by
+// playerId) so generateTeams can balance teams by skill.
+async function withSkillRatings(db, players) {
+  const ids = players.map(p => p.playerId).filter(Boolean)
+  if (ids.length === 0) return players
+
+  const { data, error } = await db.from('players').select('id, skill_rating').in('id', ids)
+  if (error) throw error
+
+  const ratings = Object.fromEntries(data.map(p => [p.id, p.skill_rating]))
+  return players.map(p => p.playerId && ratings[p.playerId]
+    ? { ...p, skill_rating: ratings[p.playerId] }
+    : p)
 }
 
 export default async function handler(req, res) {
@@ -22,7 +38,7 @@ export default async function handler(req, res) {
       if (!poll) return res.status(404).json({ error: 'Not found' })
 
       if (action === 'close') {
-        const activePlayers = getActivePlayers(poll)
+        const activePlayers = await withSkillRatings(db, getActivePlayers(poll))
         const teams = generateTeams(activePlayers)
         const gameTime = pickBestSlot(activePlayers, poll.slots)
         const { data, error } = await db
@@ -36,11 +52,19 @@ export default async function handler(req, res) {
           })
         } catch (e) { console.error('WhatsApp failed:', e.message) }
 
+        try {
+          await sendPushToAll({
+            title: '⚽ Game on!',
+            body: `${data.title} is confirmed for ${formatSlot(gameTime)} at ${data.location}.`,
+            url: `/poll/${data.id}`,
+          })
+        } catch (e) { console.error('Push notification failed:', e.message) }
+
         return res.status(200).json(data)
       }
 
       if (action === 'shuffle') {
-        const teams = generateTeams(getActivePlayers(poll))
+        const teams = generateTeams(await withSkillRatings(db, getActivePlayers(poll)))
         const { data, error } = await db
           .from('polls').update({ teams, version: poll.version + 1 }).eq('id', id).select().single()
         if (error) throw error
