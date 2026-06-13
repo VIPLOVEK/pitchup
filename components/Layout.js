@@ -48,7 +48,7 @@ export default function Layout({ children, title = 'Aldie FC', description = 'Al
         zIndex: 100,
       }}>
         <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, fontWeight: 800, fontSize: 18, letterSpacing: '-0.5px' }}>
-          <img src="/logo.png" alt="Aldie FC" style={{ height: 32, width: 32, borderRadius: '50%', boxShadow: `0 0 0 2px ${colors.accent}33` }} />
+          <img className="brand-logo" src="/logo.png" alt="Aldie FC" style={{ height: 32, width: 32, borderRadius: '50%', boxShadow: `0 0 0 2px ${colors.accent}33` }} />
           <span>Aldie <span style={{ color: colors.accent }}>FC</span></span>
         </Link>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

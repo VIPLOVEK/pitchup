@@ -4,25 +4,35 @@ import { useState } from 'react'
 // ── ProgressBar ───────────────────────────────────────────────────────────────
 export function ProgressBar({ value, max }) {
   const pct = Math.min((value / max) * 100, 100)
-  const color = pct >= 100 ? colors.accent : pct > 60 ? colors.grassLight : colors.grass
+  const full = pct >= 100
+  const color = full ? colors.accent : pct > 60 ? colors.grassLight : colors.grass
   return (
-    <div style={{ background: colors.pitchMid, borderRadius: radius.full, height: 8, overflow: 'hidden', margin: '12px 0 6px' }}>
+    <div style={{ position: 'relative', background: colors.pitchMid, borderRadius: radius.full, height: 8, margin: '12px 0 6px' }}>
       <div style={{
         height: '100%',
         width: `${pct}%`,
         background: color,
         borderRadius: radius.full,
         transition: 'width 0.4s ease',
-        boxShadow: pct >= 100 ? `0 0 12px ${colors.accent}` : 'none',
+        boxShadow: full ? `0 0 12px ${colors.accent}` : 'none',
       }} />
+      {full && (
+        <span
+          className="progress-ball"
+          aria-hidden="true"
+          style={{ position: 'absolute', right: -2, top: -8, fontSize: 14 }}
+        >
+          ⚽
+        </span>
+      )}
     </div>
   )
 }
 
 // ── Pill badge ────────────────────────────────────────────────────────────────
-export function Pill({ color, children }) {
+export function Pill({ color, children, className }) {
   return (
-    <span style={{
+    <span className={className} style={{
       display: 'inline-block',
       background: color + '22',
       color,

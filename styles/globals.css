@@ -58,3 +58,55 @@ a { color: inherit; text-decoration: none; }
   transform: translateY(-2px);
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
 }
+
+/* ── Soccer-themed motion ─────────────────────────────────────────────── */
+
+@keyframes ball-roll-in {
+  0%   { transform: translateX(-140px) rotate(-360deg); opacity: 0; }
+  70%  { opacity: 1; }
+  100% { transform: translateX(0) rotate(0deg); opacity: 1; }
+}
+
+@keyframes ball-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes ball-bounce {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50%      { transform: translateY(-8px) scale(1.03); }
+}
+
+@keyframes ball-float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50%      { transform: translateY(-10px) rotate(20deg); }
+}
+
+@keyframes net-shake {
+  0%, 100% { transform: rotate(0deg); }
+  25%      { transform: rotate(-8deg); }
+  75%      { transform: rotate(8deg); }
+}
+
+/* Header crest: rolls in on load, spins playfully on hover/tap */
+.brand-logo {
+  animation: ball-roll-in 0.7s ease-out;
+}
+.brand-logo:hover {
+  animation: ball-spin 0.6s ease-in-out;
+}
+
+/* Decorative floating ball, e.g. in the hero */
+.floating-ball {
+  display: inline-block;
+  animation: ball-float 3s ease-in-out infinite;
+}
+
+/* Bouncing ball marker shown when a progress bar fills up */
+.progress-ball {
+  animation: ball-bounce 0.6s ease-in-out infinite;
+}
+
+/* Score pill celebration wiggle */
+.score-celebrate {
+  animation: net-shake 0.5s ease-in-out;
+}

@@ -34,9 +34,10 @@ export default function Home({ polls, groups }) {
     <Layout title="Aldie FC — Pickup Soccer">
       {/* Hero */}
       <div style={{ textAlign: 'center', padding: '32px 0 24px' }}>
-        <img src="/logo.png" alt="Aldie FC" style={{ width: 72, height: 72, borderRadius: '50%', marginBottom: 12 }} />
+        <img className="brand-logo" src="/logo.png" alt="Aldie FC" style={{ width: 72, height: 72, borderRadius: '50%', marginBottom: 12 }} />
         <h1 style={{ fontSize: 28, fontWeight: 900, letterSpacing: '-1px', margin: '0 0 8px' }}>
-          Aldie <span style={{ color: colors.accent }}>FC</span>
+          Aldie <span style={{ color: colors.accent }}>FC</span>{' '}
+          <span className="floating-ball" aria-hidden="true">⚽</span>
         </h1>
         <p style={{ color: colors.muted, fontSize: 14, margin: '0 0 8px' }}>
           Pickup soccer, organized.
@@ -92,7 +93,7 @@ export default function Home({ polls, groups }) {
                   </div>
                   {poll.status === 'confirmed' ? (
                     poll.score_a != null && poll.score_b != null ? (
-                      <Pill color={colors.accent}>⚽ {poll.score_a} - {poll.score_b}</Pill>
+                      <Pill color={colors.accent} className="score-celebrate">⚽ {poll.score_a} - {poll.score_b}</Pill>
                     ) : (
                       <Pill color={colors.accent}>✅ {poll.players.length} players</Pill>
                     )
