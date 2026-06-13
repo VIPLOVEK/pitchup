@@ -746,6 +746,247 @@ function GroupsTab({ password, showToast, onGroupsChanged }) {
   )
 }
 
+const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+
+function pad2(n) { return String(n).padStart(2, '0') }
+
+function RecurringTab({ password, groups, showToast }) {
+  const [templates, setTemplates] = useState(null)
+  const [error, setError] = useState('')
+
+  const [title, setTitle] = useState('Weekend Pickup ⚽')
+  const [location, setLocation] = useState(LOCATIONS[0].name)
+  const [customLocation, setCustomLocation] = useState('')
+  const [weekday, setWeekday] = useState(6) // Saturday
+  const [slotOffsets, setSlotOffsets] = useState([{ dayOffset: 0, time: '18:00' }])
+  const [minPlayers, setMinPlayers] = useState(8)
+  const [maxPlayers, setMaxPlayers] = useState(18)
+  const [leadDays, setLeadDays] = useState(6)
+  const [visibility, setVisibility] = useState('all')
+  const [selectedGroupIds, setSelectedGroupIds] = useState([])
+  const [creating, setCreating] = useState(false)
+
+  const toggleGroup = (id) => setSelectedGroupIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id])
+
+  const updateSlot = (i, field, value) => setSlotOffsets(s => s.map((slot, idx) => idx === i ? { ...slot, [field]: value } : slot))
+  const addSlot = () => setSlotOffsets(s => [...s, { dayOffset: 0, time: '18:00' }])
+  const removeSlot = (i) => setSlotOffsets(s => s.filter((_, idx) => idx !== i))
+
+  const load = () => {
+    fetch('/api/admin/templates', { headers: { authorization: `Bearer ${password}` } })
+      .then(res => res.ok ? res.json() : Promise.reject(new Error('Failed to load recurring polls')))
+      .then(setTemplates)
+      .catch(e => setError(e.message))
+  }
+
+  useEffect(() => { load() }, [password])
+
+  const create = async () => {
+    const finalLocation = location === 'Other' ? customLocation.trim() : location
+    if (!title || !finalLocation) {
+      showToast('Fill in a title and location')
+      return
+    }
+    if (visibility === 'groups' && selectedGroupIds.length === 0) {
+      showToast('Select at least one group')
+      return
+    }
+    setCreating(true)
+    try {
+      const res = await fetch('/api/admin/templates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', authorization: `Bearer ${password}` },
+        body: JSON.stringify({
+          title,
+          location: finalLocation,
+          weekday,
+          slotOffsets: slotOffsets.map(s => {
+            const [hour, minute] = s.time.split(':').map(Number)
+            return { dayOffset: Number(s.dayOffset), hour, minute }
+          }),
+          minPlayers,
+          maxPlayers,
+          visibility,
+          groupIds: selectedGroupIds,
+          leadDays,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setTemplates(ts => [...ts, data])
+      showToast('Recurring poll created!')
+    } catch (e) {
+      showToast(e.message)
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  const toggleActive = async (template) => {
+    setTemplates(ts => ts.map(t => t.id === template.id ? { ...t, active: !t.active } : t))
+    try {
+      const res = await fetch(`/api/admin/templates/${template.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', authorization: `Bearer ${password}` },
+        body: JSON.stringify({ active: !template.active }),
+      })
+      if (!res.ok) throw new Error('Failed to update')
+    } catch (e) {
+      showToast(e.message)
+      load()
+    }
+  }
+
+  const deleteTemplate = async (id) => {
+    if (!window.confirm('Delete this recurring poll? Future games will no longer be created automatically.')) return
+    try {
+      const res = await fetch(`/api/admin/templates/${id}`, {
+        method: 'DELETE',
+        headers: { authorization: `Bearer ${password}` },
+      })
+      if (!res.ok) throw new Error('Failed to delete')
+      setTemplates(ts => ts.filter(t => t.id !== id))
+    } catch (e) {
+      showToast(e.message)
+    }
+  }
+
+  return (
+    <div>
+      <Card>
+        <Label>Recurring poll</Label>
+        <p style={{ color: colors.muted, fontSize: 12, margin: '0 0 12px' }}>
+          Automatically creates a new poll every week, {leadDays} day{leadDays === 1 ? '' : 's'} before game day.
+        </p>
+        <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="Game title" />
+
+        <select value={location} onChange={e => setLocation(e.target.value)} style={selectStyle}>
+          {LOCATIONS.map(l => (
+            <option key={l.name} value={l.name}>{l.name} ({l.boot} boots)</option>
+          ))}
+          <option value="Other">Other...</option>
+        </select>
+        {location === 'Other' && (
+          <Input value={customLocation} onChange={e => setCustomLocation(e.target.value)} placeholder="Location / field name" />
+        )}
+
+        <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 8px' }}>Day of the game:</p>
+        <select value={weekday} onChange={e => setWeekday(Number(e.target.value))} style={selectStyle}>
+          {WEEKDAYS.map((w, i) => <option key={w} value={i}>{w}</option>)}
+        </select>
+
+        <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 8px' }}>Proposed time slots:</p>
+        {slotOffsets.map((slot, i) => (
+          <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <select
+              value={slot.dayOffset}
+              onChange={e => updateSlot(i, 'dayOffset', e.target.value)}
+              style={{ ...selectStyle, flex: 1 }}
+            >
+              <option value={0}>{WEEKDAYS[weekday]}</option>
+              <option value={1}>{WEEKDAYS[(weekday + 1) % 7]} (+1 day)</option>
+              <option value={2}>{WEEKDAYS[(weekday + 2) % 7]} (+2 days)</option>
+            </select>
+            <Input
+              type="time"
+              value={slot.time}
+              onChange={e => updateSlot(i, 'time', e.target.value)}
+              style={{ flex: 1 }}
+            />
+            {slotOffsets.length > 1 && (
+              <button
+                onClick={() => removeSlot(i)}
+                style={{ background: 'none', border: 'none', color: colors.muted, fontSize: 18, cursor: 'pointer', padding: '0 4px 10px' }}
+              >
+                ×
+              </button>
+            )}
+          </div>
+        ))}
+        <div style={{ marginBottom: 14 }}>
+          <Btn small variant="ghost" onClick={addSlot}>+ Add another time</Btn>
+        </div>
+
+        <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
+          <div style={{ flex: 1 }}>
+            <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 8px' }}>Min players</p>
+            <Input type="number" value={minPlayers} onChange={e => setMinPlayers(Number(e.target.value))} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 8px' }}>Max players</p>
+            <Input type="number" value={maxPlayers} onChange={e => setMaxPlayers(Number(e.target.value))} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 8px' }}>Lead days</p>
+            <Input type="number" value={leadDays} onChange={e => setLeadDays(Number(e.target.value))} min={1} max={13} />
+          </div>
+        </div>
+
+        <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 8px' }}>Who can join?</p>
+        <select value={visibility} onChange={e => setVisibility(e.target.value)} style={selectStyle}>
+          <option value="all">Everyone</option>
+          <option value="groups">Specific group(s)</option>
+        </select>
+        {visibility === 'groups' && (
+          <div style={{ marginBottom: 14 }}>
+            {groups.length === 0 && (
+              <p style={{ color: colors.muted, fontSize: 12 }}>No groups yet — create one in the Groups tab first.</p>
+            )}
+            {groups.map(g => (
+              <label key={g.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: colors.white, padding: '4px 0', cursor: 'pointer' }}>
+                <input type="checkbox" checked={selectedGroupIds.includes(g.id)} onChange={() => toggleGroup(g.id)} />
+                <span style={{ width: 10, height: 10, borderRadius: radius.full, background: g.color || colors.grassLight, flexShrink: 0 }} />
+                {g.name}
+              </label>
+            ))}
+          </div>
+        )}
+
+        <Btn full onClick={create} disabled={creating}>
+          {creating ? 'Creating...' : 'Create recurring poll'}
+        </Btn>
+      </Card>
+
+      {error && <Card><p style={{ color: colors.danger, fontSize: 13 }}>{error}</p></Card>}
+      {templates === null && !error && <Card><p style={{ color: colors.muted, fontSize: 13 }}>Loading...</p></Card>}
+
+      {templates && templates.map(t => {
+        const templateGroups = t.visibility === 'groups' ? t.group_ids.map(id => groups.find(g => g.id === id)).filter(Boolean) : []
+        return (
+          <Card key={t.id} style={!t.active ? { opacity: 0.6 } : {}}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 2 }}>{t.title}</div>
+                <div style={{ color: colors.muted, fontSize: 12, marginBottom: 4 }}>{t.location}</div>
+                <div style={{ color: colors.muted, fontSize: 13 }}>
+                  Every {WEEKDAYS[t.weekday]} ·{' '}
+                  {t.slot_offsets.map((s, i) => (
+                    <span key={i}>
+                      {WEEKDAYS[(t.weekday + s.dayOffset) % 7]} {pad2(s.hour % 12 === 0 ? 12 : s.hour % 12)}:{pad2(s.minute)} {s.hour < 12 ? 'AM' : 'PM'}
+                      {i < t.slot_offsets.length - 1 ? ', ' : ''}
+                    </span>
+                  ))}
+                </div>
+                <div style={{ color: colors.muted, fontSize: 12, marginTop: 4 }}>
+                  {t.min_players}-{t.max_players} players · opens {t.lead_days} day{t.lead_days === 1 ? '' : 's'} before
+                  {templateGroups.length > 0 && <> · {templateGroups.map(g => g.name).join(', ')}</>}
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+                <Pill color={t.active ? colors.cardGreen : colors.muted}>{t.active ? 'Active' : 'Paused'}</Pill>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <Btn small variant="ghost" onClick={() => toggleActive(t)}>{t.active ? 'Pause' : 'Resume'}</Btn>
+                  <Btn small variant="danger" onClick={() => deleteTemplate(t.id)}>Delete</Btn>
+                </div>
+              </div>
+            </div>
+          </Card>
+        )
+      })}
+    </div>
+  )
+}
+
 export default function AdminPage() {
   const [polls, setPolls] = useState([])
   const [password, setPassword] = useState('')
@@ -845,7 +1086,7 @@ export default function AdminPage() {
   return (
     <Layout title="Admin — Aldie FC">
       <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
-        {['create', 'manage', 'roster', 'groups'].map(t => (
+        {['create', 'manage', 'recurring', 'roster', 'groups'].map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -860,12 +1101,14 @@ export default function AdminPage() {
               cursor: 'pointer',
             }}
           >
-            {t === 'create' ? '➕ New Poll' : t === 'manage' ? `📋 Manage (${polls.length})` : t === 'roster' ? '👥 Roster' : '🏷️ Groups'}
+            {t === 'create' ? '➕ New Poll' : t === 'manage' ? `📋 Manage (${polls.length})` : t === 'recurring' ? '🔁 Recurring' : t === 'roster' ? '👥 Roster' : '🏷️ Groups'}
           </button>
         ))}
       </div>
 
       {tab === 'create' && <CreatePollForm onCreated={handleCreated} groups={groups} />}
+
+      {tab === 'recurring' && <RecurringTab password={password} groups={groups} showToast={showToast} />}
 
       {tab === 'roster' && <RosterTab password={password} showToast={showToast} />}
 

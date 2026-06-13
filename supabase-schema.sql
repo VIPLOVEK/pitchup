@@ -94,6 +94,28 @@ alter table group_members enable row level security;
 alter table polls add column if not exists visibility text not null default 'all';
 alter table polls add column if not exists group_ids jsonb not null default '[]'::jsonb;
 
+-- poll_templates table — recurring weekly games. A daily cron
+-- (/api/cron/recurring-polls) finds the next occurrence of `weekday` and,
+-- once it's within `lead_days`, auto-creates a poll with slots built from
+-- `slot_offsets` (each {dayOffset, hour, minute}, in America/New_York).
+create table if not exists poll_templates (
+  id              text primary key default encode(gen_random_bytes(6), 'hex'),
+  created_at      timestamptz default now(),
+  title           text not null,
+  location        text not null,
+  weekday         int not null,              -- 0=Sunday .. 6=Saturday, the anchor day for dayOffset 0
+  slot_offsets    jsonb not null,            -- [{dayOffset:0, hour:18, minute:0}, ...]
+  min_players     int not null default 8,
+  max_players     int not null default 18,
+  visibility      text not null default 'all',
+  group_ids       jsonb not null default '[]'::jsonb,
+  lead_days       int not null default 6,    -- days before the anchor date to open the poll
+  active          boolean not null default true,
+  last_created_for date                      -- anchor date (NY, YYYY-MM-DD) of the last auto-created poll
+);
+
+alter table poll_templates enable row level security;
+
 -- ============================================================
 --  Migration for existing databases (run if upgrading from the
 --  old `threshold`/`closed`/text[] slots schema)
