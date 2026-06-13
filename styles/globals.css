@@ -143,3 +143,24 @@ a { color: inherit; text-decoration: none; }
 .toast-pop {
   animation: fadeInUp 0.2s ease, ball-bounce 0.5s ease-in-out 0.15s;
 }
+
+@keyframes ball-kick {
+  0%   { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+  100% { transform: translate(70px, -50px) rotate(360deg); opacity: 0; }
+}
+
+/* Ball flies off the "I'm in" button while the vote is submitting */
+.kick-ball {
+  display: inline-block;
+  animation: ball-kick 0.45s ease-out forwards;
+}
+
+@keyframes pop-in {
+  0%   { transform: scale(0.93); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Confirmation card pops in after a vote is submitted */
+.vote-success {
+  animation: pop-in 0.35s ease-out;
+}

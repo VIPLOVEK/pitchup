@@ -157,6 +157,7 @@ export default function PollPage({ poll: initialPoll, error }) {
   const [selectedSlots, setSelectedSlots] = useState([])
   const [submitted, setSubmitted] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [kicking, setKicking] = useState(false)
   const [toast, setToast] = useState('')
   const [hasAccess, setHasAccess] = useState(null)
   const [pollGroups, setPollGroups] = useState([])
@@ -260,7 +261,8 @@ export default function PollPage({ poll: initialPoll, error }) {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
       setPoll(data)
-      setSubmitted(true)
+      setKicking(true)
+      setTimeout(() => setSubmitted(true), 400)
     } catch (e) {
       setToast(e.message || 'Something went wrong')
     } finally {
@@ -279,7 +281,7 @@ export default function PollPage({ poll: initialPoll, error }) {
 
     return (
       <Layout title={poll.title}>
-        <Card>
+        <Card className="vote-success">
           <div style={{ textAlign: 'center', padding: '20px 0' }}>
             {!onWaitlist && active.length >= poll.min_players && <GoalCelebration />}
             <div style={{ fontSize: 40, marginBottom: 10 }} className={!onWaitlist && active.length >= poll.min_players ? 'progress-ball' : ''}>
@@ -431,9 +433,9 @@ export default function PollPage({ poll: initialPoll, error }) {
           <Btn
             full
             onClick={handleVote}
-            disabled={!name.trim() || selectedSlots.length === 0 || loading || (matchedPlayer && !/^\d{4,6}$/.test(pin)) || (poll.visibility === 'groups' && hasAccess === false)}
+            disabled={!name.trim() || selectedSlots.length === 0 || loading || kicking || (matchedPlayer && !/^\d{4,6}$/.test(pin)) || (poll.visibility === 'groups' && hasAccess === false)}
           >
-            {loading ? 'Joining...' : "I'm in ⚽"}
+            {kicking ? <>Joining <span className="kick-ball">⚽</span></> : loading ? 'Joining...' : "I'm in ⚽"}
           </Btn>
         </div>
       </Card>
