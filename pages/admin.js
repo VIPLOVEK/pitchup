@@ -403,7 +403,7 @@ function PollCard({ poll, password, onAction, appUrl, groups }) {
   )
 }
 
-function RosterTab({ password }) {
+function RosterTab({ password, showToast }) {
   const [players, setPlayers] = useState(null)
   const [error, setError] = useState('')
 
@@ -413,6 +413,37 @@ function RosterTab({ password }) {
       .then(setPlayers)
       .catch(e => setError(e.message))
   }, [password])
+
+  const resetPin = async (player) => {
+    if (!window.confirm(`Reset ${player.name}'s PIN? They'll need a new PIN to log in.`)) return
+    try {
+      const res = await fetch(`/api/admin/players/${player.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', authorization: `Bearer ${password}` },
+        body: JSON.stringify({ action: 'resetPin' }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      window.alert(`${player.name}'s new PIN is: ${data.pin}\n\nShare this with them — it won't be shown again.`)
+    } catch (e) {
+      showToast(e.message)
+    }
+  }
+
+  const deletePlayer = async (player) => {
+    if (!window.confirm(`Delete ${player.name}'s profile? This removes their saved profile and group memberships. This can't be undone.`)) return
+    try {
+      const res = await fetch(`/api/admin/players/${player.id}`, {
+        method: 'DELETE',
+        headers: { authorization: `Bearer ${password}` },
+      })
+      if (!res.ok) throw new Error('Failed to delete player')
+      setPlayers(ps => ps.filter(p => p.id !== player.id))
+      showToast('Player deleted.')
+    } catch (e) {
+      showToast(e.message)
+    }
+  }
 
   if (error) return <Card><p style={{ color: colors.danger, fontSize: 13 }}>{error}</p></Card>
   if (players === null) return <Card><p style={{ color: colors.muted, fontSize: 13 }}>Loading roster...</p></Card>
@@ -437,7 +468,7 @@ function RosterTab({ password }) {
           key={p.id}
           style={{
             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            padding: '10px 0', borderBottom: `1px solid ${colors.grass}22`,
+            padding: '10px 0', borderBottom: `1px solid ${colors.grass}22`, gap: 12,
           }}
         >
           <div>
@@ -447,7 +478,11 @@ function RosterTab({ password }) {
               ⚽ {p.gamesPlayed} game{p.gamesPlayed === 1 ? '' : 's'} played
             </div>
           </div>
-          <Pill color={colors.grassLight}>{p.position}</Pill>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+            <Pill color={colors.grassLight}>{p.position}</Pill>
+            <Btn small variant="ghost" onClick={() => resetPin(p)}>Reset PIN</Btn>
+            <Btn small variant="danger" onClick={() => deletePlayer(p)}>Delete</Btn>
+          </div>
         </div>
       ))}
     </Card>
@@ -830,7 +865,7 @@ export default function AdminPage() {
 
       {tab === 'create' && <CreatePollForm onCreated={handleCreated} groups={groups} />}
 
-      {tab === 'roster' && <RosterTab password={password} />}
+      {tab === 'roster' && <RosterTab password={password} showToast={showToast} />}
 
       {tab === 'groups' && <GroupsTab password={password} showToast={showToast} onGroupsChanged={loadGroups} />}
 
