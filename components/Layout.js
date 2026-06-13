@@ -17,6 +17,15 @@ export default function Layout({ children, title = 'Aldie FC', description = 'Al
         <meta name="description" content={description} />
         <link rel="icon" href="/logo.png" />
 
+        {/* PWA / "Add to Home Screen" support */}
+        <link rel="manifest" href="/manifest.json" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <meta name="theme-color" content={colors.pitch} />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="Aldie FC" />
+
         {/* Open Graph / WhatsApp link preview */}
         <meta property="og:title" content={title} />
         <meta property="og:description" content={description} />
