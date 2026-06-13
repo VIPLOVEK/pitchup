@@ -479,7 +479,9 @@ function RosterTab({ password, showToast }) {
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-            <Pill color={colors.grassLight}>{p.position}</Pill>
+            {p.positions?.length
+              ? p.positions.map(pos => <Pill key={pos} color={colors.grassLight}>{pos}</Pill>)
+              : <Pill color={colors.grassLight}>Any</Pill>}
             <Btn small variant="ghost" onClick={() => resetPin(p)}>Reset PIN</Btn>
             <Btn small variant="danger" onClick={() => deletePlayer(p)}>Delete</Btn>
           </div>

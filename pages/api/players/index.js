@@ -1,4 +1,4 @@
-// GET  /api/players — list profiles (id, name, position) for vote-page autocomplete
+// GET  /api/players — list profiles (id, name, positions) for vote-page autocomplete
 // POST /api/players — create a player profile
 import { supabaseAdmin, isSupabaseConfigured } from '../../../lib/supabase'
 import { hashPin } from '../../../lib/players'
@@ -12,7 +12,7 @@ export default async function handler(req, res) {
       const db = supabaseAdmin()
       const { data, error } = await db
         .from('players')
-        .select('id, name, position')
+        .select('id, name, positions')
         .order('name')
       if (error) throw error
       return res.status(200).json(data)
@@ -23,10 +23,12 @@ export default async function handler(req, res) {
 
   if (req.method !== 'POST') return res.status(405).end()
 
-  const { name, phone, position, pin } = req.body
+  const { name, phone, positions, pin } = req.body
   if (!name || !pin) return res.status(400).json({ error: 'Name and PIN are required' })
   if (!/^\d{4,6}$/.test(pin)) return res.status(400).json({ error: 'PIN must be 4-6 digits' })
-  if (position && !POSITIONS.includes(position)) return res.status(400).json({ error: 'Invalid position' })
+  if (positions && (!Array.isArray(positions) || positions.some(p => !POSITIONS.includes(p)))) {
+    return res.status(400).json({ error: 'Invalid position' })
+  }
 
   try {
     const db = supabaseAdmin()
@@ -43,10 +45,10 @@ export default async function handler(req, res) {
       .insert({
         name: name.trim(),
         phone: phone?.trim() || null,
-        position: position || 'Any',
+        positions: positions || [],
         pin_hash: hashPin(pin),
       })
-      .select('id, name, phone, position')
+      .select('id, name, phone, positions')
       .single()
     if (error) throw error
 

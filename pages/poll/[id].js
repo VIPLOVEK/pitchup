@@ -231,7 +231,7 @@ export default function PollPage({ poll: initialPoll, error }) {
     setLoading(true)
     try {
       let playerId = profile?.id || null
-      let position = profile?.position || null
+      let positions = profile?.positions || []
 
       if (matchedPlayer && !profile) {
         const loginRes = await fetch('/api/players/login', {
@@ -242,7 +242,7 @@ export default function PollPage({ poll: initialPoll, error }) {
         const loginData = await loginRes.json()
         if (!loginRes.ok) throw new Error(loginData.error || 'Incorrect PIN')
         playerId = loginData.id
-        position = loginData.position
+        positions = loginData.positions
         setProfile(loginData)
         localStorage.setItem('pitchup_player', JSON.stringify(loginData))
       }
@@ -254,7 +254,7 @@ export default function PollPage({ poll: initialPoll, error }) {
           name: name.trim(),
           slots: selectedSlots,
           playerId,
-          position,
+          positions,
         }),
       })
       const data = await res.json()
@@ -296,7 +296,7 @@ export default function PollPage({ poll: initialPoll, error }) {
               {waitlist.length > 0 ? ` · ${waitlist.length} waiting` : ''}
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center' }}>
-              {active.map((p, i) => <PlayerChip key={i} name={p.name} meta={p.position !== 'Any' ? p.position : undefined} />)}
+              {active.map((p, i) => <PlayerChip key={i} name={p.name} meta={p.positions?.length ? p.positions.join(', ') : undefined} />)}
             </div>
             {waitlist.length > 0 && (
               <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', marginTop: 8 }}>
@@ -338,7 +338,7 @@ export default function PollPage({ poll: initialPoll, error }) {
           {waitlist.length > 0 ? ` · ${waitlist.length} waiting` : ''}
         </p>
         <div style={{ display: 'flex', flexWrap: 'wrap' }}>
-          {active.map((p, i) => <PlayerChip key={i} name={p.name} meta={p.position !== 'Any' ? p.position : undefined} />)}
+          {active.map((p, i) => <PlayerChip key={i} name={p.name} meta={p.positions?.length ? p.positions.join(', ') : undefined} />)}
         </div>
         {waitlist.length > 0 && (
           <>
@@ -369,7 +369,7 @@ export default function PollPage({ poll: initialPoll, error }) {
         <Label>Join the game</Label>
         {profile ? (
           <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 10px' }}>
-            Voting as <strong style={{ color: colors.white }}>{profile.name}</strong> ({profile.position}) ·{' '}
+            Voting as <strong style={{ color: colors.white }}>{profile.name}</strong> ({profile.positions?.length ? profile.positions.join(', ') : 'Any'}) ·{' '}
             <Link href="/profile" style={{ color: colors.accent, textDecoration: 'underline' }}>Not you?</Link>
           </p>
         ) : (

@@ -43,6 +43,14 @@ create table if not exists players (
 -- choose a new one on their next login, without the admin ever seeing it.
 alter table players alter column pin_hash drop not null;
 
+-- Players can select multiple preferred positions (pickup soccer —
+-- everyone rotates). Replaces the single `position` column with a
+-- `positions` array; an empty array means "no preference / Any".
+alter table players add column if not exists positions text[] not null default '{}';
+update players set positions = array[position]
+  where positions = '{}' and position is not null and position <> 'Any';
+alter table players drop column if exists position;
+
 -- Row Level Security — no anon access; all reads/writes go through API
 -- routes using the service role key, which bypasses RLS entirely.
 alter table players enable row level security;

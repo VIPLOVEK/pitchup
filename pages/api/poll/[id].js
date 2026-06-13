@@ -71,7 +71,7 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'POST') {
-    const { name, slots: votedSlots, playerId, position } = req.body
+    const { name, slots: votedSlots, playerId, positions } = req.body
     if (!name || !Array.isArray(votedSlots) || votedSlots.length === 0) {
       return res.status(400).json({ error: 'name and slots are required' })
     }
@@ -112,7 +112,7 @@ export default async function handler(req, res) {
 
         const updatedPlayers = [
           ...players,
-          { name: name.trim(), slots: votedSlots, playerId: playerId || null, position: position || 'Any' },
+          { name: name.trim(), slots: votedSlots, playerId: playerId || null, positions: positions || [] },
         ]
 
         const { data: updated, error: updateErr } = await db

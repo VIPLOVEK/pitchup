@@ -1,5 +1,5 @@
 // GET   /api/players/[id] — fetch a profile (used to restore a saved session)
-// PATCH /api/players/[id] — update phone/position (requires current PIN)
+// PATCH /api/players/[id] — update phone/positions (requires current PIN)
 import { supabaseAdmin, isSupabaseConfigured } from '../../../lib/supabase'
 import { verifyPin } from '../../../lib/players'
 import { POSITIONS } from '../../../lib/positions'
@@ -13,7 +13,7 @@ export default async function handler(req, res) {
     try {
       const { data, error } = await db
         .from('players')
-        .select('id, name, phone, position')
+        .select('id, name, phone, positions')
         .eq('id', id)
         .maybeSingle()
       if (error) throw error
@@ -25,9 +25,11 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'PATCH') {
-    const { pin, phone, position } = req.body
+    const { pin, phone, positions } = req.body
     if (!pin) return res.status(400).json({ error: 'Current PIN is required' })
-    if (position && !POSITIONS.includes(position)) return res.status(400).json({ error: 'Invalid position' })
+    if (positions && (!Array.isArray(positions) || positions.some(p => !POSITIONS.includes(p)))) {
+      return res.status(400).json({ error: 'Invalid position' })
+    }
 
     try {
       const { data: player, error: fetchErr } = await db.from('players').select('*').eq('id', id).maybeSingle()
@@ -38,13 +40,13 @@ export default async function handler(req, res) {
 
       const update = {}
       if (phone !== undefined) update.phone = phone?.trim() || null
-      if (position !== undefined) update.position = position
+      if (positions !== undefined) update.positions = positions
 
       const { data, error } = await db
         .from('players')
         .update(update)
         .eq('id', id)
-        .select('id, name, phone, position')
+        .select('id, name, phone, positions')
         .single()
       if (error) throw error
 

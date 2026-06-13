@@ -1,10 +1,39 @@
 import { useState, useEffect } from 'react'
 import Layout from '../components/Layout'
-import { Card, Label, Btn, Input, Select, Toast } from '../components/UI'
+import { Card, Label, Btn, Input, Toast } from '../components/UI'
 import { colors, radius } from '../lib/tokens'
 import { POSITIONS } from '../lib/positions'
 
 const STORAGE_KEY = 'pitchup_player'
+
+function PositionPicker({ positions, onToggle }) {
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+      {POSITIONS.map(pos => {
+        const selected = positions.includes(pos)
+        return (
+          <button
+            key={pos}
+            type="button"
+            onClick={() => onToggle(pos)}
+            style={{
+              background: selected ? colors.accent + '22' : colors.pitchMid,
+              border: `1.5px solid ${selected ? colors.accent : colors.grass + '33'}`,
+              color: selected ? colors.accent : colors.muted,
+              borderRadius: 8,
+              padding: '6px 12px',
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            {pos}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
 
 function GroupsSection({ player, showToast }) {
   const [groups, setGroups] = useState(null)
@@ -76,10 +105,12 @@ export default function ProfilePage() {
   // Create/login form state
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
-  const [position, setPosition] = useState('Any')
+  const [positions, setPositions] = useState([])
   const [pin, setPin] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  const togglePosition = (pos) => setPositions(ps => ps.includes(pos) ? ps.filter(x => x !== pos) : [...ps, pos])
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3000) }
 
@@ -97,6 +128,10 @@ export default function ProfilePage() {
       .finally(() => setLoaded(true))
   }, [])
 
+  useEffect(() => {
+    if (player) setPositions(player.positions || [])
+  }, [player])
+
   const handleSubmit = async () => {
     if (!name.trim() || !/^\d{4,6}$/.test(pin)) {
       setError('Enter your name and a 4-6 digit PIN')
@@ -107,7 +142,7 @@ export default function ProfilePage() {
     try {
       const url = mode === 'create' ? '/api/players' : '/api/players/login'
       const body = mode === 'create'
-        ? { name: name.trim(), phone: phone.trim(), position, pin }
+        ? { name: name.trim(), phone: phone.trim(), positions, pin }
         : { name: name.trim(), pin }
 
       const res = await fetch(url, {
@@ -128,20 +163,20 @@ export default function ProfilePage() {
     }
   }
 
-  const handleUpdatePosition = async (newPosition) => {
-    const enteredPin = window.prompt('Enter your PIN to update your position:')
+  const handleSavePositions = async () => {
+    const enteredPin = window.prompt('Enter your PIN to update your positions:')
     if (!enteredPin) return
     try {
       const res = await fetch(`/api/players/${player.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pin: enteredPin, position: newPosition }),
+        body: JSON.stringify({ pin: enteredPin, positions }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
       setPlayer(data)
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
-      showToast('Position updated!')
+      showToast('Positions updated!')
     } catch (e) {
       showToast(e.message)
     }
@@ -152,11 +187,13 @@ export default function ProfilePage() {
     setPlayer(null)
     setName('')
     setPin('')
+    setPositions([])
   }
 
   if (!loaded) return null
 
   if (player) {
+    const positionsDirty = JSON.stringify([...positions].sort()) !== JSON.stringify([...(player.positions || [])].sort())
     return (
       <Layout title="My Profile — Aldie FC">
         <Card>
@@ -167,11 +204,16 @@ export default function ProfilePage() {
           {player.phone && (
             <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 4px' }}>📱 {player.phone}</p>
           )}
-          <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 12px' }}>Preferred position:</p>
-          <Select value={player.position} onChange={e => handleUpdatePosition(e.target.value)}>
-            {POSITIONS.map(p => <option key={p} value={p}>{p}</option>)}
-          </Select>
-          <Btn full variant="ghost" onClick={handleLogout} style={{ marginTop: 8 }}>
+          <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 8px' }}>
+            Preferred positions <span style={{ color: colors.muted, fontWeight: 400 }}>(pick as many as you like — leave blank for "Any")</span>
+          </p>
+          <PositionPicker positions={positions} onToggle={togglePosition} />
+          {positionsDirty && (
+            <Btn small variant="ghost" onClick={handleSavePositions} style={{ marginTop: 8 }}>
+              Save positions
+            </Btn>
+          )}
+          <Btn full variant="ghost" onClick={handleLogout} style={{ marginTop: 12 }}>
             Log out
           </Btn>
         </Card>
@@ -210,10 +252,12 @@ export default function ProfilePage() {
         {mode === 'create' && (
           <>
             <Input value={phone} onChange={e => setPhone(e.target.value)} placeholder="Phone number (optional)" />
-            <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 8px' }}>Preferred position:</p>
-            <Select value={position} onChange={e => setPosition(e.target.value)}>
-              {POSITIONS.map(p => <option key={p} value={p}>{p}</option>)}
-            </Select>
+            <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 8px' }}>
+              Preferred positions <span style={{ color: colors.muted, fontWeight: 400 }}>(pick as many as you like — leave blank for "Any")</span>
+            </p>
+            <div style={{ marginBottom: 12 }}>
+              <PositionPicker positions={positions} onToggle={togglePosition} />
+            </div>
           </>
         )}
 
