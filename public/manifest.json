@@ -3,6 +3,8 @@
   "short_name": "Aldie FC",
   "description": "Aldie FC pickup soccer organizer",
   "start_url": "/",
+  "scope": "/",
+  "id": "/",
   "display": "standalone",
   "background_color": "#0a1628",
   "theme_color": "#0a1628",
