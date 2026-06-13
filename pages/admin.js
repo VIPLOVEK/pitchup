@@ -467,8 +467,8 @@ function RosterTab({ password, showToast }) {
         <div
           key={p.id}
           style={{
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            padding: '10px 0', borderBottom: `1px solid ${colors.grass}22`, gap: 12,
+            display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+            flexWrap: 'wrap', padding: '10px 0', borderBottom: `1px solid ${colors.grass}22`, gap: 10,
           }}
         >
           <div>
@@ -478,7 +478,7 @@ function RosterTab({ password, showToast }) {
               ⚽ {p.gamesPlayed} game{p.gamesPlayed === 1 ? '' : 's'} played
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
             <Pill color={colors.grassLight}>{p.position}</Pill>
             <Btn small variant="ghost" onClick={() => resetPin(p)}>Reset PIN</Btn>
             <Btn small variant="danger" onClick={() => deletePlayer(p)}>Delete</Btn>
