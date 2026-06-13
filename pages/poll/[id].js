@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
 import Link from 'next/link'
 import Layout from '../../components/Layout'
-import { Card, Label, ProgressBar, Btn, Input, Pill, PlayerChip, Toast } from '../../components/UI'
+import { Card, Label, ProgressBar, Btn, Input, Pill, PlayerChip, Toast, GoalCelebration } from '../../components/UI'
 import { colors, radius } from '../../lib/tokens'
 import { formatSlot, getActivePlayers, getWaitlist } from '../../lib/teams'
 import { findLocation } from '../../lib/locations'
@@ -281,9 +281,12 @@ export default function PollPage({ poll: initialPoll, error }) {
       <Layout title={poll.title}>
         <Card>
           <div style={{ textAlign: 'center', padding: '20px 0' }}>
-            <div style={{ fontSize: 40, marginBottom: 10 }}>{onWaitlist ? '⏳' : '✅'}</div>
+            {!onWaitlist && active.length >= poll.min_players && <GoalCelebration />}
+            <div style={{ fontSize: 40, marginBottom: 10 }} className={!onWaitlist && active.length >= poll.min_players ? 'progress-ball' : ''}>
+              {onWaitlist ? '⏳' : '✅'}
+            </div>
             <h2 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 8px' }}>
-              {onWaitlist ? "You're on the waiting list" : "You're in!"}
+              {onWaitlist ? "You're on the waiting list" : active.length >= poll.min_players ? "You're in — game is on! ⚽" : "You're in!"}
             </h2>
             <p style={{ color: colors.muted, fontSize: 13 }}>
               {onWaitlist

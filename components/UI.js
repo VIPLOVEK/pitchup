@@ -177,7 +177,7 @@ export function Select({ value, onChange, children, style = {} }) {
 export function Toast({ msg }) {
   if (!msg) return null
   return (
-    <div style={{
+    <div className="toast-pop" style={{
       position: 'fixed',
       bottom: 24,
       left: '50%',
@@ -190,10 +190,37 @@ export function Toast({ msg }) {
       fontSize: 14,
       zIndex: 999,
       boxShadow: '0 4px 20px #0008',
-      animation: 'fadeInUp 0.2s ease',
       whiteSpace: 'nowrap',
     }}>
       {msg}
+    </div>
+  )
+}
+
+// ── Spinner ───────────────────────────────────────────────────────────────────
+export function Spinner({ label = 'Loading...' }) {
+  return (
+    <p style={{ color: colors.muted, fontSize: 13, display: 'flex', alignItems: 'center', gap: 8 }}>
+      <span className="spinner-ball" aria-hidden="true">⚽</span> {label}
+    </p>
+  )
+}
+
+// ── Goal celebration ──────────────────────────────────────────────────────────
+const CONFETTI_PIECES = ['⚽', '🎉', '⭐', '🟡', '🔴']
+
+export function GoalCelebration() {
+  return (
+    <div className="goal-celebration" aria-hidden="true">
+      {CONFETTI_PIECES.concat(CONFETTI_PIECES).map((piece, i) => (
+        <span
+          key={i}
+          className="confetti-piece"
+          style={{ left: `${(i * 9) + 2}%`, animationDelay: `${i * 0.08}s` }}
+        >
+          {piece}
+        </span>
+      ))}
     </div>
   )
 }

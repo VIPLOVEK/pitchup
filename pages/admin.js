@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import Layout from '../components/Layout'
-import { Card, Label, ProgressBar, Btn, Input, Pill, PlayerChip, Toast, CopyBtn } from '../components/UI'
+import { Card, Label, ProgressBar, Btn, Input, Pill, PlayerChip, Toast, CopyBtn, Spinner } from '../components/UI'
 import { colors, radius, groupColorPalette } from '../lib/tokens'
 import { getActivePlayers, getWaitlist } from '../lib/teams'
 import { LOCATIONS } from '../lib/locations'
@@ -446,7 +446,7 @@ function RosterTab({ password, showToast }) {
   }
 
   if (error) return <Card><p style={{ color: colors.danger, fontSize: 13 }}>{error}</p></Card>
-  if (players === null) return <Card><p style={{ color: colors.muted, fontSize: 13 }}>Loading roster...</p></Card>
+  if (players === null) return <Card><Spinner label="Loading roster..." /></Card>
 
   if (players.length === 0) {
     return (
@@ -613,7 +613,7 @@ function GroupsTab({ password, showToast, onGroupsChanged }) {
   }
 
   if (error) return <Card><p style={{ color: colors.danger, fontSize: 13 }}>{error}</p></Card>
-  if (groups === null) return <Card><p style={{ color: colors.muted, fontSize: 13 }}>Loading groups...</p></Card>
+  if (groups === null) return <Card><Spinner label="Loading groups..." /></Card>
 
   return (
     <div>
@@ -948,7 +948,7 @@ function RecurringTab({ password, groups, showToast }) {
       </Card>
 
       {error && <Card><p style={{ color: colors.danger, fontSize: 13 }}>{error}</p></Card>}
-      {templates === null && !error && <Card><p style={{ color: colors.muted, fontSize: 13 }}>Loading...</p></Card>}
+      {templates === null && !error && <Card><Spinner /></Card>}
 
       {templates && templates.map(t => {
         const templateGroups = t.visibility === 'groups' ? t.group_ids.map(id => groups.find(g => g.id === id)).filter(Boolean) : []
