@@ -29,6 +29,15 @@ create table if not exists polls (
 create index if not exists polls_created_at_idx on polls(created_at desc);
 create index if not exists polls_status_idx on polls(status);
 
+-- keepalive table — written to and cleared weekly (see /api/cron/keepalive)
+-- to keep this free-tier Supabase project from auto-pausing due to inactivity
+create table if not exists keepalive (
+  id          bigint generated always as identity primary key,
+  created_at  timestamptz default now()
+);
+
+alter table keepalive enable row level security;
+
 -- players table — lightweight profiles (name + PIN, no email/password flow)
 create table if not exists players (
   id          text primary key default encode(gen_random_bytes(6), 'hex'),

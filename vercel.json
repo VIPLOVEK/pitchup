@@ -1,6 +1,7 @@
 {
   "crons": [
     { "path": "/api/cron/reminders", "schedule": "0 12 * * *" },
-    { "path": "/api/cron/recurring-polls", "schedule": "0 12 * * *" }
+    { "path": "/api/cron/recurring-polls", "schedule": "0 12 * * *" },
+    { "path": "/api/cron/keepalive", "schedule": "0 12 * * 1" }
   ]
 }
