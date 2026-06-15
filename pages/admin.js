@@ -173,6 +173,13 @@ function PollCard({ poll, password, onAction, appUrl, groups }) {
   const [editingAudience, setEditingAudience] = useState(false)
   const [audienceVisibility, setAudienceVisibility] = useState(poll.visibility)
   const [audienceGroupIds, setAudienceGroupIds] = useState(poll.group_ids)
+  const [editingDetails, setEditingDetails] = useState(false)
+  const [detailsError, setDetailsError] = useState('')
+  const [editTitle, setEditTitle] = useState(poll.title)
+  const [editLocation, setEditLocation] = useState(poll.location)
+  const [editMinPlayers, setEditMinPlayers] = useState(poll.min_players)
+  const [editMaxPlayers, setEditMaxPlayers] = useState(poll.max_players)
+  const [editSlots, setEditSlots] = useState(poll.slots.map(toLocalInputValue))
   const isOpen = poll.status === 'open'
   const isConfirmed = poll.status === 'confirmed'
   const isCancelled = poll.status === 'cancelled'
@@ -353,11 +360,119 @@ function PollCard({ poll, password, onAction, appUrl, groups }) {
         </div>
       )}
 
+      {/* Details editor */}
+      {isOpen && editingDetails && (
+        <div style={{ marginTop: 12, background: colors.pitchMid, borderRadius: 8, padding: 12 }}>
+          <Input value={editTitle} onChange={e => setEditTitle(e.target.value)} placeholder="Game title" />
+
+          <select value={LOCATIONS.some(l => l.name === editLocation) ? editLocation : 'Other'} onChange={e => setEditLocation(e.target.value === 'Other' ? '' : e.target.value)} style={selectStyle}>
+            {LOCATIONS.map(l => (
+              <option key={l.name} value={l.name}>{l.name} ({l.boot} boots)</option>
+            ))}
+            <option value="Other">Other...</option>
+          </select>
+          {!LOCATIONS.some(l => l.name === editLocation) && (
+            <Input value={editLocation} onChange={e => setEditLocation(e.target.value)} placeholder="Location / field name" />
+          )}
+
+          <p style={{ color: colors.muted, fontSize: 12, margin: '0 0 8px' }}>Time slots:</p>
+          {editSlots.map((slot, i) => (
+            <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <Input
+                type="datetime-local"
+                value={slot}
+                onChange={e => setEditSlots(s => s.map((v, idx) => idx === i ? e.target.value : v))}
+                style={{ flex: 1 }}
+              />
+              {editSlots.length > 1 && (
+                <button
+                  onClick={() => setEditSlots(s => s.filter((_, idx) => idx !== i))}
+                  style={{ background: 'none', border: 'none', color: colors.muted, fontSize: 18, cursor: 'pointer', padding: '0 4px 10px' }}
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          ))}
+          <div style={{ marginBottom: 10 }}>
+            <Btn small variant="ghost" onClick={() => setEditSlots(s => [...s, ''])}>+ Add another time</Btn>
+          </div>
+          {poll.players.length > 0 && (
+            <p style={{ color: colors.muted, fontSize: 12, margin: '0 0 10px' }}>
+              Existing votes are kept. If you remove a time slot, any votes for it are dropped — players keep their other votes.
+            </p>
+          )}
+
+          <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
+            <div style={{ flex: 1 }}>
+              <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 8px' }}>Min players</p>
+              <Input type="number" value={editMinPlayers} onChange={e => setEditMinPlayers(Number(e.target.value))} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 8px' }}>Max players</p>
+              <Input type="number" value={editMaxPlayers} onChange={e => setEditMaxPlayers(Number(e.target.value))} />
+            </div>
+          </div>
+
+          {detailsError && <p style={{ color: colors.danger, fontSize: 13, marginBottom: 10 }}>{detailsError}</p>}
+
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Btn
+              small
+              onClick={async () => {
+                const filledSlots = editSlots.filter(Boolean)
+                if (!editTitle || !editLocation || filledSlots.length === 0) {
+                  setDetailsError('Fill in all fields')
+                  return
+                }
+                if (editMinPlayers < 2 || editMaxPlayers < editMinPlayers) {
+                  setDetailsError('Max players must be greater than or equal to min players')
+                  return
+                }
+                setDetailsError('')
+                await doAction('updateDetails', 'PATCH', {
+                  title: editTitle,
+                  location: editLocation,
+                  slots: filledSlots.map(s => new Date(s).toISOString()),
+                  minPlayers: editMinPlayers,
+                  maxPlayers: editMaxPlayers,
+                })
+                setEditingDetails(false)
+              }}
+              disabled={loading}
+            >
+              Save
+            </Btn>
+            <Btn small variant="ghost" onClick={() => setEditingDetails(false)} disabled={loading}>
+              Cancel
+            </Btn>
+          </div>
+        </div>
+      )}
+
       {/* Actions */}
       <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
         {isOpen && (
           <Btn small variant="ghost" onClick={() => doAction('close')} disabled={loading}>
             ✅ Confirm game now
+          </Btn>
+        )}
+        {isOpen && !editingDetails && (
+          <Btn
+            small
+            variant="ghost"
+            onClick={() => {
+              setEditTitle(poll.title)
+              setEditLocation(poll.location)
+              setEditMinPlayers(poll.min_players)
+              setEditMaxPlayers(poll.max_players)
+              setEditSlots(poll.slots.map(toLocalInputValue))
+              setDetailsError('')
+              setEditingDetails(true)
+            }}
+            disabled={loading}
+          >
+            ✏️ Edit details
           </Btn>
         )}
         {isOpen && !editingAudience && (
@@ -782,6 +897,13 @@ function GroupsTab({ password, showToast, onGroupsChanged }) {
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
 function pad2(n) { return String(n).padStart(2, '0') }
+
+// Converts an ISO datetime string to the "YYYY-MM-DDTHH:mm" format
+// expected by <input type="datetime-local"> in the local timezone.
+function toLocalInputValue(iso) {
+  const d = new Date(iso)
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`
+}
 
 function RecurringTab({ password, groups, showToast }) {
   const [templates, setTemplates] = useState(null)

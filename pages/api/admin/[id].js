@@ -106,6 +106,32 @@ export default async function handler(req, res) {
         return res.status(200).json(data)
       }
 
+      if (action === 'updateDetails') {
+        const { title, location, slots, minPlayers, maxPlayers } = req.body
+        if (poll.status !== 'open') return res.status(400).json({ error: 'Poll is no longer open' })
+        if (!title || !location) return res.status(400).json({ error: 'Title and location are required' })
+        if (!Array.isArray(slots) || slots.length === 0) return res.status(400).json({ error: 'At least one time slot is required' })
+        if (!Number.isInteger(minPlayers) || !Number.isInteger(maxPlayers) || minPlayers < 2 || maxPlayers < minPlayers) {
+          return res.status(400).json({ error: 'Max players must be greater than or equal to min players' })
+        }
+
+        // Keep existing players/votes, but drop any slot-vote indices that
+        // no longer exist if slots were removed.
+        const updatedPlayers = (poll.players || []).map(p => ({
+          ...p,
+          slots: (p.slots || []).filter(i => i < slots.length),
+        }))
+
+        const { data, error } = await db
+          .from('polls')
+          .update({ title, location, slots, min_players: minPlayers, max_players: maxPlayers, players: updatedPlayers, version: poll.version + 1 })
+          .eq('id', id)
+          .select()
+          .single()
+        if (error) throw error
+        return res.status(200).json(data)
+      }
+
       if (action === 'removePlayer') {
         const { name } = req.body
         if (!name) return res.status(400).json({ error: 'name is required' })
