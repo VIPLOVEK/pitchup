@@ -1,5 +1,5 @@
 self.addEventListener('push', (event) => {
-  let data = { title: 'Aldie FC', body: 'You have a new notification.', url: '/' }
+  let data = { title: 'PitchUp', body: 'You have a new notification.', url: '/' }
   try { data = { ...data, ...event.data.json() } } catch (_) {}
 
   event.waitUntil(

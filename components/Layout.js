@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/router'
 import { colors } from '../lib/tokens'
 
-export default function Layout({ children, title = 'Aldie FC', description = 'Aldie FC pickup soccer organizer' }) {
+export default function Layout({ children, title = 'PitchUp', description = 'PitchUp — pickup soccer organizer' }) {
   const router = useRouter()
   const isAdmin = router.pathname.startsWith('/admin')
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || ''
@@ -24,7 +24,7 @@ export default function Layout({ children, title = 'Aldie FC', description = 'Al
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content="Aldie FC" />
+        <meta name="apple-mobile-web-app-title" content="PitchUp" />
 
         {/* Open Graph / WhatsApp link preview */}
         <meta property="og:title" content={title} />
@@ -48,8 +48,8 @@ export default function Layout({ children, title = 'Aldie FC', description = 'Al
         zIndex: 100,
       }}>
         <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, fontWeight: 800, fontSize: 18, letterSpacing: '-0.5px' }}>
-          <img className="brand-logo" src="/logo.png" alt="Aldie FC" style={{ height: 32, width: 32, borderRadius: '50%', boxShadow: `0 0 0 2px ${colors.accent}33` }} />
-          <span>Aldie <span style={{ color: colors.accent }}>FC</span></span>
+          <img className="brand-logo" src="/logo.png" alt="PitchUp" style={{ height: 32, width: 32, borderRadius: '50%', boxShadow: `0 0 0 2px ${colors.accent}33` }} />
+          <span>Pitch<span style={{ color: colors.accent }}>Up</span></span>
         </Link>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Link

@@ -1,7 +1,7 @@
 {
-  "name": "Aldie FC",
-  "short_name": "Aldie FC",
-  "description": "Aldie FC pickup soccer organizer",
+  "name": "PitchUp",
+  "short_name": "PitchUp",
+  "description": "PitchUp — pickup soccer organizer",
   "start_url": "/",
   "scope": "/",
   "id": "/",

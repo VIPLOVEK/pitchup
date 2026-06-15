@@ -6,7 +6,7 @@ const medal = (rank) => rank === 0 ? '🥇' : rank === 1 ? '🥈' : rank === 2 ?
 
 export default function Leaderboard({ leaderboard, error }) {
   return (
-    <Layout title="Leaderboard — Aldie FC">
+    <Layout title="Leaderboard — PitchUp">
       <div style={{ textAlign: 'center', padding: '24px 0 16px' }}>
         <h1 style={{ fontSize: 24, fontWeight: 900, letterSpacing: '-0.5px', margin: '0 0 6px' }}>
           🏆 Leaderboard

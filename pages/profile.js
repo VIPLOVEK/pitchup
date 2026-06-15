@@ -321,7 +321,7 @@ export default function ProfilePage() {
     const skillRatingStale = player.skill_rating_updated_at &&
       (Date.now() - new Date(player.skill_rating_updated_at).getTime()) / 86400000 > SKILL_RATING_STALE_DAYS
     return (
-      <Layout title="My Profile — Aldie FC">
+      <Layout title="My Profile — PitchUp">
         <Card>
           <Label>My profile</Label>
           <h1 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 12px', letterSpacing: '-0.5px' }}>
@@ -360,7 +360,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <Layout title="My Profile — Aldie FC">
+    <Layout title="My Profile — PitchUp">
       <Card>
         <Label>My profile</Label>
         <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>

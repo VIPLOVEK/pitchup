@@ -31,19 +31,19 @@ export default function Home({ polls, groups }) {
   const decidedPolls = polls.filter(p => p.status !== 'open')
 
   return (
-    <Layout title="Aldie FC — Pickup Soccer">
+    <Layout title="PitchUp — Pickup Soccer">
       {/* Hero */}
       <div style={{ textAlign: 'center', padding: '32px 0 24px' }}>
-        <img className="brand-logo" src="/logo.png" alt="Aldie FC" style={{ width: 72, height: 72, borderRadius: '50%', marginBottom: 12 }} />
+        <img className="brand-logo" src="/logo.png" alt="PitchUp" style={{ width: 72, height: 72, borderRadius: '50%', marginBottom: 12 }} />
         <h1 style={{ fontSize: 28, fontWeight: 900, letterSpacing: '-1px', margin: '0 0 8px' }}>
-          Aldie <span style={{ color: colors.accent }}>FC</span>{' '}
+          Pitch<span style={{ color: colors.accent }}>Up</span>{' '}
           <span className="floating-ball" aria-hidden="true">⚽</span>
         </h1>
         <p style={{ color: colors.muted, fontSize: 14, margin: '0 0 8px' }}>
           Pickup soccer, organized.
         </p>
         <p style={{ color: colors.muted, fontSize: 13, maxWidth: 380, margin: '0 auto', lineHeight: 1.5 }}>
-          A casual pickup soccer group in Aldie, VA. Vote on game times, see who's in, and join us on the pitch — all skill levels welcome.
+          Vote on game times, see who's in, and join us on the pitch — all skill levels welcome.
         </p>
       </div>
 

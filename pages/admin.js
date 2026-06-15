@@ -1132,7 +1132,7 @@ export default function AdminPage() {
   // Login gate
   if (!authed) {
     return (
-      <Layout title="Admin — Aldie FC">
+      <Layout title="Admin — PitchUp">
         <Card>
           <Label>Admin access</Label>
           <h2 style={{ fontSize: 20, fontWeight: 800, margin: '0 0 16px' }}>Enter your password</h2>
@@ -1163,7 +1163,7 @@ export default function AdminPage() {
   }
 
   return (
-    <Layout title="Admin — Aldie FC">
+    <Layout title="Admin — PitchUp">
       <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
         {['create', 'manage', 'recurring', 'roster', 'groups'].map(t => (
           <button
