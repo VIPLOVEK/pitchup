@@ -85,6 +85,11 @@ export default function Layout({ children, title = 'PitchUp', description = 'Pit
 
       <main style={{ maxWidth: 480, margin: '0 auto', padding: '24px 16px 80px', animation: 'fadeInUp 0.3s ease' }}>
         {children}
+        <div style={{ textAlign: 'center', marginTop: 8 }}>
+          <Link href="/feedback" style={{ color: colors.muted, fontSize: 12, fontWeight: 600 }}>
+            💡 Suggest a feature
+          </Link>
+        </div>
       </main>
     </>
   )

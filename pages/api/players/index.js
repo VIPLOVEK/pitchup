@@ -2,7 +2,7 @@
 // POST /api/players — create a player profile
 import { supabaseAdmin, isSupabaseConfigured } from '../../../lib/supabase'
 import { hashPin } from '../../../lib/players'
-import { POSITIONS, DEFAULT_SKILL_RATING } from '../../../lib/positions'
+import { POSITIONS, DEFAULT_SKILL_RATING, isValidPositionSkills, deriveSkillRating } from '../../../lib/positions'
 
 export default async function handler(req, res) {
   if (!isSupabaseConfigured()) return res.status(503).json({ error: 'Database not configured yet.' })
@@ -12,7 +12,7 @@ export default async function handler(req, res) {
       const db = supabaseAdmin()
       const { data, error } = await db
         .from('players')
-        .select('id, name, positions, skill_rating')
+        .select('id, name, positions, skill_rating, position_skills')
         .order('name')
       if (error) throw error
       return res.status(200).json(data)
@@ -23,7 +23,7 @@ export default async function handler(req, res) {
 
   if (req.method !== 'POST') return res.status(405).end()
 
-  const { name, phone, positions, pin, skillRating } = req.body
+  const { name, phone, positions, pin, skillRating, positionSkills } = req.body
   if (!name || !pin) return res.status(400).json({ error: 'Name and PIN are required' })
   if (!/^\d{4,6}$/.test(pin)) return res.status(400).json({ error: 'PIN must be 4-6 digits' })
   if (positions && (!Array.isArray(positions) || positions.some(p => !POSITIONS.includes(p)))) {
@@ -31,6 +31,9 @@ export default async function handler(req, res) {
   }
   if (skillRating !== undefined && (!Number.isInteger(skillRating) || skillRating < 1 || skillRating > 5)) {
     return res.status(400).json({ error: 'Skill rating must be between 1 and 5' })
+  }
+  if (positionSkills !== undefined && !isValidPositionSkills(positions || [], positionSkills)) {
+    return res.status(400).json({ error: 'Invalid position skills' })
   }
 
   try {
@@ -49,10 +52,11 @@ export default async function handler(req, res) {
         name: name.trim(),
         phone: phone?.trim() || null,
         positions: positions || [],
-        skill_rating: skillRating || DEFAULT_SKILL_RATING,
+        position_skills: positionSkills || {},
+        skill_rating: deriveSkillRating(positionSkills, skillRating || DEFAULT_SKILL_RATING),
         pin_hash: hashPin(pin),
       })
-      .select('id, name, phone, positions, skill_rating')
+      .select('id, name, phone, positions, skill_rating, position_skills')
       .single()
     if (error) throw error
 

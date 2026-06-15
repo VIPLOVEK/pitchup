@@ -5,7 +5,7 @@ import { Card, Label, ProgressBar, Btn, Input, Pill, PlayerChip, Toast, CopyBtn,
 import { colors, radius, groupColorPalette } from '../lib/tokens'
 import { getActivePlayers, getWaitlist } from '../lib/teams'
 import { LOCATIONS } from '../lib/locations'
-import { SKILL_LABELS, DEFAULT_SKILL_RATING } from '../lib/positions'
+import { SKILL_LABELS, DEFAULT_SKILL_RATING, POSITIONS } from '../lib/positions'
 
 const selectStyle = {
   width: '100%',
@@ -17,6 +17,16 @@ const selectStyle = {
   fontSize: 14,
   outline: 'none',
   marginBottom: 10,
+}
+
+const skillSelectStyle = {
+  background: colors.pitchMid,
+  border: `1.5px solid ${colors.grass}33`,
+  color: colors.muted,
+  borderRadius: 8,
+  padding: '5px 8px',
+  fontSize: 13,
+  fontWeight: 600,
 }
 
 function CreatePollForm({ onCreated, groups }) {
@@ -576,6 +586,21 @@ function RosterTab({ password, showToast }) {
     }
   }
 
+  const setPositionSkill = async (player, position, skillRating) => {
+    try {
+      const res = await fetch(`/api/admin/players/${player.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', authorization: `Bearer ${password}` },
+        body: JSON.stringify({ action: 'setPositionSkill', position, skillRating }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setPlayers(ps => ps.map(p => p.id === player.id ? { ...p, skill_rating: data.skill_rating, position_skills: data.position_skills } : p))
+    } catch (e) {
+      showToast(e.message)
+    }
+  }
+
   if (error) return <Card><p style={{ color: colors.danger, fontSize: 13 }}>{error}</p></Card>
   if (players === null) return <Card><Spinner label="Loading roster..." /></Card>
 
@@ -611,25 +636,34 @@ function RosterTab({ password, showToast }) {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
             {p.positions?.length
-              ? p.positions.map(pos => <Pill key={pos} color={colors.grassLight}>{pos}</Pill>)
-              : <Pill color={colors.grassLight}>Any</Pill>}
-            <select
-              value={p.skill_rating || DEFAULT_SKILL_RATING}
-              onChange={e => setSkillRating(p, Number(e.target.value))}
-              style={{
-                background: colors.pitchMid,
-                border: `1.5px solid ${colors.grass}33`,
-                color: colors.muted,
-                borderRadius: 8,
-                padding: '5px 8px',
-                fontSize: 13,
-                fontWeight: 600,
-              }}
-            >
-              {Object.entries(SKILL_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>{value} · {label}</option>
-              ))}
-            </select>
+              ? p.positions.map(pos => (
+                <div key={pos} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <Pill color={colors.grassLight}>{pos}</Pill>
+                  <select
+                    value={p.position_skills?.[pos] || DEFAULT_SKILL_RATING}
+                    onChange={e => setPositionSkill(p, pos, Number(e.target.value))}
+                    style={skillSelectStyle}
+                  >
+                    {Object.entries(SKILL_LABELS).map(([value, label]) => (
+                      <option key={value} value={value}>{value} · {label}</option>
+                    ))}
+                  </select>
+                </div>
+              ))
+              : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <Pill color={colors.grassLight}>Any</Pill>
+                  <select
+                    value={p.skill_rating || DEFAULT_SKILL_RATING}
+                    onChange={e => setSkillRating(p, Number(e.target.value))}
+                    style={skillSelectStyle}
+                  >
+                    {Object.entries(SKILL_LABELS).map(([value, label]) => (
+                      <option key={value} value={value}>{value} · {label}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
             <Btn small variant="ghost" onClick={() => resetPin(p)}>Reset PIN</Btn>
             <Btn small variant="danger" onClick={() => deletePlayer(p)}>Delete</Btn>
           </div>
@@ -891,6 +925,104 @@ function GroupsTab({ password, showToast, onGroupsChanged }) {
         )
       })}
     </div>
+  )
+}
+
+const FEEDBACK_STATUSES = ['open', 'planned', 'in_progress', 'done', 'declined']
+const FEEDBACK_STATUS_LABELS = {
+  open: 'Open',
+  planned: 'Planned',
+  in_progress: 'In progress',
+  done: 'Done',
+  declined: 'Declined',
+}
+
+function FeedbackTab({ password, showToast }) {
+  const [requests, setRequests] = useState(null)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    fetch('/api/feature-requests')
+      .then(res => res.ok ? res.json() : Promise.reject(new Error('Failed to load suggestions')))
+      .then(setRequests)
+      .catch(e => setError(e.message))
+  }, [])
+
+  const setStatus = async (id, status) => {
+    setRequests(rs => rs.map(r => r.id === id ? { ...r, status } : r))
+    try {
+      const res = await fetch(`/api/admin/feature-requests/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', authorization: `Bearer ${password}` },
+        body: JSON.stringify({ status }),
+      })
+      if (!res.ok) throw new Error((await res.json()).error)
+    } catch (e) {
+      showToast(e.message)
+    }
+  }
+
+  const deleteRequest = async (id) => {
+    if (!confirm('Delete this suggestion?')) return
+    try {
+      const res = await fetch(`/api/admin/feature-requests/${id}`, {
+        method: 'DELETE',
+        headers: { authorization: `Bearer ${password}` },
+      })
+      if (!res.ok) throw new Error('Failed to delete')
+      setRequests(rs => rs.filter(r => r.id !== id))
+    } catch (e) {
+      showToast(e.message)
+    }
+  }
+
+  if (error) return <Card><p style={{ color: colors.danger, fontSize: 13 }}>{error}</p></Card>
+  if (requests === null) return <Card><Spinner label="Loading suggestions..." /></Card>
+
+  if (requests.length === 0) {
+    return (
+      <Card>
+        <div style={{ textAlign: 'center', color: colors.muted, padding: '20px 0', fontSize: 14 }}>
+          No suggestions yet. Share the <Link href="/feedback" style={{ color: colors.accent }}>suggestion box link</Link> with the group.
+        </div>
+      </Card>
+    )
+  }
+
+  return (
+    <Card>
+      <Label>{requests.length} suggestion{requests.length === 1 ? '' : 's'}</Label>
+      {requests.map(r => (
+        <div
+          key={r.id}
+          style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+            flexWrap: 'wrap', padding: '10px 0', borderBottom: `1px solid ${colors.grass}22`, gap: 10,
+          }}
+        >
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 14 }}>{r.title}</div>
+            {r.description && <div style={{ color: colors.muted, fontSize: 12, marginTop: 2 }}>{r.description}</div>}
+            <div style={{ color: colors.muted, fontSize: 12, marginTop: 2 }}>
+              ▲ {r.upvotes?.length || 0} upvote{r.upvotes?.length === 1 ? '' : 's'}
+              {r.author_name && <> · {r.author_name}</>}
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            <select
+              value={r.status}
+              onChange={e => setStatus(r.id, e.target.value)}
+              style={skillSelectStyle}
+            >
+              {FEEDBACK_STATUSES.map(s => (
+                <option key={s} value={s}>{FEEDBACK_STATUS_LABELS[s]}</option>
+              ))}
+            </select>
+            <Btn small variant="danger" onClick={() => deleteRequest(r.id)}>Delete</Btn>
+          </div>
+        </div>
+      ))}
+    </Card>
   )
 }
 
@@ -1287,7 +1419,7 @@ export default function AdminPage() {
   return (
     <Layout title="Admin — PitchUp">
       <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
-        {['create', 'manage', 'recurring', 'roster', 'groups'].map(t => (
+        {['create', 'manage', 'recurring', 'roster', 'groups', 'feedback'].map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -1302,7 +1434,7 @@ export default function AdminPage() {
               cursor: 'pointer',
             }}
           >
-            {t === 'create' ? '➕ New Poll' : t === 'manage' ? `📋 Manage (${polls.length})` : t === 'recurring' ? '🔁 Recurring' : t === 'roster' ? '👥 Roster' : '🏷️ Groups'}
+            {t === 'create' ? '➕ New Poll' : t === 'manage' ? `📋 Manage (${polls.length})` : t === 'recurring' ? '🔁 Recurring' : t === 'roster' ? '👥 Roster' : t === 'groups' ? '🏷️ Groups' : '💡 Feedback'}
           </button>
         ))}
       </div>
@@ -1314,6 +1446,8 @@ export default function AdminPage() {
       {tab === 'roster' && <RosterTab password={password} showToast={showToast} />}
 
       {tab === 'groups' && <GroupsTab password={password} showToast={showToast} onGroupsChanged={loadGroups} />}
+
+      {tab === 'feedback' && <FeedbackTab password={password} showToast={showToast} />}
 
       {tab === 'manage' && (
         <div>

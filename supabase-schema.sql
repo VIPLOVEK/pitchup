@@ -73,6 +73,12 @@ end $$;
 -- players to re-rate themselves after a long stretch.
 alter table players add column if not exists skill_rating_updated_at timestamptz not null default now();
 
+-- Per-position skill ratings, e.g. {"Defender": 4, "Forward": 2}. Lets a
+-- player rate themselves differently per position; skill_rating is kept as
+-- a derived overall rating (their highest position rating) for places that
+-- still show a single number.
+alter table players add column if not exists position_skills jsonb not null default '{}';
+
 -- Row Level Security — no anon access; all reads/writes go through API
 -- routes using the service role key, which bypasses RLS entirely.
 alter table players enable row level security;
@@ -177,6 +183,23 @@ create policy "Anyone can read polls"
 
 -- Only server-side (service role) can insert/update/delete
 -- The anon key cannot mutate data — all writes go through API routes
+
+-- feature_requests table — a public suggestion box. Anyone can submit a
+-- request and upvote others'; admins update `status` to track progress.
+create table if not exists feature_requests (
+  id          text primary key default encode(gen_random_bytes(6), 'hex'),
+  created_at  timestamptz default now(),
+  title       text not null,
+  description text,
+  author_name text,
+  status      text not null default 'open',  -- 'open' | 'planned' | 'in_progress' | 'done' | 'declined'
+  upvotes     jsonb not null default '[]'::jsonb  -- array of voter keys (player id or anon id)
+);
+
+alter table feature_requests enable row level security;
+
+create policy "Anyone can read feature requests"
+  on feature_requests for select using (true);
 
 -- ============================================================
 --  To verify: run this query after setup

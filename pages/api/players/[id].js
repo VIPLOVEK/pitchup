@@ -2,7 +2,7 @@
 // PATCH /api/players/[id] — update phone/positions (requires current PIN)
 import { supabaseAdmin, isSupabaseConfigured } from '../../../lib/supabase'
 import { verifyPin } from '../../../lib/players'
-import { POSITIONS } from '../../../lib/positions'
+import { POSITIONS, isValidPositionSkills, deriveSkillRating } from '../../../lib/positions'
 
 export default async function handler(req, res) {
   const { id } = req.query
@@ -13,7 +13,7 @@ export default async function handler(req, res) {
     try {
       const { data, error } = await db
         .from('players')
-        .select('id, name, phone, positions, skill_rating, skill_rating_updated_at')
+        .select('id, name, phone, positions, skill_rating, skill_rating_updated_at, position_skills')
         .eq('id', id)
         .maybeSingle()
       if (error) throw error
@@ -25,13 +25,16 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'PATCH') {
-    const { pin, phone, positions, skillRating } = req.body
+    const { pin, phone, positions, skillRating, positionSkills } = req.body
     if (!pin) return res.status(400).json({ error: 'Current PIN is required' })
     if (positions && (!Array.isArray(positions) || positions.some(p => !POSITIONS.includes(p)))) {
       return res.status(400).json({ error: 'Invalid position' })
     }
     if (skillRating !== undefined && (!Number.isInteger(skillRating) || skillRating < 1 || skillRating > 5)) {
       return res.status(400).json({ error: 'Skill rating must be between 1 and 5' })
+    }
+    if (positionSkills !== undefined && !isValidPositionSkills(positions || [], positionSkills)) {
+      return res.status(400).json({ error: 'Invalid position skills' })
     }
 
     try {
@@ -44,8 +47,9 @@ export default async function handler(req, res) {
       const update = {}
       if (phone !== undefined) update.phone = phone?.trim() || null
       if (positions !== undefined) update.positions = positions
-      if (skillRating !== undefined) {
-        update.skill_rating = skillRating
+      if (positionSkills !== undefined || skillRating !== undefined) {
+        update.position_skills = positionSkills !== undefined ? positionSkills : player.position_skills
+        update.skill_rating = deriveSkillRating(update.position_skills, skillRating ?? player.skill_rating)
         update.skill_rating_updated_at = new Date().toISOString()
       }
 
@@ -53,7 +57,7 @@ export default async function handler(req, res) {
         .from('players')
         .update(update)
         .eq('id', id)
-        .select('id, name, phone, positions, skill_rating, skill_rating_updated_at')
+        .select('id, name, phone, positions, skill_rating, skill_rating_updated_at, position_skills')
         .single()
       if (error) throw error
 

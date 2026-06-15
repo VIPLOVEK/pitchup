@@ -123,9 +123,9 @@ function PositionPicker({ positions, onToggle }) {
   )
 }
 
-function SkillPicker({ rating, onChange }) {
+function SkillPicker({ rating, onChange, compact }) {
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: compact ? 6 : 8, marginBottom: compact ? 0 : 8 }}>
       {Object.entries(SKILL_LABELS).map(([value, label]) => {
         const selected = rating === Number(value)
         return (
@@ -138,16 +138,38 @@ function SkillPicker({ rating, onChange }) {
               border: `1.5px solid ${selected ? colors.accent : colors.grass + '33'}`,
               color: selected ? colors.accent : colors.muted,
               borderRadius: 8,
-              padding: '6px 12px',
-              fontSize: 13,
+              padding: compact ? '4px 8px' : '6px 12px',
+              fontSize: compact ? 12 : 13,
               fontWeight: 600,
               cursor: 'pointer',
             }}
           >
-            {value} · {label}
+            {compact ? label : `${value} · ${label}`}
           </button>
         )
       })}
+    </div>
+  )
+}
+
+// One skill picker per position the player has selected. Players with no
+// preferred positions ("Any") use a single overall skill picker instead.
+function PositionSkillsEditor({ positions, positionSkills, skillRating, onPositionSkillChange, onSkillRatingChange }) {
+  if (positions.length === 0) {
+    return <SkillPicker rating={skillRating} onChange={onSkillRatingChange} />
+  }
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 8 }}>
+      {positions.map(pos => (
+        <div key={pos} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: colors.muted, minWidth: 80 }}>{pos}</span>
+          <SkillPicker
+            rating={positionSkills[pos] || DEFAULT_SKILL_RATING}
+            onChange={(value) => onPositionSkillChange(pos, value)}
+            compact
+          />
+        </div>
+      ))}
     </div>
   )
 }
@@ -224,11 +246,21 @@ export default function ProfilePage() {
   const [phone, setPhone] = useState('')
   const [positions, setPositions] = useState([])
   const [skillRating, setSkillRating] = useState(DEFAULT_SKILL_RATING)
+  const [positionSkills, setPositionSkills] = useState({})
   const [pin, setPin] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const togglePosition = (pos) => setPositions(ps => ps.includes(pos) ? ps.filter(x => x !== pos) : [...ps, pos])
+  const togglePosition = (pos) => setPositions(ps => {
+    if (ps.includes(pos)) {
+      setPositionSkills(ps => { const next = { ...ps }; delete next[pos]; return next })
+      return ps.filter(x => x !== pos)
+    }
+    setPositionSkills(ps => ({ ...ps, [pos]: DEFAULT_SKILL_RATING }))
+    return [...ps, pos]
+  })
+
+  const setPositionSkill = (pos, value) => setPositionSkills(ps => ({ ...ps, [pos]: value }))
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3000) }
 
@@ -250,6 +282,7 @@ export default function ProfilePage() {
     if (player) {
       setPositions(player.positions || [])
       setSkillRating(player.skill_rating || DEFAULT_SKILL_RATING)
+      setPositionSkills(player.position_skills || {})
     }
   }, [player])
 
@@ -263,7 +296,7 @@ export default function ProfilePage() {
     try {
       const url = mode === 'create' ? '/api/players' : '/api/players/login'
       const body = mode === 'create'
-        ? { name: name.trim(), phone: phone.trim(), positions, skillRating, pin }
+        ? { name: name.trim(), phone: phone.trim(), positions, skillRating, positionSkills, pin }
         : { name: name.trim(), pin }
 
       const res = await fetch(url, {
@@ -291,7 +324,7 @@ export default function ProfilePage() {
       const res = await fetch(`/api/players/${player.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pin: enteredPin, positions, skillRating }),
+        body: JSON.stringify({ pin: enteredPin, positions, skillRating, positionSkills }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
@@ -310,13 +343,16 @@ export default function ProfilePage() {
     setPin('')
     setPositions([])
     setSkillRating(DEFAULT_SKILL_RATING)
+    setPositionSkills({})
   }
 
   if (!loaded) return null
 
   if (player) {
     const positionsDirty = JSON.stringify([...positions].sort()) !== JSON.stringify([...(player.positions || [])].sort())
-    const skillDirty = skillRating !== (player.skill_rating || DEFAULT_SKILL_RATING)
+    const skillDirty = positions.length === 0
+      ? skillRating !== (player.skill_rating || DEFAULT_SKILL_RATING)
+      : JSON.stringify(positionSkills) !== JSON.stringify(player.position_skills || {})
     const profileDirty = positionsDirty || skillDirty
     const skillRatingStale = player.skill_rating_updated_at &&
       (Date.now() - new Date(player.skill_rating_updated_at).getTime()) / 86400000 > SKILL_RATING_STALE_DAYS
@@ -342,7 +378,13 @@ export default function ProfilePage() {
               🔄 It's been a while since you updated this — still feels right?
             </p>
           )}
-          <SkillPicker rating={skillRating} onChange={setSkillRating} />
+          <PositionSkillsEditor
+            positions={positions}
+            positionSkills={positionSkills}
+            skillRating={skillRating}
+            onPositionSkillChange={setPositionSkill}
+            onSkillRatingChange={setSkillRating}
+          />
           {profileDirty && (
             <Btn small variant="ghost" onClick={handleSaveProfile} style={{ marginTop: 8 }}>
               Save profile
@@ -398,7 +440,13 @@ export default function ProfilePage() {
               Skill level <span style={{ color: colors.muted, fontWeight: 400 }}>(used to balance teams — an admin can adjust this too)</span>
             </p>
             <div style={{ marginBottom: 12 }}>
-              <SkillPicker rating={skillRating} onChange={setSkillRating} />
+              <PositionSkillsEditor
+                positions={positions}
+                positionSkills={positionSkills}
+                skillRating={skillRating}
+                onPositionSkillChange={setPositionSkill}
+                onSkillRatingChange={setSkillRating}
+              />
             </div>
           </>
         )}

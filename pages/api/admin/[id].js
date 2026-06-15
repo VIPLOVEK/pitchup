@@ -15,12 +15,12 @@ async function withSkillRatings(db, players) {
   const ids = players.map(p => p.playerId).filter(Boolean)
   if (ids.length === 0) return players
 
-  const { data, error } = await db.from('players').select('id, skill_rating').in('id', ids)
+  const { data, error } = await db.from('players').select('id, skill_rating, position_skills').in('id', ids)
   if (error) throw error
 
-  const ratings = Object.fromEntries(data.map(p => [p.id, p.skill_rating]))
+  const ratings = Object.fromEntries(data.map(p => [p.id, { skill_rating: p.skill_rating, position_skills: p.position_skills }]))
   return players.map(p => p.playerId && ratings[p.playerId]
-    ? { ...p, skill_rating: ratings[p.playerId] }
+    ? { ...p, ...ratings[p.playerId] }
     : p)
 }
 
