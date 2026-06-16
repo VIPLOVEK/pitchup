@@ -91,10 +91,11 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'POST') {
-    const { name, slots: votedSlots, playerId, positions } = req.body
+    const { name, slots: votedSlots, playerId, positions, guests } = req.body
     if (!name || !Array.isArray(votedSlots) || votedSlots.length === 0) {
       return res.status(400).json({ error: 'name and slots are required' })
     }
+    const guestCount = Math.min(Math.max(0, parseInt(guests, 10) || 0), 2)
 
     const MAX_RETRIES = 5
     try {
@@ -132,7 +133,7 @@ export default async function handler(req, res) {
 
         const updatedPlayers = [
           ...players,
-          { name: name.trim(), slots: votedSlots, playerId: playerId || null, positions: positions || [] },
+          { name: name.trim(), slots: votedSlots, playerId: playerId || null, positions: positions || [], guests: guestCount },
         ]
 
         const { data: updated, error: updateErr } = await db

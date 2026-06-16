@@ -3,7 +3,7 @@ import Link from 'next/link'
 import Layout from '../components/Layout'
 import { Card, Label, ProgressBar, Btn, Input, Pill, PlayerChip, Toast, CopyBtn, Spinner, WeatherBadge } from '../components/UI'
 import { colors, radius, groupColorPalette } from '../lib/tokens'
-import { getActivePlayers, getWaitlist } from '../lib/teams'
+import { getActivePlayers, getWaitlist, getTotalSpots } from '../lib/teams'
 import { LOCATIONS, findLocation } from '../lib/locations'
 import { SKILL_LABELS, DEFAULT_SKILL_RATING, POSITIONS } from '../lib/positions'
 
@@ -249,9 +249,9 @@ function PollCard({ poll, password, onAction, appUrl, groups }) {
         </div>
       </div>
 
-      <ProgressBar value={active.length} max={poll.min_players} />
+      <ProgressBar value={getTotalSpots(active)} max={poll.min_players} />
       <div style={{ color: colors.muted, fontSize: 12, margin: '4px 0 8px' }}>
-        {active.length} confirmed (need {poll.min_players}+) · {poll.max_players} max
+        {getTotalSpots(active)} confirmed (need {poll.min_players}+) · {poll.max_players} max
         {waitlist.length > 0 ? ` · ${waitlist.length} waiting` : ''}
       </div>
 
@@ -267,6 +267,7 @@ function PollCard({ poll, password, onAction, appUrl, groups }) {
           <PlayerChip
             key={i}
             name={p.name}
+            meta={p.guests ? `+${p.guests} guest${p.guests > 1 ? 's' : ''}` : undefined}
             onRemove={isOpen ? () => doAction('removePlayer', 'PATCH', { name: p.name }) : undefined}
           />
         ))}
@@ -287,6 +288,7 @@ function PollCard({ poll, password, onAction, appUrl, groups }) {
                 key={i}
                 name={p.name}
                 color={colors.cardYellow}
+                meta={p.guests ? `+${p.guests} guest${p.guests > 1 ? 's' : ''}` : undefined}
                 onRemove={isOpen ? () => doAction('removePlayer', 'PATCH', { name: p.name }) : undefined}
               />
             ))}

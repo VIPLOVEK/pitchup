@@ -4,7 +4,7 @@ import Link from 'next/link'
 import Layout from '../../components/Layout'
 import { Card, Label, ProgressBar, Btn, Input, Pill, PlayerChip, Toast, GoalCelebration, WeatherBadge } from '../../components/UI'
 import { colors, radius } from '../../lib/tokens'
-import { formatSlot, getActivePlayers, getWaitlist } from '../../lib/teams'
+import { formatSlot, getActivePlayers, getWaitlist, getTotalSpots, expandWithGuests } from '../../lib/teams'
 import { findLocation } from '../../lib/locations'
 
 // ── Venue info (map link + boot type) ──────────────────────────────────────────
@@ -157,7 +157,8 @@ function getDraftTeams(activePlayers) {
 }
 
 function DraftTeams({ poll, active }) {
-  const teams = poll.teams || getDraftTeams(active)
+  const expanded = expandWithGuests(active)
+  const teams = poll.teams || getDraftTeams(expanded)
   const { teamA = [], teamB = [] } = teams
   const isConfirmed = poll.status === 'confirmed'
   return (
@@ -203,6 +204,7 @@ export default function PollPage({ poll: initialPoll, error }) {
   const [pin, setPin] = useState('')
   const [players, setPlayers] = useState([])
   const [selectedSlots, setSelectedSlots] = useState([])
+  const [guests, setGuests] = useState(0)
   const [submitted, setSubmitted] = useState(false)
   const [loading, setLoading] = useState(false)
   const [kicking, setKicking] = useState(false)
@@ -353,6 +355,7 @@ export default function PollPage({ poll: initialPoll, error }) {
           slots: selectedSlots,
           playerId,
           positions,
+          guests,
         }),
       })
       const data = await res.json()
@@ -373,36 +376,36 @@ export default function PollPage({ poll: initialPoll, error }) {
 
     const active = getActivePlayers(poll)
     const waitlist = getWaitlist(poll)
-    const myIndex = poll.players.findIndex(p => p.name.toLowerCase() === name.trim().toLowerCase())
-    const onWaitlist = myIndex >= poll.max_players
+    const totalSpots = getTotalSpots(active)
+    const onWaitlist = waitlist.some(p => p.name.toLowerCase() === name.trim().toLowerCase())
 
     return (
       <Layout title={poll.title}>
         <Card className="vote-success">
           <div style={{ textAlign: 'center', padding: '20px 0' }}>
-            {!onWaitlist && active.length >= poll.min_players && <GoalCelebration />}
-            <div style={{ fontSize: 40, marginBottom: 10 }} className={!onWaitlist && active.length >= poll.min_players ? 'progress-ball' : ''}>
+            {!onWaitlist && totalSpots >= poll.min_players && <GoalCelebration />}
+            <div style={{ fontSize: 40, marginBottom: 10 }} className={!onWaitlist && totalSpots >= poll.min_players ? 'progress-ball' : ''}>
               {onWaitlist ? '⏳' : '✅'}
             </div>
             <h2 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 8px' }}>
-              {onWaitlist ? "You're on the waiting list" : active.length >= poll.min_players ? "You're in — game is on! ⚽" : "You're in!"}
+              {onWaitlist ? "You're on the waiting list" : totalSpots >= poll.min_players ? "You're in — game is on! ⚽" : "You're in!"}
             </h2>
             <p style={{ color: colors.muted, fontSize: 13 }}>
               {onWaitlist
                 ? `The first ${poll.max_players} spots are full — you'll be added automatically if someone drops out.`
                 : `Game confirms automatically when all ${poll.max_players} spots fill up, or 1.5 hours before kickoff if there are ${poll.min_players}+ players.`}
             </p>
-            <ProgressBar value={active.length} max={poll.min_players} />
+            <ProgressBar value={totalSpots} max={poll.min_players} />
             <p style={{ color: colors.muted, fontSize: 13, textAlign: 'center', marginBottom: 16 }}>
-              {active.length} / {poll.min_players}+ confirmed · {poll.max_players} max
+              {totalSpots} / {poll.min_players}+ confirmed · {poll.max_players} max
               {waitlist.length > 0 ? ` · ${waitlist.length} waiting` : ''}
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center' }}>
-              {active.map((p, i) => <PlayerChip key={i} name={p.name} meta={p.positions?.length ? p.positions.join(', ') : undefined} />)}
+              {active.map((p, i) => <PlayerChip key={i} name={p.name} meta={p.guests ? `+${p.guests} guest${p.guests > 1 ? 's' : ''}` : p.positions?.length ? p.positions.join(', ') : undefined} />)}
             </div>
             {waitlist.length > 0 && (
               <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', marginTop: 8 }}>
-                {waitlist.map((p, i) => <PlayerChip key={i} name={p.name} color={colors.cardYellow} />)}
+                {waitlist.map((p, i) => <PlayerChip key={i} name={p.name} color={colors.cardYellow} meta={p.guests ? `+${p.guests} guest${p.guests > 1 ? 's' : ''}` : undefined} />)}
               </div>
             )}
             {myEntry && (
@@ -420,10 +423,11 @@ export default function PollPage({ poll: initialPoll, error }) {
 
   const active = getActivePlayers(poll)
   const waitlist = getWaitlist(poll)
+  const totalSpots = getTotalSpots(active)
   const venue = findLocation(poll.location)
 
   return (
-    <Layout title={poll.title} description={`${poll.location} · ${active.length}/${poll.min_players}+ players — tap to vote on a time`}>
+    <Layout title={poll.title} description={`${poll.location} · ${totalSpots}/${poll.min_players}+ players — tap to vote on a time`}>
       <Card style={pollGroups.length > 0 ? { borderLeft: `4px solid ${pollGroups[0].color || colors.grassLight}` } : {}}>
         <Label>Open poll</Label>
         {pollGroups.length > 0 && (
@@ -441,13 +445,13 @@ export default function PollPage({ poll: initialPoll, error }) {
         <div style={{ margin: '0 0 12px' }}>
           <VenueInfo location={poll.location} />
         </div>
-        <ProgressBar value={active.length} max={poll.min_players} />
+        <ProgressBar value={totalSpots} max={poll.min_players} />
         <p style={{ color: colors.muted, fontSize: 13, margin: '4px 0 16px' }}>
-          {active.length} / {poll.min_players}+ confirmed · {poll.max_players} max
+          {totalSpots} / {poll.min_players}+ confirmed · {poll.max_players} max
           {waitlist.length > 0 ? ` · ${waitlist.length} waiting` : ''}
         </p>
         <div style={{ display: 'flex', flexWrap: 'wrap' }}>
-          {active.map((p, i) => <PlayerChip key={i} name={p.name} meta={p.positions?.length ? p.positions.join(', ') : undefined} />)}
+          {active.map((p, i) => <PlayerChip key={i} name={p.name} meta={p.guests ? `+${p.guests} guest${p.guests > 1 ? 's' : ''}` : p.positions?.length ? p.positions.join(', ') : undefined} />)}
         </div>
         {waitlist.length > 0 && (
           <>
@@ -459,19 +463,19 @@ export default function PollPage({ poll: initialPoll, error }) {
             </div>
           </>
         )}
-        {active.length >= poll.min_players && (
+        {totalSpots >= poll.min_players && (
           <div style={{
             marginTop: 16, padding: '10px 14px', background: `${colors.accent}18`,
             border: `1px solid ${colors.accent}44`, borderRadius: 8,
             display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, color: colors.accent,
           }}>
             <span className="floating-ball" style={{ fontSize: 18 }}>⚽</span>
-            Game is on! {active.length} players confirmed — waiting for the time to be set.
+            Game is on! {totalSpots} players confirmed — waiting for the time to be set.
           </div>
         )}
       </Card>
 
-      {active.length >= poll.min_players && <DraftTeams poll={poll} active={active} />}
+      {totalSpots >= poll.min_players && <DraftTeams poll={poll} active={active} />}
 
       {poll.visibility === 'groups' && hasAccess === false && (
         <Card>
@@ -535,6 +539,28 @@ export default function PollPage({ poll: initialPoll, error }) {
             )}
           </>
         )}
+        <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 6px' }}>Bringing guests?</p>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+          {[0, 1, 2].map(n => (
+            <button
+              key={n}
+              onClick={() => setGuests(n)}
+              style={{
+                background: guests === n ? colors.accent + '22' : colors.pitchMid,
+                border: `1.5px solid ${guests === n ? colors.accent : colors.grass + '33'}`,
+                color: guests === n ? colors.accent : colors.muted,
+                borderRadius: 8,
+                padding: '6px 14px',
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.15s',
+              }}
+            >
+              {n === 0 ? 'Just me' : `+${n} guest${n > 1 ? 's' : ''}`}
+            </button>
+          ))}
+        </div>
         <p style={{ color: colors.muted, fontSize: 13, marginBottom: 10 }}>Pick times that work for you:</p>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
           {poll.slots.map((slot, i) => (
