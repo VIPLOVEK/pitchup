@@ -167,7 +167,7 @@ function CreatePollForm({ onCreated, groups }) {
       <Input value={password} onChange={e => setPassword(e.target.value)} placeholder="Admin password" type="password" />
       {error && <p style={{ color: colors.danger, fontSize: 13, marginBottom: 10 }}>{error}</p>}
       <p style={{ color: colors.muted, fontSize: 12, margin: '0 0 14px' }}>
-        Voting closes automatically 4 hours before the earliest time slot. If fewer than {minPlayers} players have joined by then, the game is cancelled. The first {maxPlayers} players get a spot — anyone after that goes on the waiting list and is auto-promoted if a spot opens up.
+        Voting stays open until all {maxPlayers} spots are filled (instant confirm) or until 1.5 hours before kickoff — whichever comes first. If fewer than {minPlayers} players have joined by the 1.5-hour mark, the game is cancelled. Anyone beyond {maxPlayers} goes on the waiting list and is auto-promoted if a spot opens up.
       </p>
       <Btn full onClick={handleCreate} disabled={loading}>
         {loading ? 'Creating...' : 'Create poll & get link'}

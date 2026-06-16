@@ -390,7 +390,7 @@ export default function PollPage({ poll: initialPoll, error }) {
             <p style={{ color: colors.muted, fontSize: 13 }}>
               {onWaitlist
                 ? `The first ${poll.max_players} spots are full — you'll be added automatically if someone drops out.`
-                : `We'll send the game details once we have ${poll.min_players}+ players confirmed (and it's at least 4 hours before kickoff).`}
+                : `Game confirms automatically when all ${poll.max_players} spots fill up, or 1.5 hours before kickoff if there are ${poll.min_players}+ players.`}
             </p>
             <ProgressBar value={active.length} max={poll.min_players} />
             <p style={{ color: colors.muted, fontSize: 13, textAlign: 'center', marginBottom: 16 }}>
