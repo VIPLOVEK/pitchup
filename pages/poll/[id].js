@@ -146,6 +146,54 @@ function GameConfirmed({ poll }) {
   )
 }
 
+// ── Draft team preview ────────────────────────────────────────────────────────
+// Deterministic split by join order (stable across refreshes): even-index
+// players go to Team A, odd-index to Team B.
+function getDraftTeams(activePlayers) {
+  return {
+    teamA: activePlayers.filter((_, i) => i % 2 === 0),
+    teamB: activePlayers.filter((_, i) => i % 2 !== 0),
+  }
+}
+
+function DraftTeams({ poll, active }) {
+  const teams = poll.teams || getDraftTeams(active)
+  const { teamA = [], teamB = [] } = teams
+  const isConfirmed = poll.status === 'confirmed'
+  return (
+    <Card>
+      <Label>{isConfirmed ? 'Teams' : 'Draft teams — updates as players join'}</Label>
+      {!isConfirmed && (
+        <p style={{ color: colors.muted, fontSize: 12, margin: '0 0 14px' }}>
+          These are provisional teams based on who's joined so far. Final balanced teams are set when the game is confirmed.
+        </p>
+      )}
+      <div style={{ display: 'flex', gap: 16 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.teamA, marginBottom: 8 }}>
+            🟦 Team A
+          </div>
+          {teamA.map((p, i) => (
+            <div key={i} style={{ display: 'flex', marginBottom: 4 }}>
+              <PlayerChip name={p.name} color={colors.teamA} />
+            </div>
+          ))}
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.teamB, marginBottom: 8 }}>
+            🟥 Team B
+          </div>
+          {teamB.map((p, i) => (
+            <div key={i} style={{ display: 'flex', marginBottom: 4 }}>
+              <PlayerChip name={p.name} color={colors.teamB} />
+            </div>
+          ))}
+        </div>
+      </div>
+    </Card>
+  )
+}
+
 // ── Main vote page ────────────────────────────────────────────────────────────
 export default function PollPage({ poll: initialPoll, error }) {
   const router = useRouter()
@@ -174,6 +222,21 @@ export default function PollPage({ poll: initialPoll, error }) {
       .then(setPlayers)
       .catch(() => {})
   }, [])
+
+  // Auto-refresh poll data every 20 s while the poll is open so status
+  // changes (confirmation, cancellation, new votes) are visible to all
+  // visitors without a manual page reload.
+  useEffect(() => {
+    if (!initialPoll || poll?.status !== 'open') return
+    const id = initialPoll.id
+    const interval = setInterval(() => {
+      fetch(`/api/poll/${id}`)
+        .then(res => res.ok ? res.json() : null)
+        .then(data => { if (data) setPoll(data) })
+        .catch(() => {})
+    }, 20000)
+    return () => clearInterval(interval)
+  }, [initialPoll, poll?.status])
 
   useEffect(() => {
     if (!initialPoll || initialPoll.visibility !== 'groups') return
@@ -349,6 +412,7 @@ export default function PollPage({ poll: initialPoll, error }) {
             )}
           </div>
         </Card>
+        {active.length >= poll.min_players && <DraftTeams poll={poll} active={active} />}
         <Toast msg={toast} />
       </Layout>
     )
@@ -394,7 +458,19 @@ export default function PollPage({ poll: initialPoll, error }) {
             </div>
           </>
         )}
+        {active.length >= poll.min_players && (
+          <div style={{
+            marginTop: 16, padding: '10px 14px', background: `${colors.accent}18`,
+            border: `1px solid ${colors.accent}44`, borderRadius: 8,
+            display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, color: colors.accent,
+          }}>
+            <span className="floating-ball" style={{ fontSize: 18 }}>⚽</span>
+            Game is on! {active.length} players confirmed — waiting for the time to be set.
+          </div>
+        )}
       </Card>
+
+      {active.length >= poll.min_players && <DraftTeams poll={poll} active={active} />}
 
       {poll.visibility === 'groups' && hasAccess === false && (
         <Card>
