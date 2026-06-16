@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import Layout from '../components/Layout'
-import { Card, Label, ProgressBar, Btn, Input, Pill, PlayerChip, Toast, CopyBtn, Spinner } from '../components/UI'
+import { Card, Label, ProgressBar, Btn, Input, Pill, PlayerChip, Toast, CopyBtn, Spinner, WeatherBadge } from '../components/UI'
 import { colors, radius, groupColorPalette } from '../lib/tokens'
 import { getActivePlayers, getWaitlist } from '../lib/teams'
-import { LOCATIONS } from '../lib/locations'
+import { LOCATIONS, findLocation } from '../lib/locations'
 import { SKILL_LABELS, DEFAULT_SKILL_RATING, POSITIONS } from '../lib/positions'
 
 const selectStyle = {
@@ -111,24 +111,30 @@ function CreatePollForm({ onCreated, groups }) {
       )}
 
       <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 8px' }}>Proposed time slots:</p>
-      {slots.map((slot, i) => (
-        <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <Input
-            type="datetime-local"
-            value={slot}
-            onChange={e => updateSlot(i, e.target.value)}
-            style={{ flex: 1 }}
-          />
-          {slots.length > 1 && (
-            <button
-              onClick={() => removeSlot(i)}
-              style={{ background: 'none', border: 'none', color: colors.muted, fontSize: 18, cursor: 'pointer', padding: '0 4px 10px' }}
-            >
-              ×
-            </button>
-          )}
-        </div>
-      ))}
+      {slots.map((slot, i) => {
+        const slotVenue = location !== 'Other' ? findLocation(location) : null
+        return (
+          <div key={i}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <Input
+                type="datetime-local"
+                value={slot}
+                onChange={e => updateSlot(i, e.target.value)}
+                style={{ flex: 1, marginBottom: slot ? 2 : 10 }}
+              />
+              {slots.length > 1 && (
+                <button
+                  onClick={() => removeSlot(i)}
+                  style={{ background: 'none', border: 'none', color: colors.muted, fontSize: 18, cursor: 'pointer', padding: '0 4px 10px' }}
+                >
+                  ×
+                </button>
+              )}
+            </div>
+            {slot && <div style={{ marginBottom: 10 }}><WeatherBadge lat={slotVenue?.lat} lon={slotVenue?.lon} datetime={new Date(slot).toISOString()} /></div>}
+          </div>
+        )
+      })}
       <div style={{ marginBottom: 14 }}>
         <Btn small variant="ghost" onClick={addSlot}>+ Add another time</Btn>
       </div>

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
 import Link from 'next/link'
 import Layout from '../../components/Layout'
-import { Card, Label, ProgressBar, Btn, Input, Pill, PlayerChip, Toast, GoalCelebration } from '../../components/UI'
+import { Card, Label, ProgressBar, Btn, Input, Pill, PlayerChip, Toast, GoalCelebration, WeatherBadge } from '../../components/UI'
 import { colors, radius } from '../../lib/tokens'
 import { formatSlot, getActivePlayers, getWaitlist } from '../../lib/teams'
 import { findLocation } from '../../lib/locations'
@@ -420,6 +420,7 @@ export default function PollPage({ poll: initialPoll, error }) {
 
   const active = getActivePlayers(poll)
   const waitlist = getWaitlist(poll)
+  const venue = findLocation(poll.location)
 
   return (
     <Layout title={poll.title} description={`${poll.location} · ${active.length}/${poll.min_players}+ players — tap to vote on a time`}>
@@ -550,9 +551,11 @@ export default function PollPage({ poll: initialPoll, error }) {
                 fontWeight: 600,
                 cursor: 'pointer',
                 transition: 'all 0.15s',
+                textAlign: 'left',
               }}
             >
               {formatSlot(slot)}
+              <WeatherBadge lat={venue?.lat} lon={venue?.lon} datetime={slot} />
             </button>
           ))}
         </div>

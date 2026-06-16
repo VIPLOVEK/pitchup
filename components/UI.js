@@ -1,5 +1,6 @@
 import { colors, radius } from '../lib/tokens'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { fetchWeatherForLocation, getWeatherForSlot } from '../lib/weather'
 
 // ── ProgressBar ───────────────────────────────────────────────────────────────
 export function ProgressBar({ value, max }) {
@@ -281,5 +282,25 @@ export function CopyBtn({ text, label = 'Copy' }) {
     >
       {copied ? '✓ Copied' : label}
     </button>
+  )
+}
+
+// ── Weather badge ─────────────────────────────────────────────────────────────
+export function WeatherBadge({ lat, lon, datetime }) {
+  const [weather, setWeather] = useState(null)
+  useEffect(() => {
+    if (!lat || !lon || !datetime) return
+    let cancelled = false
+    fetchWeatherForLocation(lat, lon)
+      .then(data => { if (!cancelled) setWeather(getWeatherForSlot(data, datetime)) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [lat, lon, datetime])
+  if (!weather) return null
+  const rainColor = weather.precip >= 60 ? colors.danger : weather.precip >= 30 ? colors.cardYellow : colors.cardGreen
+  return (
+    <span style={{ display: 'block', fontSize: 11, marginTop: 3, color: colors.muted }}>
+      {weather.emoji} {weather.temp}°F · <span style={{ color: rainColor }}>{weather.precip}% rain</span>
+    </span>
   )
 }
