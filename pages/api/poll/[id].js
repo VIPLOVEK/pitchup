@@ -1,10 +1,10 @@
 // GET  /api/poll/[id] — fetch poll state
 // POST /api/poll/[id] — cast a vote
 import { supabaseAdmin, isSupabaseConfigured } from '../../../lib/supabase'
-import { formatSlot } from '../../../lib/teams'
+import { formatSlot, getActivePlayers, getWaitlist } from '../../../lib/teams'
 import { evaluatePollUpdate } from '../../../lib/pollStatus'
 import { sendWhatsAppAnnouncement, sendWhatsAppCancellation } from '../../../lib/whatsapp'
-import { sendPushToAll } from '../../../lib/push'
+import { sendPushToAll, sendPushToPlayer } from '../../../lib/push'
 import { verifyPin } from '../../../lib/players'
 
 // Applies any status change (confirm/cancel) triggered by the cutoff or
@@ -179,6 +179,7 @@ export default async function handler(req, res) {
         }
       }
 
+      const wasWaitlist = getWaitlist(poll)
       const updatedPlayers = poll.players.filter(p => p.name.toLowerCase() !== name.trim().toLowerCase())
       const { data: updated, error } = await db
         .from('polls')
@@ -187,6 +188,19 @@ export default async function handler(req, res) {
         .select()
         .single()
       if (error) throw error
+
+      // Notify the first player who moved from waitlist to active
+      try {
+        const nowActive = getActivePlayers(updated)
+        const movedUp = wasWaitlist.find(w => nowActive.some(a => a.name === w.name && a.playerId))
+        if (movedUp?.playerId) {
+          await sendPushToPlayer(db, movedUp.playerId, {
+            title: '⚽ You\'re in!',
+            body: `A spot opened up in ${poll.title} — you've moved from the waitlist to active!`,
+            url: `/poll/${poll.id}`,
+          })
+        }
+      } catch (e) { console.error('Waitlist push failed:', e.message) }
 
       return res.status(200).json(updated)
     } catch (e) {

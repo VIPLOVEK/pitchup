@@ -2,9 +2,10 @@
 // are short on players and approaching their voting cutoff. Intended to
 // be called periodically (e.g. by Vercel Cron, see vercel.json).
 import { supabaseAdmin, isSupabaseConfigured } from '../../../lib/supabase'
-import { shouldSendReminder } from '../../../lib/pollStatus'
+import { shouldSendReminder, shouldSendConfirmedReminder } from '../../../lib/pollStatus'
 import { sendWhatsAppReminder } from '../../../lib/whatsapp'
 import { sendPushToAll } from '../../../lib/push'
+import { formatSlot } from '../../../lib/teams'
 
 export default async function handler(req, res) {
   if (process.env.CRON_SECRET && req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -41,6 +42,25 @@ export default async function handler(req, res) {
         sent++
       } catch (e) {
         console.error(`Reminder failed for poll ${poll.id}:`, e.message)
+      }
+    }
+
+    // Day-before push for confirmed games
+    const { data: confirmedPolls, error: confErr } = await db.from('polls').select('*').eq('status', 'confirmed').eq('confirmed_reminder_sent', false)
+    if (!confErr && confirmedPolls) {
+      for (const poll of confirmedPolls) {
+        if (!shouldSendConfirmedReminder(poll)) continue
+        try {
+          await sendPushToAll({
+            title: '⚽ Game tomorrow!',
+            body: `${poll.title} is confirmed for ${poll.game_time ? formatSlot(poll.game_time) : 'soon'} at ${poll.location}. See you there!`,
+            url: `/poll/${poll.id}`,
+          })
+          await db.from('polls').update({ confirmed_reminder_sent: true }).eq('id', poll.id)
+          sent++
+        } catch (e) {
+          console.error(`Confirmed reminder failed for poll ${poll.id}:`, e.message)
+        }
       }
     }
 

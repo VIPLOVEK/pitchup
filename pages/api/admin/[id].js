@@ -1,9 +1,9 @@
 // PATCH /api/admin/[id] — close poll, shuffle teams
 // DELETE /api/admin/[id] — delete poll
 import { supabaseAdmin, isSupabaseConfigured } from '../../../lib/supabase'
-import { generateTeams, pickBestSlot, formatSlot, getActivePlayers } from '../../../lib/teams'
+import { generateTeams, pickBestSlot, formatSlot, getActivePlayers, expandWithGuests, getWaitlist } from '../../../lib/teams'
 import { sendWhatsAppAnnouncement } from '../../../lib/whatsapp'
-import { sendPushToAll } from '../../../lib/push'
+import { sendPushToAll, sendPushToPlayer } from '../../../lib/push'
 
 function isAdmin(req) {
   return req.headers.authorization === `Bearer ${process.env.ADMIN_PASSWORD}`
@@ -39,7 +39,8 @@ export default async function handler(req, res) {
 
       if (action === 'close') {
         const activePlayers = await withSkillRatings(db, getActivePlayers(poll))
-        const teams = generateTeams(activePlayers)
+        const expanded = expandWithGuests(activePlayers)
+        const teams = generateTeams(expanded)
         const gameTime = pickBestSlot(activePlayers, poll.slots)
         const { data, error } = await db
           .from('polls').update({ status: 'confirmed', teams, game_time: gameTime, version: poll.version + 1 }).eq('id', id).select().single()
@@ -107,7 +108,7 @@ export default async function handler(req, res) {
       }
 
       if (action === 'updateDetails') {
-        const { title, location, slots, minPlayers, maxPlayers } = req.body
+        const { title, location, slots, minPlayers, maxPlayers, notes } = req.body
         if (poll.status !== 'open') return res.status(400).json({ error: 'Poll is no longer open' })
         if (!title || !location) return res.status(400).json({ error: 'Title and location are required' })
         if (!Array.isArray(slots) || slots.length === 0) return res.status(400).json({ error: 'At least one time slot is required' })
@@ -124,7 +125,7 @@ export default async function handler(req, res) {
 
         const { data, error } = await db
           .from('polls')
-          .update({ title, location, slots, min_players: minPlayers, max_players: maxPlayers, players: updatedPlayers, version: poll.version + 1 })
+          .update({ title, location, slots, min_players: minPlayers, max_players: maxPlayers, players: updatedPlayers, notes: notes !== undefined ? notes : poll.notes, version: poll.version + 1 })
           .eq('id', id)
           .select()
           .single()
@@ -136,11 +137,26 @@ export default async function handler(req, res) {
         const { name } = req.body
         if (!name) return res.status(400).json({ error: 'name is required' })
 
+        const wasWaitlist = getWaitlist(poll)
         const updatedPlayers = (poll.players || []).filter(p => p.name !== name)
-        const { data, error } = await db
+        const { data: updatedPoll, error } = await db
           .from('polls').update({ players: updatedPlayers, version: poll.version + 1 }).eq('id', id).select().single()
         if (error) throw error
-        return res.status(200).json(data)
+
+        // Notify the first player who moved from waitlist to active
+        try {
+          const nowActive = getActivePlayers(updatedPoll)
+          const movedUp = wasWaitlist.find(w => nowActive.some(a => a.name === w.name && a.playerId))
+          if (movedUp?.playerId) {
+            await sendPushToPlayer(db, movedUp.playerId, {
+              title: '⚽ You\'re in!',
+              body: `A spot opened up in ${poll.title} — you've moved from the waitlist to active!`,
+              url: `/poll/${poll.id}`,
+            })
+          }
+        } catch (e) { console.error('Waitlist push failed:', e.message) }
+
+        return res.status(200).json(updatedPoll)
       }
 
       return res.status(400).json({ error: 'Unknown action' })

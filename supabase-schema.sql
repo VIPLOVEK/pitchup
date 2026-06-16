@@ -201,6 +201,11 @@ alter table feature_requests enable row level security;
 create policy "Anyone can read feature requests"
   on feature_requests for select using (true);
 
+-- Game notes, day-before reminder flag, MVP votes
+alter table polls add column if not exists notes text;
+alter table polls add column if not exists confirmed_reminder_sent boolean not null default false;
+alter table polls add column if not exists mvp_votes jsonb not null default '[]';
+
 -- ============================================================
 --  To verify: run this query after setup
 -- ============================================================

@@ -12,7 +12,7 @@ export default function Leaderboard({ leaderboard, error }) {
           🏆 Leaderboard
         </h1>
         <p style={{ color: colors.muted, fontSize: 13, margin: 0 }}>
-          Win/loss record from confirmed games with a final score.
+          Win record from scored games. Played/Committed shows all confirmed games.
         </p>
       </div>
 
@@ -48,7 +48,7 @@ export default function Leaderboard({ leaderboard, error }) {
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 14 }}>{p.name}</div>
                   <div style={{ color: colors.muted, fontSize: 12, marginTop: 2 }}>
-                    {p.wins}W - {p.losses}L - {p.draws}D · {p.gamesPlayed} game{p.gamesPlayed === 1 ? '' : 's'}
+                    {p.wins}W - {p.losses}L - {p.draws}D · {p.gamesPlayed}/{p.gamesCommitted} game{p.gamesCommitted === 1 ? '' : 's'}
                   </div>
                 </div>
               </div>

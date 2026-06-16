@@ -36,6 +36,7 @@ function CreatePollForm({ onCreated, groups }) {
   const [slots, setSlots] = useState(['', ''])
   const [minPlayers, setMinPlayers] = useState(8)
   const [maxPlayers, setMaxPlayers] = useState(18)
+  const [notes, setNotes] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -80,6 +81,7 @@ function CreatePollForm({ onCreated, groups }) {
           maxPlayers,
           visibility,
           groupIds: selectedGroupIds,
+          notes: notes || undefined,
         }),
       })
       const data = await res.json()
@@ -88,6 +90,7 @@ function CreatePollForm({ onCreated, groups }) {
       setSlots(['', ''])
       setTitle('Weekend Pickup ⚽')
       setCustomLocation('')
+      setNotes('')
     } catch (e) {
       setError(e.message)
     } finally {
@@ -138,6 +141,19 @@ function CreatePollForm({ onCreated, groups }) {
       <div style={{ marginBottom: 14 }}>
         <Btn small variant="ghost" onClick={addSlot}>+ Add another time</Btn>
       </div>
+
+      <textarea
+        value={notes}
+        onChange={e => setNotes(e.target.value)}
+        placeholder="Notes for players (optional) — e.g. 'Bring bibs · Parking on left'"
+        rows={2}
+        style={{
+          width: '100%', background: colors.pitchMid, border: `1px solid ${colors.grass}44`,
+          borderRadius: radius.md, color: colors.white, padding: '10px 12px', fontSize: 13,
+          outline: 'none', marginBottom: 10, resize: 'vertical', fontFamily: 'inherit',
+          boxSizing: 'border-box',
+        }}
+      />
 
       <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
         <div style={{ flex: 1 }}>
@@ -196,6 +212,7 @@ function PollCard({ poll, password, onAction, appUrl, groups }) {
   const [editMinPlayers, setEditMinPlayers] = useState(poll.min_players)
   const [editMaxPlayers, setEditMaxPlayers] = useState(poll.max_players)
   const [editSlots, setEditSlots] = useState(poll.slots.map(toLocalInputValue))
+  const [editNotes, setEditNotes] = useState(poll.notes || '')
   const isOpen = poll.status === 'open'
   const isConfirmed = poll.status === 'confirmed'
   const isCancelled = poll.status === 'cancelled'
@@ -432,6 +449,19 @@ function PollCard({ poll, password, onAction, appUrl, groups }) {
             </div>
           </div>
 
+          <textarea
+            value={editNotes}
+            onChange={e => setEditNotes(e.target.value)}
+            placeholder="Notes for players (optional) — e.g. 'Bring bibs · Parking on left'"
+            rows={2}
+            style={{
+              width: '100%', background: colors.pitchMid, border: `1px solid ${colors.grass}44`,
+              borderRadius: radius.md, color: colors.white, padding: '10px 12px', fontSize: 13,
+              outline: 'none', marginBottom: 10, resize: 'vertical', fontFamily: 'inherit',
+              boxSizing: 'border-box',
+            }}
+          />
+
           {detailsError && <p style={{ color: colors.danger, fontSize: 13, marginBottom: 10 }}>{detailsError}</p>}
 
           <div style={{ display: 'flex', gap: 8 }}>
@@ -454,6 +484,7 @@ function PollCard({ poll, password, onAction, appUrl, groups }) {
                   slots: filledSlots.map(s => new Date(s).toISOString()),
                   minPlayers: editMinPlayers,
                   maxPlayers: editMaxPlayers,
+                  notes: editNotes || undefined,
                 })
                 setEditingDetails(false)
               }}
@@ -485,6 +516,7 @@ function PollCard({ poll, password, onAction, appUrl, groups }) {
               setEditMinPlayers(poll.min_players)
               setEditMaxPlayers(poll.max_players)
               setEditSlots(poll.slots.map(toLocalInputValue))
+              setEditNotes(poll.notes || '')
               setDetailsError('')
               setEditingDetails(true)
             }}

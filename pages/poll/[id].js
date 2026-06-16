@@ -42,6 +42,109 @@ function GameCancelled({ poll }) {
   )
 }
 
+// ── Position summary ──────────────────────────────────────────────────────────
+function PositionSummary({ players }) {
+  const counts = {}
+  players.forEach(p => {
+    if (p.isGuest) return
+    const positions = p.positions?.length ? p.positions : ['Any']
+    positions.forEach(pos => { counts[pos] = (counts[pos] || 0) + 1 })
+  })
+  const order = ['Goalkeeper', 'Defender', 'Midfielder', 'Forward', 'Any']
+  const abbr = { Goalkeeper: 'GK', Defender: 'DEF', Midfielder: 'MID', Forward: 'FWD', Any: 'ANY' }
+  const parts = order.filter(p => counts[p]).map(p => `${abbr[p]} ×${counts[p]}`)
+  if (!parts.length) return null
+  return <div style={{ fontSize: 10, color: colors.muted, marginTop: 4, letterSpacing: '0.04em' }}>{parts.join(' · ')}</div>
+}
+
+// ── MVP Voting ────────────────────────────────────────────────────────────────
+function MvpVoting({ poll }) {
+  const [voted, setVoted] = useState(() => typeof window !== 'undefined' && !!localStorage.getItem(`mvp_voted_${poll.id}`))
+  const [voterName, setVoterName] = useState('')
+  const [mvpVotes, setMvpVotes] = useState(poll.mvp_votes || [])
+  const [toast, setToast] = useState('')
+
+  useEffect(() => {
+    const saved = localStorage.getItem('pitchup_player')
+    if (saved) setVoterName(JSON.parse(saved).name)
+  }, [])
+
+  if (poll.score_a == null || poll.score_b == null) return null
+
+  const { teamA = [], teamB = [] } = poll.teams || {}
+  const allPlayers = [...teamA, ...teamB].filter(p => !p.isGuest)
+
+  const counts = {}
+  mvpVotes.forEach(v => { counts[v.votedFor] = (counts[v.votedFor] || 0) + 1 })
+  const topEntry = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]
+
+  const castVote = async (name) => {
+    if (!voterName.trim()) return
+    try {
+      const res = await fetch(`/api/poll/${poll.id}/mvp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ voterName: voterName.trim(), votedFor: name }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setMvpVotes(data.mvpVotes)
+        localStorage.setItem(`mvp_voted_${poll.id}`, name)
+        setVoted(true)
+        setToast(`⭐ Voted for ${name}!`)
+        setTimeout(() => setToast(''), 2500)
+      }
+    } catch {}
+  }
+
+  return (
+    <Card>
+      <Label>Man of the Match ⭐</Label>
+      {topEntry && (
+        <div style={{ textAlign: 'center', padding: '10px 0 14px' }}>
+          <div style={{ fontSize: 28 }}>⭐</div>
+          <div style={{ fontWeight: 800, fontSize: 16, marginTop: 4 }}>{topEntry[0]}</div>
+          <div style={{ color: colors.muted, fontSize: 12, marginTop: 2 }}>{topEntry[1]} vote{topEntry[1] !== 1 ? 's' : ''}</div>
+        </div>
+      )}
+      {voted ? (
+        <p style={{ color: colors.muted, fontSize: 13, textAlign: 'center' }}>✓ Your vote is in</p>
+      ) : (
+        <>
+          {!voterName && (
+            <Input value={voterName} onChange={e => setVoterName(e.target.value)} placeholder="Your name to vote" />
+          )}
+          <p style={{ color: colors.muted, fontSize: 12, margin: '0 0 10px' }}>Who stood out today?</p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {allPlayers.map((p, i) => (
+              <button
+                key={i}
+                onClick={() => castVote(p.name)}
+                disabled={!voterName.trim()}
+                style={{
+                  background: colors.pitchMid,
+                  border: `1.5px solid ${colors.grass}33`,
+                  color: colors.white,
+                  borderRadius: 8,
+                  padding: '6px 14px',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: voterName.trim() ? 'pointer' : 'default',
+                  opacity: voterName.trim() ? 1 : 0.5,
+                  transition: 'all 0.15s',
+                }}
+              >
+                {p.name}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+      {toast && <Toast msg={toast} />}
+    </Card>
+  )
+}
+
 // ── Confirmed game view ───────────────────────────────────────────────────────
 function GameConfirmed({ poll }) {
   const { teamA = [], teamB = [] } = poll.teams || {}
@@ -73,6 +176,11 @@ function GameConfirmed({ poll }) {
           <Pill color={colors.accent}>📅 {gameTime}</Pill>
           <Pill color={colors.grassLight}>👥 {poll.players.length} players</Pill>
         </div>
+        {poll.notes && (
+          <div style={{ background: colors.pitchMid, borderRadius: 8, padding: '8px 12px', marginTop: 12, fontSize: 13, color: colors.white }}>
+            📋 {poll.notes}
+          </div>
+        )}
       </Card>
 
       <Card>
@@ -100,6 +208,7 @@ function GameConfirmed({ poll }) {
             <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.teamA, marginBottom: 8 }}>
               🟦 Team A
             </div>
+            <PositionSummary players={teamA} />
             {teamA.map((p, i) => (
               <div key={i} style={{ display: 'flex', marginBottom: 4 }}>
                 <PlayerChip name={p.name} color={colors.teamA} />
@@ -110,6 +219,7 @@ function GameConfirmed({ poll }) {
             <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.teamB, marginBottom: 8 }}>
               🟥 Team B
             </div>
+            <PositionSummary players={teamB} />
             {teamB.map((p, i) => (
               <div key={i} style={{ display: 'flex', marginBottom: 4 }}>
                 <PlayerChip name={p.name} color={colors.teamB} />
@@ -142,6 +252,7 @@ function GameConfirmed({ poll }) {
           </button>
         </div>
       </Card>
+      <MvpVoting poll={poll} />
     </div>
   )
 }
@@ -174,6 +285,7 @@ function DraftTeams({ poll, active }) {
           <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.teamA, marginBottom: 8 }}>
             🟦 Team A
           </div>
+          <PositionSummary players={teamA} />
           {teamA.map((p, i) => (
             <div key={i} style={{ display: 'flex', marginBottom: 4 }}>
               <PlayerChip name={p.name} color={colors.teamA} />
@@ -184,6 +296,7 @@ function DraftTeams({ poll, active }) {
           <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.teamB, marginBottom: 8 }}>
             🟥 Team B
           </div>
+          <PositionSummary players={teamB} />
           {teamB.map((p, i) => (
             <div key={i} style={{ display: 'flex', marginBottom: 4 }}>
               <PlayerChip name={p.name} color={colors.teamB} />
@@ -445,6 +558,11 @@ export default function PollPage({ poll: initialPoll, error }) {
         <div style={{ margin: '0 0 12px' }}>
           <VenueInfo location={poll.location} />
         </div>
+        {poll.notes && (
+          <div style={{ background: colors.pitchMid, borderRadius: 8, padding: '8px 12px', marginBottom: 12, fontSize: 13, color: colors.white }}>
+            📋 {poll.notes}
+          </div>
+        )}
         <ProgressBar value={totalSpots} max={poll.min_players} />
         <p style={{ color: colors.muted, fontSize: 13, margin: '4px 0 16px' }}>
           {totalSpots} / {poll.min_players}+ confirmed · {poll.max_players} max
