@@ -27,8 +27,18 @@ function groupAccent(poll, groups) {
 }
 
 export default function Home({ polls, groups }) {
-  const activePoll = polls.find(p => p.status === 'open')
-  const decidedPolls = polls.filter(p => p.status !== 'open')
+  const now = new Date()
+  const openPolls = polls.filter(p => p.status === 'open')
+  // Confirmed games whose game_time is today or in the future — featured prominently
+  const upcomingConfirmed = polls.filter(p =>
+    p.status === 'confirmed' && p.game_time && new Date(p.game_time) >= new Date(now.toDateString())
+  )
+  // Past / cancelled — shown as history
+  const pastPolls = polls.filter(p =>
+    p.status !== 'open' && !upcomingConfirmed.includes(p)
+  )
+
+  const nothingActive = openPolls.length === 0 && upcomingConfirmed.length === 0
 
   return (
     <Layout title="PitchUp — Pickup Soccer">
@@ -47,26 +57,46 @@ export default function Home({ polls, groups }) {
         </p>
       </div>
 
-      {/* Active poll */}
-      {activePoll ? (
-        <Link href={`/poll/${activePoll.id}`} style={{ textDecoration: 'none' }}>
-          <Card highlight style={{ cursor: 'pointer', ...groupAccent(activePoll, groups) }} className="card-link">
-            <Label>Active poll — tap to vote</Label>
-            <GroupBadges poll={activePoll} groups={groups} />
-            <h2 style={{ fontSize: 20, fontWeight: 800, margin: '0 0 4px', letterSpacing: '-0.3px' }}>
-              {activePoll.title}
+      {/* Upcoming confirmed games — featured at top */}
+      {upcomingConfirmed.map(poll => (
+        <Link key={poll.id} href={`/poll/${poll.id}`} style={{ textDecoration: 'none' }}>
+          <Card highlight style={{ cursor: 'pointer', ...groupAccent(poll, groups) }} className="card-link">
+            <Label>Game confirmed 🎉 — tap for teams & details</Label>
+            <GroupBadges poll={poll} groups={groups} />
+            <h2 style={{ fontSize: 20, fontWeight: 800, margin: '0 0 4px', letterSpacing: '-0.3px', color: colors.accent }}>
+              {poll.title}
             </h2>
-            <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 12px' }}>{activePoll.location}</p>
-            <ProgressBar value={getActivePlayers(activePoll).length} max={activePoll.min_players} />
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
-              <span style={{ color: colors.muted, fontSize: 13 }}>
-                {getActivePlayers(activePoll).length} / {activePoll.min_players}+ players
-              </span>
-              <span style={{ color: colors.accent, fontSize: 13, fontWeight: 700 }}>Vote →</span>
+            <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 8px' }}>{poll.location}</p>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Pill color={colors.accent}>👥 {poll.players.length} players</Pill>
+              <span style={{ color: colors.accent, fontSize: 13, fontWeight: 700 }}>See teams →</span>
             </div>
           </Card>
         </Link>
-      ) : (
+      ))}
+
+      {/* All open polls */}
+      {openPolls.length > 0 ? (
+        openPolls.map(poll => (
+          <Link key={poll.id} href={`/poll/${poll.id}`} style={{ textDecoration: 'none' }}>
+            <Card highlight style={{ cursor: 'pointer', ...groupAccent(poll, groups) }} className="card-link">
+              <Label>Active poll — tap to vote</Label>
+              <GroupBadges poll={poll} groups={groups} />
+              <h2 style={{ fontSize: 20, fontWeight: 800, margin: '0 0 4px', letterSpacing: '-0.3px' }}>
+                {poll.title}
+              </h2>
+              <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 12px' }}>{poll.location}</p>
+              <ProgressBar value={getActivePlayers(poll).length} max={poll.min_players} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                <span style={{ color: colors.muted, fontSize: 13 }}>
+                  {getActivePlayers(poll).length} / {poll.min_players}+ players
+                </span>
+                <span style={{ color: colors.accent, fontSize: 13, fontWeight: 700 }}>Vote →</span>
+              </div>
+            </Card>
+          </Link>
+        ))
+      ) : nothingActive ? (
         <Card>
           <div style={{ textAlign: 'center', padding: '20px 0', color: colors.muted }}>
             <div style={{ fontSize: 32, marginBottom: 10 }}>📋</div>
@@ -74,10 +104,10 @@ export default function Home({ polls, groups }) {
             <p style={{ fontSize: 13, marginTop: 4 }}>Ask your organizer to create one.</p>
           </div>
         </Card>
-      )}
+      ) : null}
 
-      {/* Confirmed / cancelled games */}
-      {decidedPolls.length > 0 && (
+      {/* Past / cancelled games */}
+      {pastPolls.length > 0 && (
         <div style={{ marginTop: 8 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: colors.muted }}>
@@ -87,7 +117,7 @@ export default function Home({ polls, groups }) {
               🏆 Leaderboard
             </Link>
           </div>
-          {decidedPolls.slice(0, 3).map(poll => (
+          {pastPolls.slice(0, 3).map(poll => (
             <Link key={poll.id} href={`/poll/${poll.id}`} style={{ textDecoration: 'none' }}>
               <Card style={{ cursor: 'pointer', ...groupAccent(poll, groups) }} className="card-link">
                 <GroupBadges poll={poll} groups={groups} />
