@@ -1,7 +1,7 @@
 // GET  /api/poll/[id] — fetch poll state
 // POST /api/poll/[id] — cast a vote
 import { supabaseAdmin, isSupabaseConfigured } from '../../../lib/supabase'
-import { formatSlot, getActivePlayers, getWaitlist } from '../../../lib/teams'
+import { formatSlot, getActivePlayers, getWaitlist, generateTeams, expandWithGuests } from '../../../lib/teams'
 import { evaluatePollUpdate } from '../../../lib/pollStatus'
 import { sendWhatsAppAnnouncement, sendWhatsAppCancellation } from '../../../lib/whatsapp'
 import { sendPushToAll, sendPushToPlayer } from '../../../lib/push'
@@ -92,9 +92,7 @@ export default async function handler(req, res) {
 
   if (req.method === 'POST') {
     const { name, slots: votedSlots, playerId, positions, guests } = req.body
-    if (!name || !Array.isArray(votedSlots) || votedSlots.length === 0) {
-      return res.status(400).json({ error: 'name and slots are required' })
-    }
+    if (!name) return res.status(400).json({ error: 'name is required' })
     const guestCount = Math.min(Math.max(0, parseInt(guests, 10) || 0), 2)
 
     const MAX_RETRIES = 5
@@ -103,10 +101,14 @@ export default async function handler(req, res) {
         const { data: poll, error: fetchErr } = await db.from('polls').select('*').eq('id', id).single()
         if (fetchErr || !poll) return res.status(404).json({ error: 'Poll not found' })
 
-        // Lazy-evaluate the cutoff before accepting a new vote
-        const current = await applyPollUpdate(db, poll)
-        if (current.status !== 'open') {
-          return res.status(400).json({ error: 'Poll is no longer open' })
+        // For open polls, lazily evaluate auto-confirm/cancel; confirmed polls accept waitlist joins
+        const current = poll.status === 'open' ? await applyPollUpdate(db, poll) : poll
+        if (current.status === 'cancelled') {
+          return res.status(400).json({ error: 'Poll has been cancelled' })
+        }
+        // Confirmed polls are full — slot selection not needed; new player joins the waitlist
+        if (current.status === 'open' && (!Array.isArray(votedSlots) || votedSlots.length === 0)) {
+          return res.status(400).json({ error: 'slots are required' })
         }
 
         if (current.visibility === 'groups') {
@@ -133,7 +135,7 @@ export default async function handler(req, res) {
 
         const updatedPlayers = [
           ...players,
-          { name: name.trim(), slots: votedSlots, playerId: playerId || null, positions: positions || [], guests: guestCount },
+          { name: name.trim(), slots: votedSlots || [], playerId: playerId || null, positions: positions || [], guests: guestCount },
         ]
 
         const { data: updated, error: updateErr } = await db
@@ -148,6 +150,18 @@ export default async function handler(req, res) {
         // Someone else wrote to this poll in between — retry from a fresh read
         if (!updated) continue
 
+        if (current.status === 'confirmed') {
+          // If the new player landed in the active roster (a spot opened up from a dropout), regenerate teams
+          const nowActive = getActivePlayers(updated)
+          if (nowActive.some(p => p.name.toLowerCase() === name.trim().toLowerCase())) {
+            const newTeams = generateTeams(expandWithGuests(nowActive))
+            const { data: reteamed } = await db.from('polls')
+              .update({ teams: newTeams, version: updated.version + 1 })
+              .eq('id', id).select().single()
+            return res.status(200).json(reteamed || updated)
+          }
+          return res.status(200).json(updated)
+        }
         const final = await applyPollUpdate(db, updated)
         return res.status(200).json(final)
       }
@@ -165,7 +179,7 @@ export default async function handler(req, res) {
     try {
       const { data: poll, error: fetchErr } = await db.from('polls').select('*').eq('id', id).single()
       if (fetchErr || !poll) return res.status(404).json({ error: 'Poll not found' })
-      if (poll.status !== 'open') return res.status(400).json({ error: 'Voting is closed for this poll' })
+      if (poll.status === 'cancelled') return res.status(400).json({ error: 'This poll has been cancelled' })
 
       const entry = (poll.players || []).find(p => p.name.toLowerCase() === name.trim().toLowerCase())
       if (!entry) return res.status(404).json({ error: 'You are not in this poll' })
@@ -179,6 +193,7 @@ export default async function handler(req, res) {
         }
       }
 
+      const wasActive = getActivePlayers(poll)
       const wasWaitlist = getWaitlist(poll)
       const updatedPlayers = poll.players.filter(p => p.name.toLowerCase() !== name.trim().toLowerCase())
       const { data: updated, error } = await db
@@ -201,6 +216,19 @@ export default async function handler(req, res) {
           })
         }
       } catch (e) { console.error('Waitlist push failed:', e.message) }
+
+      // For confirmed polls, regenerate teams if an active player left
+      if (poll.status === 'confirmed' && wasActive.some(p => p.name.toLowerCase() === name.trim().toLowerCase())) {
+        try {
+          const nowActive = getActivePlayers(updated)
+          const newTeams = generateTeams(expandWithGuests(nowActive))
+          const { data: reteamed, error: teamErr } = await db
+            .from('polls')
+            .update({ teams: newTeams, version: updated.version + 1 })
+            .eq('id', id).select().single()
+          if (!teamErr && reteamed) return res.status(200).json(reteamed)
+        } catch (e) { console.error('Team regeneration failed:', e.message) }
+      }
 
       return res.status(200).json(updated)
     } catch (e) {

@@ -145,6 +145,109 @@ function MvpVoting({ poll }) {
   )
 }
 
+// ── Waitlist card (shown below confirmed game) ────────────────────────────────
+function WaitlistCard({ poll, waitlist, myEntry, onWaitlist, name, setName, profile, loading, setLoading, setToast, setPoll }) {
+  const handleJoinWaitlist = async () => {
+    if (!name.trim()) return
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/poll/${poll.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.trim(), slots: [], playerId: profile?.id || null, positions: profile?.positions || [], guests: 0 }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setPoll(data)
+      setToast("You've joined the waitlist!")
+      setTimeout(() => setToast(''), 2500)
+    } catch (e) {
+      setToast(e.message || 'Something went wrong')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleLeave = async () => {
+    if (!myEntry) return
+    if (!window.confirm(`Remove yourself from ${onWaitlist ? 'the waitlist' : 'this game'}?`)) return
+    let pinInput = ''
+    if (myEntry.playerId) {
+      pinInput = window.prompt('Enter your PIN to confirm:')
+      if (!pinInput) return
+    }
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/poll/${poll.id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: myEntry.name, pin: pinInput || undefined }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setPoll(data)
+      setToast(onWaitlist ? "You've left the waitlist" : "You've left the game")
+      setTimeout(() => setToast(''), 2500)
+    } catch (e) {
+      setToast(e.message || 'Something went wrong')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <>
+      {waitlist.length > 0 && (
+        <Card>
+          <Label>Waiting list ⏳</Label>
+          <p style={{ color: colors.muted, fontSize: 12, margin: '0 0 10px' }}>
+            These players will be promoted automatically if someone drops out.
+          </p>
+          <div style={{ display: 'flex', flexWrap: 'wrap' }}>
+            {waitlist.map((p, i) => (
+              <PlayerChip key={i} name={p.name} color={colors.cardYellow}
+                meta={p.guests ? `+${p.guests} guest${p.guests > 1 ? 's' : ''}` : undefined} />
+            ))}
+          </div>
+        </Card>
+      )}
+      {myEntry ? (
+        <Card>
+          <div style={{ textAlign: 'center', padding: '10px 0 14px' }}>
+            <div style={{ fontSize: 28, marginBottom: 8 }}>{onWaitlist ? '⏳' : '✅'}</div>
+            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>
+              {onWaitlist ? "You're on the waitlist" : "You're in the squad!"}
+            </div>
+            <p style={{ color: colors.muted, fontSize: 13 }}>
+              {onWaitlist ? "We'll notify you if a spot opens up." : 'See you on the pitch!'}
+            </p>
+          </div>
+          <Btn small variant="ghost" onClick={handleLeave} disabled={loading}>
+            {onWaitlist ? 'Leave waitlist' : "Can't make it — leave game"}
+          </Btn>
+        </Card>
+      ) : (
+        <Card>
+          <Label>Join the waitlist</Label>
+          <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 12px' }}>
+            The game is full, but you can join the waitlist — you'll be promoted automatically if a spot opens up.
+          </p>
+          {profile ? (
+            <p style={{ color: colors.muted, fontSize: 13, marginBottom: 12 }}>
+              Joining as <strong style={{ color: colors.white }}>{profile.name}</strong>
+            </p>
+          ) : (
+            <Input value={name} onChange={e => setName(e.target.value)} placeholder="Your name" />
+          )}
+          <Btn onClick={handleJoinWaitlist} disabled={!name.trim() || loading}>
+            {loading ? 'Joining...' : '⏳ Join waitlist'}
+          </Btn>
+        </Card>
+      )}
+    </>
+  )
+}
+
 // ── Confirmed game view ───────────────────────────────────────────────────────
 function GameConfirmed({ poll }) {
   const { teamA = [], teamB = [] } = poll.teams || {}
@@ -383,10 +486,24 @@ export default function PollPage({ poll: initialPoll, error }) {
     )
   }
 
+  // Computed values used across confirmed, submitted, and open views
+  const active = getActivePlayers(poll)
+  const waitlist = getWaitlist(poll)
+  const totalSpots = getTotalSpots(active)
+  const venue = findLocation(poll.location)
+  const myEntry = poll.players.find(p => profile
+    ? p.playerId === profile.id
+    : (name.trim() && p.name.toLowerCase() === name.trim().toLowerCase()))
+  const onWaitlist = !!myEntry && waitlist.some(p => p.name.toLowerCase() === myEntry.name.toLowerCase())
+
   if (poll.status === 'confirmed') {
     return (
       <Layout title={poll.title} description={`Game is on at ${poll.location} — ${formatSlot(poll.game_time)}.`}>
         <GameConfirmed poll={poll} />
+        <WaitlistCard poll={poll} waitlist={waitlist} myEntry={myEntry} onWaitlist={onWaitlist}
+          name={name} setName={setName} profile={profile}
+          loading={loading} setLoading={setLoading} setToast={setToast} setPoll={setPoll} />
+        <Toast msg={toast} />
       </Layout>
     )
   }
@@ -398,10 +515,6 @@ export default function PollPage({ poll: initialPoll, error }) {
       </Layout>
     )
   }
-
-  const myEntry = poll.players.find(p => profile
-    ? p.playerId === profile.id
-    : (name.trim() && p.name.toLowerCase() === name.trim().toLowerCase()))
 
   const toggleSlot = (i) => setSelectedSlots(s => s.includes(i) ? s.filter(x => x !== i) : [...s, i])
 
@@ -484,13 +597,7 @@ export default function PollPage({ poll: initialPoll, error }) {
   }
 
   if (submitted) {
-    if (poll.status === 'confirmed') return <Layout title={poll.title}><GameConfirmed poll={poll} /></Layout>
     if (poll.status === 'cancelled') return <Layout title={poll.title}><GameCancelled poll={poll} /></Layout>
-
-    const active = getActivePlayers(poll)
-    const waitlist = getWaitlist(poll)
-    const totalSpots = getTotalSpots(active)
-    const onWaitlist = waitlist.some(p => p.name.toLowerCase() === name.trim().toLowerCase())
 
     return (
       <Layout title={poll.title}>
@@ -533,11 +640,6 @@ export default function PollPage({ poll: initialPoll, error }) {
       </Layout>
     )
   }
-
-  const active = getActivePlayers(poll)
-  const waitlist = getWaitlist(poll)
-  const totalSpots = getTotalSpots(active)
-  const venue = findLocation(poll.location)
 
   return (
     <Layout title={poll.title} description={`${poll.location} · ${totalSpots}/${poll.min_players}+ players — tap to vote on a time`}>

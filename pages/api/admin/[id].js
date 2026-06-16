@@ -156,6 +156,17 @@ export default async function handler(req, res) {
           }
         } catch (e) { console.error('Waitlist push failed:', e.message) }
 
+        // For confirmed polls, regenerate teams if an active player was removed
+        if (poll.status === 'confirmed' && getActivePlayers(poll).some(p => p.name === name)) {
+          try {
+            const nowActive = getActivePlayers(updatedPoll)
+            const newTeams = generateTeams(expandWithGuests(nowActive))
+            const { data: reteamed, error: teamErr } = await db
+              .from('polls').update({ teams: newTeams, version: updatedPoll.version + 1 }).eq('id', id).select().single()
+            if (!teamErr && reteamed) return res.status(200).json(reteamed)
+          } catch (e) { console.error('Team regeneration failed:', e.message) }
+        }
+
         return res.status(200).json(updatedPoll)
       }
 
