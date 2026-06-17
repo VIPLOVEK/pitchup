@@ -216,3 +216,6 @@ alter table polls add column if not exists goals jsonb not null default '[]';
 -- Random funny team names assigned at poll creation
 alter table polls add column if not exists team_a_name text not null default 'Team A';
 alter table polls add column if not exists team_b_name text not null default 'Team B';
+
+-- Match comments — players can post short messages on any poll
+alter table polls add column if not exists comments jsonb not null default '[]';

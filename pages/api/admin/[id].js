@@ -174,6 +174,20 @@ export default async function handler(req, res) {
           }
         } catch (e) { console.error('Waitlist push failed:', e.message) }
 
+        if (poll.status === 'confirmed' && getActivePlayers(poll).some(p => p.name === name)) {
+          const gameTime = poll.game_time ? new Date(poll.game_time) : null
+          const hoursUntil = gameTime ? (gameTime - new Date()) / (1000 * 60 * 60) : Infinity
+          if (hoursUntil < 2) {
+            try {
+              await sendPushToAll({
+                title: '⚠️ Player dropped out',
+                body: `${name} just dropped out of ${poll.title} — less than 2h to kickoff!`,
+                url: `/poll/${poll.id}`,
+              })
+            } catch (e) { console.error('Dropout alert push failed:', e.message) }
+          }
+        }
+
         // For confirmed polls, regenerate teams if an active player was removed
         if (poll.status === 'confirmed' && getActivePlayers(poll).some(p => p.name === name)) {
           try {

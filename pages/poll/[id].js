@@ -271,8 +271,85 @@ function WaitlistCard({ poll, waitlist, myEntry, onWaitlist, name, setName, prof
   )
 }
 
+// ── Match comments ────────────────────────────────────────────────────────────
+function Comments({ poll, profileName }) {
+  const [comments, setComments] = useState(poll.comments || [])
+  const [text, setText] = useState('')
+  const [name, setName] = useState(profileName || '')
+  const [loading, setLoading] = useState(false)
+
+  async function submit(e) {
+    e.preventDefault()
+    if (!text.trim() || !name.trim()) return
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/poll/${poll.id}/comment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, text }),
+      })
+      if (res.ok) {
+        const updated = await res.json()
+        setComments(updated)
+        setText('')
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function formatTs(ts) {
+    const d = new Date(ts)
+    return d.toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+  }
+
+  return (
+    <Card>
+      <Label>💬 Match chat</Label>
+      {comments.length === 0 && (
+        <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 12px' }}>No messages yet — be the first!</p>
+      )}
+      {comments.map((c, i) => (
+        <div key={i} style={{ marginBottom: 10, paddingBottom: 10, borderBottom: i < comments.length - 1 ? `1px solid ${colors.grass}22` : 'none' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
+            <span style={{ fontWeight: 700, fontSize: 13, color: colors.accent }}>{c.name}</span>
+            <span style={{ fontSize: 11, color: colors.muted }}>{formatTs(c.ts)}</span>
+          </div>
+          <div style={{ fontSize: 13, color: colors.white, lineHeight: 1.5 }}>{c.text}</div>
+        </div>
+      ))}
+      <form onSubmit={submit} style={{ marginTop: 8 }}>
+        {!profileName && (
+          <input
+            value={name}
+            onChange={e => setName(e.target.value)}
+            placeholder="Your name"
+            style={{ width: '100%', background: colors.pitchMid, border: `1px solid ${colors.grass}33`, color: colors.white, borderRadius: 8, padding: '8px 12px', fontSize: 13, marginBottom: 8, boxSizing: 'border-box' }}
+          />
+        )}
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input
+            value={text}
+            onChange={e => setText(e.target.value)}
+            placeholder="Say something..."
+            maxLength={280}
+            style={{ flex: 1, background: colors.pitchMid, border: `1px solid ${colors.grass}33`, color: colors.white, borderRadius: 8, padding: '8px 12px', fontSize: 13 }}
+          />
+          <button
+            type="submit"
+            disabled={loading || !text.trim() || !name.trim()}
+            style={{ background: colors.accent, color: colors.pitch, border: 'none', borderRadius: 8, padding: '8px 14px', fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: (text.trim() && name.trim()) ? 1 : 0.5 }}
+          >
+            Send
+          </button>
+        </div>
+      </form>
+    </Card>
+  )
+}
+
 // ── Confirmed game view ───────────────────────────────────────────────────────
-function GameConfirmed({ poll }) {
+function GameConfirmed({ poll, profile }) {
   const { teamA = [], teamB = [] } = poll.teams || {}
   const nameA = poll.team_a_name || 'Team A'
   const nameB = poll.team_b_name || 'Team B'
@@ -398,9 +475,31 @@ function GameConfirmed({ poll }) {
           >
             Copy message for WhatsApp
           </button>
+          <div style={{ marginTop: 10 }}>
+            <a
+              href={`/poll/${poll.id}/share`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'block',
+                textAlign: 'center',
+                background: colors.pitchMid,
+                color: colors.muted,
+                borderRadius: 8,
+                padding: '10px 16px',
+                fontSize: 13,
+                fontWeight: 600,
+                textDecoration: 'none',
+                border: `1px solid ${colors.grass}33`,
+              }}
+            >
+              📸 Open shareable teams card
+            </a>
+          </div>
         </div>
       </Card>
       <MvpVoting poll={poll} />
+      <Comments poll={poll} profileName={profile?.name || null} />
     </div>
   )
 }
@@ -546,7 +645,7 @@ export default function PollPage({ poll: initialPoll, error }) {
   if (poll.status === 'confirmed') {
     return (
       <Layout title={poll.title} description={`Game is on at ${poll.location} — ${formatSlot(poll.game_time)}.`}>
-        <GameConfirmed poll={poll} />
+        <GameConfirmed poll={poll} profile={profile} />
         <WaitlistCard poll={poll} waitlist={waitlist} myEntry={myEntry} onWaitlist={onWaitlist}
           name={name} setName={setName} profile={profile}
           loading={loading} setLoading={setLoading} setToast={setToast} setPoll={setPoll} />
@@ -870,6 +969,8 @@ export default function PollPage({ poll: initialPoll, error }) {
           </Btn>
         </div>
       </Card>
+
+      <Comments poll={poll} profileName={profile?.name || null} />
 
       <Toast msg={toast} />
     </Layout>

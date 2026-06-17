@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Layout from '../components/Layout'
 import { Card, Label, Pill, Spinner } from '../components/UI'
@@ -5,7 +6,45 @@ import { colors } from '../lib/tokens'
 
 const medal = (rank) => rank === 0 ? '🥇' : rank === 1 ? '🥈' : rank === 2 ? '🥉' : null
 
-export default function Leaderboard({ leaderboard, error }) {
+function getSince(period) {
+  if (period === 'month') {
+    const d = new Date()
+    d.setDate(1); d.setHours(0, 0, 0, 0)
+    return d.toISOString()
+  }
+  if (period === '30d') {
+    const d = new Date()
+    d.setDate(d.getDate() - 30)
+    return d.toISOString()
+  }
+  return null
+}
+
+export default function Leaderboard({ leaderboard: initialLeaderboard, error: initialError }) {
+  const [stats, setStats] = useState(initialLeaderboard)
+  const [period, setPeriod] = useState('all')
+  const [loading, setLoading] = useState(false)
+  const [fetchError, setFetchError] = useState(initialError)
+
+  useEffect(() => {
+    if (period === 'all' && initialLeaderboard !== null) {
+      setStats(initialLeaderboard)
+      setFetchError(initialError)
+      return
+    }
+    setLoading(true)
+    const since = getSince(period)
+    const url = since ? `/api/leaderboard?since=${encodeURIComponent(since)}` : '/api/leaderboard'
+    fetch(url)
+      .then(r => r.json())
+      .then(data => { setStats(data); setFetchError(null) })
+      .catch(() => setFetchError('Failed to load leaderboard'))
+      .finally(() => setLoading(false))
+  }, [period])
+
+  const leaderboard = stats
+  const error = fetchError
+
   return (
     <Layout title="Leaderboard — PitchUp">
       <div style={{ textAlign: 'center', padding: '24px 0 16px' }}>
@@ -17,15 +56,32 @@ export default function Leaderboard({ leaderboard, error }) {
         </p>
       </div>
 
+      <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
+        {[['all', 'All time'], ['month', 'This month'], ['30d', 'Last 30 days']].map(([key, label]) => (
+          <button
+            key={key}
+            onClick={() => setPeriod(key)}
+            style={{
+              background: period === key ? colors.accent : colors.pitchMid,
+              color: period === key ? colors.pitch : colors.muted,
+              border: 'none', borderRadius: 20, padding: '6px 14px',
+              fontSize: 12, fontWeight: 700, cursor: 'pointer',
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       {error && (
         <Card><p style={{ color: colors.danger, fontSize: 13 }}>{error}</p></Card>
       )}
 
-      {!error && leaderboard === null && (
+      {!error && (leaderboard === null || loading) && (
         <Card><Spinner label="Loading leaderboard..." /></Card>
       )}
 
-      {!error && leaderboard !== null && leaderboard.length === 0 && (
+      {!error && !loading && leaderboard !== null && leaderboard.length === 0 && (
         <Card>
           <div style={{ textAlign: 'center', color: colors.muted, padding: '20px 0', fontSize: 14 }}>
             No game results yet — scores are recorded from the admin panel after a game.
@@ -33,7 +89,7 @@ export default function Leaderboard({ leaderboard, error }) {
         </Card>
       )}
 
-      {!error && leaderboard && leaderboard.length > 0 && (
+      {!error && !loading && leaderboard && leaderboard.length > 0 && (
         <Card>
           <Label>{leaderboard.length} player{leaderboard.length === 1 ? '' : 's'}</Label>
           {leaderboard.map((p, i) => (

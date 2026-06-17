@@ -14,12 +14,15 @@ export default async function handler(req, res) {
       .select('id, name')
     if (playersError) throw playersError
 
-    const { data: polls, error: pollsError } = await db
+    const { since } = req.query
+    let pollsQuery = db
       .from('polls')
       .select('teams, score_a, score_b, goals')
       .eq('status', 'confirmed')
       .not('score_a', 'is', null)
       .not('score_b', 'is', null)
+    if (since) pollsQuery = pollsQuery.gte('game_time', since)
+    const { data: polls, error: pollsError } = await pollsQuery
     if (pollsError) throw pollsError
 
     const { data: allConfirmed, error: allErr } = await db
