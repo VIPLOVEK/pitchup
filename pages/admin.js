@@ -382,8 +382,8 @@ function PollCard({ poll, password, onAction, appUrl, groups }) {
               onChange={e => setGoalTeam(e.target.value)}
               style={{ background: colors.pitchMid, border: `1px solid ${colors.grass}33`, color: colors.white, borderRadius: 6, padding: '6px 8px', fontSize: 12 }}
             >
-              <option value="A">🟦 A</option>
-              <option value="B">🟥 B</option>
+              <option value="A">🟦 {poll.team_a_name || 'Team A'}</option>
+              <option value="B">🟥 {poll.team_b_name || 'Team B'}</option>
             </select>
             <button
               onClick={() => { if (!goalPlayer) return; doAction('setGoals', 'PATCH', { goals: [...(poll.goals || []), { name: goalPlayer, team: goalTeam }] }); setGoalPlayer('') }}

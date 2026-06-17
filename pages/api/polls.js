@@ -1,6 +1,7 @@
 // POST /api/polls — create a new poll (admin only)
 import { supabaseAdmin, isSupabaseConfigured } from '../../lib/supabase'
 import { sendWhatsAppPollCreated } from '../../lib/whatsapp'
+import { pickTeamNames } from '../../lib/teamNames'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
@@ -34,6 +35,7 @@ export default async function handler(req, res) {
 
   try {
     const db = supabaseAdmin()
+    const { teamAName, teamBName } = pickTeamNames()
     const { data, error } = await db
       .from('polls')
       .insert({
@@ -48,6 +50,8 @@ export default async function handler(req, res) {
         visibility: pollVisibility,
         group_ids: pollVisibility === 'groups' ? groupIds : [],
         notes: notes || null,
+        team_a_name: teamAName,
+        team_b_name: teamBName,
       })
       .select()
       .single()

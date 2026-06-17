@@ -212,3 +212,7 @@ alter table polls add column if not exists mvp_votes jsonb not null default '[]'
 -- select * from polls;
 
 alter table polls add column if not exists goals jsonb not null default '[]';
+
+-- Random funny team names assigned at poll creation
+alter table polls add column if not exists team_a_name text not null default 'Team A';
+alter table polls add column if not exists team_b_name text not null default 'Team B';

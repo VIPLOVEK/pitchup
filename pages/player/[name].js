@@ -56,7 +56,7 @@ export default function PlayerPage({ player, error }) {
                 <div>
                   <div style={{ fontSize: 14, fontWeight: 600, color: colors.white }}>{g.title}</div>
                   <div style={{ fontSize: 12, color: colors.muted, marginTop: 2 }}>
-                    {formatSlot(g.date)} · {g.team === 'A' ? '🟦 Team A' : '🟥 Team B'}
+                    {formatSlot(g.date)} · {g.team === 'A' ? '🟦' : '🟥'} {g.teamName}
                     {g.goals > 0 && <span style={{ color: colors.grassLight, marginLeft: 6 }}>⚽ {g.goals} goal{g.goals !== 1 ? 's' : ''}</span>}
                   </div>
                 </div>

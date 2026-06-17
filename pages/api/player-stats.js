@@ -11,7 +11,7 @@ export default async function handler(req, res) {
     const db = supabaseAdmin()
     const { data: polls, error } = await db
       .from('polls')
-      .select('id, title, game_time, location, teams, score_a, score_b, goals')
+      .select('id, title, game_time, location, teams, score_a, score_b, goals, team_a_name, team_b_name')
       .eq('status', 'confirmed')
       .not('score_a', 'is', null)
       .not('score_b', 'is', null)
@@ -44,6 +44,7 @@ export default async function handler(req, res) {
         location: poll.location,
         date: poll.game_time,
         team: inA ? 'A' : 'B',
+        teamName: inA ? (poll.team_a_name || 'Team A') : (poll.team_b_name || 'Team B'),
         result,
         scoreA: poll.score_a,
         scoreB: poll.score_b,

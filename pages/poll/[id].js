@@ -274,6 +274,8 @@ function WaitlistCard({ poll, waitlist, myEntry, onWaitlist, name, setName, prof
 // ── Confirmed game view ───────────────────────────────────────────────────────
 function GameConfirmed({ poll }) {
   const { teamA = [], teamB = [] } = poll.teams || {}
+  const nameA = poll.team_a_name || 'Team A'
+  const nameB = poll.team_b_name || 'Team B'
   const gameTime = formatSlot(poll.game_time)
   const whatsappText = [
     `⚽ *Game is ON!* ${poll.players.length} players confirmed.`,
@@ -281,8 +283,8 @@ function GameConfirmed({ poll }) {
     `📅 ${gameTime}`,
     `📍 ${poll.location}`,
     ``,
-    `🟦 *Team A:* ${teamA.map(p => p.name).join(', ')}`,
-    `🟥 *Team B:* ${teamB.map(p => p.name).join(', ')}`,
+    `🟦 *${nameA}:* ${teamA.map(p => p.name).join(', ')}`,
+    `🟥 *${nameB}:* ${teamB.map(p => p.name).join(', ')}`,
     ``,
     `See you on the pitch! 🏃`,
   ].join('\n')
@@ -321,7 +323,7 @@ function GameConfirmed({ poll }) {
               <span style={{ fontSize: 32, fontWeight: 900, color: poll.score_b > poll.score_a ? colors.teamB : colors.muted }}>{poll.score_b}</span>
             </div>
             <div style={{ fontSize: 12, color: colors.muted, marginTop: 4 }}>
-              {poll.score_a === poll.score_b ? 'Draw' : poll.score_a > poll.score_b ? '🟦 Team A wins' : '🟥 Team B wins'}
+              {poll.score_a === poll.score_b ? 'Draw' : poll.score_a > poll.score_b ? `🟦 ${nameA} wins` : `🟥 ${nameB} wins`}
             </div>
           </div>
         ) : (
@@ -352,7 +354,7 @@ function GameConfirmed({ poll }) {
         <div style={{ display: 'flex', gap: 16 }}>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.teamA, marginBottom: 8 }}>
-              🟦 Team A
+              🟦 {nameA}
             </div>
             <PositionSummary players={teamA} />
             {teamA.map((p, i) => (
@@ -363,7 +365,7 @@ function GameConfirmed({ poll }) {
           </div>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.teamB, marginBottom: 8 }}>
-              🟥 Team B
+              🟥 {nameB}
             </div>
             <PositionSummary players={teamB} />
             {teamB.map((p, i) => (
@@ -417,6 +419,8 @@ function DraftTeams({ poll, active }) {
   const expanded = expandWithGuests(active)
   const teams = poll.teams || getDraftTeams(expanded)
   const { teamA = [], teamB = [] } = teams
+  const nameA = poll.team_a_name || 'Team A'
+  const nameB = poll.team_b_name || 'Team B'
   const isConfirmed = poll.status === 'confirmed'
   return (
     <Card>
@@ -429,7 +433,7 @@ function DraftTeams({ poll, active }) {
       <div style={{ display: 'flex', gap: 16 }}>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.teamA, marginBottom: 8 }}>
-            🟦 Team A
+            🟦 {nameA}
           </div>
           <PositionSummary players={teamA} />
           {teamA.map((p, i) => (
@@ -440,7 +444,7 @@ function DraftTeams({ poll, active }) {
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.teamB, marginBottom: 8 }}>
-            🟥 Team B
+            🟥 {nameB}
           </div>
           <PositionSummary players={teamB} />
           {teamB.map((p, i) => (

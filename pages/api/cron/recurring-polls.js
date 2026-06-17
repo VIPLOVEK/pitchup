@@ -5,6 +5,7 @@ import { supabaseAdmin, isSupabaseConfigured } from '../../../lib/supabase'
 import { nextOccurrence, buildSlots, daysUntil } from '../../../lib/recurring'
 import { dateToKey } from '../../../lib/datetime'
 import { sendWhatsAppPollCreated } from '../../../lib/whatsapp'
+import { pickTeamNames } from '../../../lib/teamNames'
 
 export default async function handler(req, res) {
   if (process.env.CRON_SECRET && req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -25,6 +26,7 @@ export default async function handler(req, res) {
 
       const slots = buildSlots(template, anchor)
 
+      const { teamAName, teamBName } = pickTeamNames()
       const { data: poll, error: insertError } = await db
         .from('polls')
         .insert({
@@ -38,6 +40,8 @@ export default async function handler(req, res) {
           teams: null,
           visibility: template.visibility,
           group_ids: template.group_ids,
+          team_a_name: teamAName,
+          team_b_name: teamBName,
         })
         .select()
         .single()
