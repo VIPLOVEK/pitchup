@@ -59,8 +59,8 @@ function PositionSummary({ players }) {
 
 // ── MVP Voting ────────────────────────────────────────────────────────────────
 function MvpVoting({ poll }) {
-  const [voted, setVoted] = useState(() => typeof window !== 'undefined' && !!localStorage.getItem(`mvp_voted_${poll.id}`))
   const [voterName, setVoterName] = useState('')
+  const [myPick, setMyPick] = useState(() => typeof window !== 'undefined' ? localStorage.getItem(`mvp_voted_${poll.id}`) || '' : '')
   const [mvpVotes, setMvpVotes] = useState(poll.mvp_votes || [])
   const [toast, setToast] = useState('')
 
@@ -76,7 +76,11 @@ function MvpVoting({ poll }) {
 
   const counts = {}
   mvpVotes.forEach(v => { counts[v.votedFor] = (counts[v.votedFor] || 0) + 1 })
-  const topEntry = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]
+  const sorted = allPlayers
+    .map(p => ({ name: p.name, votes: counts[p.name] || 0 }))
+    .filter(p => p.votes > 0)
+    .sort((a, b) => b.votes - a.votes)
+  const maxVotes = sorted[0]?.votes || 1
 
   const castVote = async (name) => {
     if (!voterName.trim()) return
@@ -90,7 +94,7 @@ function MvpVoting({ poll }) {
       if (res.ok) {
         setMvpVotes(data.mvpVotes)
         localStorage.setItem(`mvp_voted_${poll.id}`, name)
-        setVoted(true)
+        setMyPick(name)
         setToast(`⭐ Voted for ${name}!`)
         setTimeout(() => setToast(''), 2500)
       }
@@ -100,46 +104,65 @@ function MvpVoting({ poll }) {
   return (
     <Card>
       <Label>Man of the Match ⭐</Label>
-      {topEntry && (
-        <div style={{ textAlign: 'center', padding: '10px 0 14px' }}>
-          <div style={{ fontSize: 28 }}>⭐</div>
-          <div style={{ fontWeight: 800, fontSize: 16, marginTop: 4 }}>{topEntry[0]}</div>
-          <div style={{ color: colors.muted, fontSize: 12, marginTop: 2 }}>{topEntry[1]} vote{topEntry[1] !== 1 ? 's' : ''}</div>
+
+      {/* Live vote tally */}
+      {sorted.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          {sorted.map((p, i) => (
+            <div key={p.name} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <div style={{ width: 18, fontSize: 13, textAlign: 'center', flexShrink: 0 }}>{i === 0 ? '⭐' : ''}</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: myPick === p.name ? colors.accent : colors.white }}>
+                    {p.name}{myPick === p.name ? ' ✓' : ''}
+                  </span>
+                  <span style={{ fontSize: 12, color: colors.muted }}>{p.votes} vote{p.votes !== 1 ? 's' : ''}</span>
+                </div>
+                <div style={{ height: 4, background: colors.pitchMid, borderRadius: 2, overflow: 'hidden' }}>
+                  <div style={{
+                    height: '100%',
+                    width: `${(p.votes / maxVotes) * 100}%`,
+                    background: i === 0 ? colors.accent : colors.grass,
+                    borderRadius: 2,
+                    transition: 'width 0.4s ease',
+                  }} />
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       )}
-      {voted ? (
-        <p style={{ color: colors.muted, fontSize: 13, textAlign: 'center' }}>✓ Your vote is in</p>
-      ) : (
-        <>
-          {!voterName && (
-            <Input value={voterName} onChange={e => setVoterName(e.target.value)} placeholder="Your name to vote" />
-          )}
-          <p style={{ color: colors.muted, fontSize: 12, margin: '0 0 10px' }}>Who stood out today?</p>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {allPlayers.map((p, i) => (
-              <button
-                key={i}
-                onClick={() => castVote(p.name)}
-                disabled={!voterName.trim()}
-                style={{
-                  background: colors.pitchMid,
-                  border: `1.5px solid ${colors.grass}33`,
-                  color: colors.white,
-                  borderRadius: 8,
-                  padding: '6px 14px',
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: voterName.trim() ? 'pointer' : 'default',
-                  opacity: voterName.trim() ? 1 : 0.5,
-                  transition: 'all 0.15s',
-                }}
-              >
-                {p.name}
-              </button>
-            ))}
-          </div>
-        </>
+
+      {/* Voting */}
+      {!voterName && (
+        <Input value={voterName} onChange={e => setVoterName(e.target.value)} placeholder="Your name to vote" />
       )}
+      <p style={{ color: colors.muted, fontSize: 12, margin: '0 0 10px' }}>
+        {myPick ? `Your pick: ${myPick} — tap another to change` : 'Who stood out today?'}
+      </p>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+        {allPlayers.map((p, i) => (
+          <button
+            key={i}
+            onClick={() => castVote(p.name)}
+            disabled={!voterName.trim()}
+            style={{
+              background: myPick === p.name ? colors.accent + '22' : colors.pitchMid,
+              border: `1.5px solid ${myPick === p.name ? colors.accent : colors.grass + '33'}`,
+              color: myPick === p.name ? colors.accent : colors.white,
+              borderRadius: 8,
+              padding: '6px 14px',
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: voterName.trim() ? 'pointer' : 'default',
+              opacity: voterName.trim() ? 1 : 0.5,
+              transition: 'all 0.15s',
+            }}
+          >
+            {p.name}
+          </button>
+        ))}
+      </div>
       {toast && <Toast msg={toast} />}
     </Card>
   )
