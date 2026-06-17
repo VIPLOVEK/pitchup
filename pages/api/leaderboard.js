@@ -16,7 +16,7 @@ export default async function handler(req, res) {
 
     const { data: polls, error: pollsError } = await db
       .from('polls')
-      .select('teams, score_a, score_b')
+      .select('teams, score_a, score_b, goals')
       .eq('status', 'confirmed')
       .not('score_a', 'is', null)
       .not('score_b', 'is', null)
@@ -44,6 +44,13 @@ export default async function handler(req, res) {
       teamB.forEach(p => record(p, outcomeB))
     }
 
+    const goalCounts = {}
+    for (const poll of polls) {
+      ;(poll.goals || []).forEach(g => {
+        goalCounts[g.name.toLowerCase()] = (goalCounts[g.name.toLowerCase()] || 0) + 1
+      })
+    }
+
     const committed = {}
     for (const poll of allConfirmed) {
       const { teamA = [], teamB = [] } = poll.teams || {}
@@ -63,7 +70,7 @@ export default async function handler(req, res) {
       .map(([key, r]) => {
         const gamesPlayed = r.wins + r.losses + r.draws
         const gamesCommitted = committed[key] || gamesPlayed
-        return { ...r, gamesPlayed, gamesCommitted, winPct: gamesPlayed ? r.wins / gamesPlayed : 0 }
+        return { ...r, gamesPlayed, gamesCommitted, winPct: gamesPlayed ? r.wins / gamesPlayed : 0, goals: goalCounts[r.name.toLowerCase()] || 0 }
       })
       .sort((a, b) => b.winPct - a.winPct || b.wins - a.wins || b.gamesPlayed - a.gamesPlayed)
 

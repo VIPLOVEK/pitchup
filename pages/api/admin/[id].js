@@ -81,6 +81,24 @@ export default async function handler(req, res) {
         const { data, error } = await db
           .from('polls').update({ score_a: scoreA, score_b: scoreB, version: poll.version + 1 }).eq('id', id).select().single()
         if (error) throw error
+        try {
+          const result = scoreA === scoreB ? 'Draw' : scoreA > scoreB ? '🟦 Team A win' : '🟥 Team B win'
+          await sendPushToAll({
+            title: `⚽ Final score: ${scoreA} – ${scoreB}`,
+            body: `${data.title}: ${result}. Check it out!`,
+            url: `/poll/${data.id}`,
+          })
+        } catch (e) { console.error('Score push failed:', e.message) }
+        return res.status(200).json(data)
+      }
+
+      if (action === 'setGoals') {
+        const { goals } = req.body
+        if (poll.status !== 'confirmed') return res.status(400).json({ error: 'Game must be confirmed first' })
+        if (!Array.isArray(goals)) return res.status(400).json({ error: 'goals must be an array' })
+        const { data, error } = await db
+          .from('polls').update({ goals, version: poll.version + 1 }).eq('id', id).select().single()
+        if (error) throw error
         return res.status(200).json(data)
       }
 

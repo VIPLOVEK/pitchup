@@ -202,6 +202,8 @@ function PollCard({ poll, password, onAction, appUrl, groups }) {
   const [loading, setLoading] = useState(false)
   const [scoreA, setScoreA] = useState(poll.score_a ?? '')
   const [scoreB, setScoreB] = useState(poll.score_b ?? '')
+  const [goalPlayer, setGoalPlayer] = useState('')
+  const [goalTeam, setGoalTeam] = useState('A')
   const [editingAudience, setEditingAudience] = useState(false)
   const [audienceVisibility, setAudienceVisibility] = useState(poll.visibility)
   const [audienceGroupIds, setAudienceGroupIds] = useState(poll.group_ids)
@@ -343,6 +345,53 @@ function PollCard({ poll, password, onAction, appUrl, groups }) {
             >
               Save
             </Btn>
+          </div>
+        </div>
+      )}
+
+      {isConfirmed && poll.score_a != null && (
+        <div style={{ marginTop: 12 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.muted, marginBottom: 8 }}>
+            ⚽ Goal Scorers
+          </div>
+          {/* Current goals list */}
+          {(poll.goals || []).length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
+              {(poll.goals || []).map((g, i) => (
+                <span key={i} style={{ background: g.team === 'A' ? colors.teamA + '22' : colors.teamB + '22', color: g.team === 'A' ? colors.teamA : colors.teamB, borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  {g.team === 'A' ? '🟦' : '🟥'} {g.name}
+                  <button onClick={() => doAction('setGoals', 'PATCH', { goals: (poll.goals || []).filter((_, j) => j !== i) })} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0, fontSize: 12, opacity: 0.7 }}>×</button>
+                </span>
+              ))}
+            </div>
+          )}
+          {/* Add goal row */}
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <select
+              value={goalPlayer}
+              onChange={e => setGoalPlayer(e.target.value)}
+              style={{ flex: 1, background: colors.pitchMid, border: `1px solid ${colors.grass}33`, color: goalPlayer ? colors.white : colors.muted, borderRadius: 6, padding: '6px 8px', fontSize: 12 }}
+            >
+              <option value="">Player...</option>
+              {[...(poll.teams?.teamA || []), ...(poll.teams?.teamB || [])].filter(p => !p.isGuest).map((p, i) => (
+                <option key={i} value={p.name}>{p.name}</option>
+              ))}
+            </select>
+            <select
+              value={goalTeam}
+              onChange={e => setGoalTeam(e.target.value)}
+              style={{ background: colors.pitchMid, border: `1px solid ${colors.grass}33`, color: colors.white, borderRadius: 6, padding: '6px 8px', fontSize: 12 }}
+            >
+              <option value="A">🟦 A</option>
+              <option value="B">🟥 B</option>
+            </select>
+            <button
+              onClick={() => { if (!goalPlayer) return; doAction('setGoals', 'PATCH', { goals: [...(poll.goals || []), { name: goalPlayer, team: goalTeam }] }); setGoalPlayer('') }}
+              disabled={!goalPlayer || loading}
+              style={{ background: colors.accent, color: colors.pitch, border: 'none', borderRadius: 6, padding: '6px 12px', fontSize: 12, fontWeight: 700, cursor: goalPlayer ? 'pointer' : 'default', opacity: goalPlayer ? 1 : 0.5 }}
+            >
+              + Add
+            </button>
           </div>
         </div>
       )}

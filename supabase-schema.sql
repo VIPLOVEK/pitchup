@@ -210,3 +210,5 @@ alter table polls add column if not exists mvp_votes jsonb not null default '[]'
 --  To verify: run this query after setup
 -- ============================================================
 -- select * from polls;
+
+alter table polls add column if not exists goals jsonb not null default '[]';

@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import Layout from '../components/Layout'
 import { Card, Label, Pill, Spinner } from '../components/UI'
 import { colors } from '../lib/tokens'
@@ -46,9 +47,12 @@ export default function Leaderboard({ leaderboard, error }) {
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <span style={{ width: 24, textAlign: 'center', fontSize: 16 }}>{medal(i) || i + 1}</span>
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: 14 }}>{p.name}</div>
+                  <div style={{ fontWeight: 700, fontSize: 14 }}>
+                    <Link href={`/player/${encodeURIComponent(p.name)}`} style={{ color: colors.accent, textDecoration: 'none', fontWeight: 800 }}>{p.name}</Link>
+                  </div>
                   <div style={{ color: colors.muted, fontSize: 12, marginTop: 2 }}>
                     {p.wins}W - {p.losses}L - {p.draws}D · {p.gamesPlayed}/{p.gamesCommitted} game{p.gamesCommitted === 1 ? '' : 's'}
+                    {p.goals > 0 && <span style={{ color: colors.grassLight, fontSize: 12, marginLeft: 6 }}>⚽ {p.goals}g</span>}
                   </div>
                 </div>
               </div>
