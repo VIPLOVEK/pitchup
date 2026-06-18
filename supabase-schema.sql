@@ -228,3 +228,14 @@ alter table polls add column if not exists vote_reminder_sent boolean not null d
 
 -- Enable Supabase Realtime on polls so the match chat updates live
 alter publication supabase_realtime add table polls;
+
+-- Admin broadcast announcements — pinned to homepage until cleared
+create table if not exists announcements (
+  id          text primary key default encode(gen_random_bytes(6), 'hex'),
+  created_at  timestamptz default now(),
+  message     text not null,
+  active      boolean not null default true
+);
+alter table announcements enable row level security;
+create policy "Anyone can read announcements"
+  on announcements for select using (true);

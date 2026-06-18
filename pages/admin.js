@@ -1077,6 +1077,86 @@ const FEEDBACK_STATUS_LABELS = {
   declined: 'Declined',
 }
 
+function BroadcastTab({ password, showToast }) {
+  const [message, setMessage] = useState('')
+  const [sendPush, setSendPush] = useState(true)
+  const [pin, setPin] = useState(true)
+  const [loading, setLoading] = useState(false)
+  const [active, setActive] = useState(null)
+  const [loadingActive, setLoadingActive] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/announcement')
+      .then(r => r.json())
+      .then(d => { setActive(d); setLoadingActive(false) })
+      .catch(() => setLoadingActive(false))
+  }, [])
+
+  async function send(e) {
+    e.preventDefault()
+    if (!message.trim()) return
+    setLoading(true)
+    try {
+      const res = await fetch('/api/admin/announce', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', authorization: `Bearer ${password}` },
+        body: JSON.stringify({ message, sendPush, pin }),
+      })
+      if (!res.ok) { const d = await res.json(); showToast(d.error || 'Failed'); return }
+      showToast(sendPush && pin ? '📣 Sent push + pinned to homepage' : sendPush ? '📣 Push sent' : '📌 Pinned to homepage')
+      setMessage('')
+      if (pin) setActive({ message, created_at: new Date().toISOString() })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function clear() {
+    await fetch('/api/admin/announce', { method: 'DELETE', headers: { authorization: `Bearer ${password}` } })
+    setActive(null)
+    showToast('Announcement cleared')
+  }
+
+  const checkStyle = { display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: colors.muted, cursor: 'pointer', marginBottom: 8 }
+
+  return (
+    <Card>
+      <Label>📣 Broadcast</Label>
+      {active && (
+        <div style={{ background: '#f59e0b18', border: '1px solid #f59e0b44', borderRadius: 8, padding: '10px 12px', marginBottom: 14 }}>
+          <div style={{ fontSize: 11, color: '#f59e0b', fontWeight: 700, marginBottom: 4 }}>PINNED NOW</div>
+          <div style={{ fontSize: 13, color: colors.white }}>{active.message}</div>
+          <button onClick={clear} style={{ marginTop: 8, fontSize: 11, color: colors.muted, background: 'none', border: `1px solid ${colors.grass}33`, borderRadius: 6, padding: '3px 10px', cursor: 'pointer' }}>
+            Clear
+          </button>
+        </div>
+      )}
+      {loadingActive && <p style={{ color: colors.muted, fontSize: 13 }}>Loading…</p>}
+      <form onSubmit={send}>
+        <textarea
+          value={message}
+          onChange={e => setMessage(e.target.value)}
+          placeholder="e.g. Game moved to 7pm tonight — same venue"
+          maxLength={280}
+          rows={3}
+          style={{ width: '100%', background: colors.pitchMid, border: `1px solid ${colors.grass}33`, color: colors.white, borderRadius: 8, padding: '10px 12px', fontSize: 13, resize: 'vertical', boxSizing: 'border-box', marginBottom: 12 }}
+        />
+        <label style={checkStyle}>
+          <input type="checkbox" checked={sendPush} onChange={e => setSendPush(e.target.checked)} />
+          Send push notification to all subscribers
+        </label>
+        <label style={checkStyle}>
+          <input type="checkbox" checked={pin} onChange={e => setPin(e.target.checked)} />
+          Pin to homepage until cleared
+        </label>
+        <Btn style={{ marginTop: 8 }} disabled={loading || !message.trim() || (!sendPush && !pin)}>
+          {loading ? 'Sending…' : '📣 Broadcast'}
+        </Btn>
+      </form>
+    </Card>
+  )
+}
+
 function FeedbackTab({ password, showToast }) {
   const [requests, setRequests] = useState(null)
   const [error, setError] = useState('')
@@ -1561,7 +1641,7 @@ export default function AdminPage() {
   return (
     <Layout title="Admin — PitchUp">
       <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
-        {['create', 'manage', 'recurring', 'roster', 'groups', 'feedback'].map(t => (
+        {['create', 'manage', 'recurring', 'roster', 'groups', 'broadcast', 'feedback'].map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -1576,7 +1656,7 @@ export default function AdminPage() {
               cursor: 'pointer',
             }}
           >
-            {t === 'create' ? '➕ New Poll' : t === 'manage' ? `📋 Manage (${polls.length})` : t === 'recurring' ? '🔁 Recurring' : t === 'roster' ? '👥 Roster' : t === 'groups' ? '🏷️ Groups' : '💡 Feedback'}
+            {t === 'create' ? '➕ New Poll' : t === 'manage' ? `📋 Manage (${polls.length})` : t === 'recurring' ? '🔁 Recurring' : t === 'roster' ? '👥 Roster' : t === 'groups' ? '🏷️ Groups' : t === 'broadcast' ? '📣 Broadcast' : '💡 Feedback'}
           </button>
         ))}
       </div>
@@ -1588,6 +1668,8 @@ export default function AdminPage() {
       {tab === 'roster' && <RosterTab password={password} showToast={showToast} />}
 
       {tab === 'groups' && <GroupsTab password={password} showToast={showToast} onGroupsChanged={loadGroups} />}
+
+      {tab === 'broadcast' && <BroadcastTab password={password} showToast={showToast} />}
 
       {tab === 'feedback' && <FeedbackTab password={password} showToast={showToast} />}
 

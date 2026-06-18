@@ -1,8 +1,34 @@
+import { useState } from 'react'
 import Link from 'next/link'
 import Layout from '../components/Layout'
 import { Card, Label, ProgressBar, Pill } from '../components/UI'
 import { colors, radius } from '../lib/tokens'
 import { getActivePlayers } from '../lib/teams'
+
+function AnnouncementBanner({ announcement }) {
+  const [dismissed, setDismissed] = useState(false)
+  if (!announcement || dismissed) return null
+  return (
+    <div style={{
+      background: '#f59e0b18',
+      border: '1px solid #f59e0b55',
+      borderRadius: 10,
+      padding: '12px 14px',
+      marginBottom: 16,
+      display: 'flex',
+      alignItems: 'flex-start',
+      gap: 10,
+    }}>
+      <span style={{ fontSize: 18, lineHeight: 1.3 }}>📣</span>
+      <div style={{ flex: 1, fontSize: 14, color: colors.white, lineHeight: 1.5 }}>{announcement.message}</div>
+      <button
+        onClick={() => setDismissed(true)}
+        style={{ background: 'none', border: 'none', color: colors.muted, cursor: 'pointer', fontSize: 16, padding: '0 2px', lineHeight: 1 }}
+        aria-label="Dismiss"
+      >×</button>
+    </div>
+  )
+}
 
 function GroupBadges({ poll, groups }) {
   if (poll.visibility !== 'groups') return null
@@ -26,12 +52,14 @@ function groupAccent(poll, groups) {
   return first ? { borderLeft: `4px solid ${first.color || colors.grassLight}` } : {}
 }
 
-export default function Home({ polls, groups }) {
+export default function Home({ polls, groups, announcement }) {
   const openPolls = polls.filter(p => p.status === 'open')
   const pastPolls = polls.filter(p => p.status !== 'open')
 
   return (
     <Layout title="PitchUp — Pickup Soccer">
+      <AnnouncementBanner announcement={announcement} />
+
       {/* Hero */}
       <div style={{ textAlign: 'center', padding: '32px 0 24px' }}>
         <img className="brand-logo" src="/logo.png" alt="PitchUp" style={{ width: 72, height: 72, borderRadius: '50%', marginBottom: 12 }} />
@@ -141,17 +169,17 @@ export default function Home({ polls, groups }) {
 export async function getServerSideProps() {
   try {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-    const res = await fetch(`${baseUrl}/api/admin/polls`, {
-      headers: { authorization: `Bearer ${process.env.ADMIN_PASSWORD}` },
-    })
-    if (!res.ok) return { props: { polls: [], groups: [] } }
-    const polls = await res.json()
-
-    const groupsRes = await fetch(`${baseUrl}/api/groups`)
+    const [pollsRes, groupsRes, announcementRes] = await Promise.all([
+      fetch(`${baseUrl}/api/admin/polls`, { headers: { authorization: `Bearer ${process.env.ADMIN_PASSWORD}` } }),
+      fetch(`${baseUrl}/api/groups`),
+      fetch(`${baseUrl}/api/announcement`),
+    ])
+    if (!pollsRes.ok) return { props: { polls: [], groups: [], announcement: null } }
+    const polls = await pollsRes.json()
     const groups = groupsRes.ok ? await groupsRes.json() : []
-
-    return { props: { polls, groups } }
+    const announcement = announcementRes.ok ? await announcementRes.json() : null
+    return { props: { polls, groups, announcement } }
   } catch {
-    return { props: { polls: [], groups: [] } }
+    return { props: { polls: [], groups: [], announcement: null } }
   }
 }
