@@ -272,6 +272,15 @@ function WaitlistCard({ poll, waitlist, myEntry, onWaitlist, name, setName, prof
 }
 
 // ── Match comments ────────────────────────────────────────────────────────────
+function renderMentions(text) {
+  const parts = text.split(/(@\w+)/g)
+  return parts.map((part, i) =>
+    /^@\w+$/.test(part)
+      ? <span key={i} style={{ color: colors.accent, fontWeight: 700 }}>{part}</span>
+      : part
+  )
+}
+
 function Comments({ poll, profileName }) {
   const [comments, setComments] = useState(poll.comments || [])
   const [text, setText] = useState('')
@@ -320,7 +329,7 @@ function Comments({ poll, profileName }) {
             <span style={{ fontWeight: 700, fontSize: 13, color: colors.accent }}>{c.name}</span>
             <span style={{ fontSize: 11, color: colors.muted }}>{formatTs(c.ts)}</span>
           </div>
-          <div style={{ fontSize: 13, color: colors.white, lineHeight: 1.5 }}>{c.text}</div>
+          <div style={{ fontSize: 13, color: colors.white, lineHeight: 1.5 }}>{renderMentions(c.text)}</div>
         </div>
       ))}
       <form onSubmit={submit} style={{ marginTop: 8 }}>
@@ -336,7 +345,7 @@ function Comments({ poll, profileName }) {
           <input
             value={text}
             onChange={e => setText(e.target.value)}
-            placeholder="Say something..."
+            placeholder="Say something… (@name to notify)"
             maxLength={280}
             style={{ flex: 1, background: colors.pitchMid, border: `1px solid ${colors.grass}33`, color: colors.white, borderRadius: 8, padding: '8px 12px', fontSize: 13 }}
           />

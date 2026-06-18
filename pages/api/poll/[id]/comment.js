@@ -1,5 +1,23 @@
 // POST /api/poll/[id]/comment — add a comment to a poll
 import { supabaseAdmin, isSupabaseConfigured } from '../../../../lib/supabase'
+import { sendPushToPlayer, isPushConfigured } from '../../../../lib/push'
+
+// Extract @word tokens and match against poll players (first-name or full-name, case-insensitive)
+function findMentionedPlayers(text, players) {
+  const tokens = (text.match(/@(\w+)/g) || []).map(m => m.slice(1).toLowerCase())
+  if (!tokens.length) return []
+
+  const mentioned = []
+  for (const player of players) {
+    if (!player.playerId) continue
+    const firstName = player.name.split(' ')[0].toLowerCase()
+    const compacted = player.name.toLowerCase().replace(/\s+/g, '')
+    if (tokens.some(t => t === firstName || t === compacted)) {
+      mentioned.push(player)
+    }
+  }
+  return mentioned
+}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
@@ -12,7 +30,11 @@ export default async function handler(req, res) {
 
   try {
     const db = supabaseAdmin()
-    const { data: poll, error: fetchErr } = await db.from('polls').select('comments, version').eq('id', id).single()
+    const { data: poll, error: fetchErr } = await db
+      .from('polls')
+      .select('comments, version, players, title')
+      .eq('id', id)
+      .single()
     if (fetchErr || !poll) return res.status(404).json({ error: 'Poll not found' })
 
     const newComment = { name: name.trim(), text: text.trim(), ts: new Date().toISOString() }
@@ -23,6 +45,21 @@ export default async function handler(req, res) {
       .select('comments')
       .single()
     if (error) throw error
+
+    // Send push notifications to @mentioned players (fire-and-forget)
+    if (isPushConfigured()) {
+      const mentioned = findMentionedPlayers(text.trim(), poll.players || [])
+      for (const player of mentioned) {
+        // Don't notify someone who mentioned themselves
+        if (player.name.toLowerCase() === name.trim().toLowerCase()) continue
+        sendPushToPlayer(db, player.playerId, {
+          title: `💬 ${name.trim()} mentioned you`,
+          body: `${poll.title}: ${text.trim().slice(0, 100)}`,
+          url: `/poll/${id}`,
+        }).catch(e => console.error('Mention push failed:', e.message))
+      }
+    }
+
     return res.status(200).json(data.comments)
   } catch (e) {
     return res.status(500).json({ error: e.message })
