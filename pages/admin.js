@@ -260,7 +260,7 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
         <div>
           <Label>{statusLabel}</Label>
-          <Link href={`/poll/${poll.id}?admin=1`} target="_blank" style={{ textDecoration: 'none' }}>
+          <Link href={`/poll/${poll.id}`} target="_blank" style={{ textDecoration: 'none' }}>
             <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 2, color: colors.white }}>
               {poll.title} {(isConfirmed || isCancelled) && <span style={{ color: colors.accent, fontSize: 12, fontWeight: 600 }}>↗ View</span>}
             </div>
@@ -1494,6 +1494,7 @@ export default function AdminPage() {
       const data = await res.json()
       setPolls(data)
       setAuthed(true)
+      localStorage.setItem('pitchup_admin', JSON.stringify({ password, ts: Date.now() }))
     } catch (e) {
       setAuthErr(e.message)
     } finally {

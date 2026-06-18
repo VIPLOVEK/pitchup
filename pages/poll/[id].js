@@ -565,7 +565,13 @@ function DraftTeams({ poll, active }) {
 // ── Admin sticky bar (only shown when ?admin=1 in URL) ───────────────────────
 function AdminBar({ poll, onUpdate }) {
   const [loading, setLoading] = useState(false)
-  const pw = process.env.NEXT_PUBLIC_ADMIN_PASSWORD
+  const [pw, setPw] = useState('')
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('pitchup_admin')
+      if (raw) setPw(JSON.parse(raw).password || '')
+    } catch {}
+  }, [])
   if (!pw) return null
 
   async function doAction(action, extra = {}) {
@@ -679,7 +685,16 @@ export default function PollPage({ poll: initialPoll, error }) {
 
   const matchedPlayer = !profile && players.find(p => p.name.toLowerCase() === name.trim().toLowerCase())
   const ogImageUrl = poll ? `${process.env.NEXT_PUBLIC_APP_URL || ''}/api/og?id=${poll.id}` : undefined
-  const isAdminMode = router.query.admin === '1'
+  const [isAdminMode, setIsAdminMode] = useState(false)
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('pitchup_admin')
+      if (!raw) return
+      const { ts } = JSON.parse(raw)
+      // Session valid for 12 hours
+      if (Date.now() - ts < 12 * 60 * 60 * 1000) setIsAdminMode(true)
+    } catch {}
+  }, [])
 
   if (error) {
     return (
