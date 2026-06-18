@@ -29,19 +29,24 @@ const skillSelectStyle = {
   fontWeight: 600,
 }
 
-function CreatePollForm({ onCreated, groups }) {
-  const [title, setTitle] = useState('Weekend Pickup ⚽')
-  const [location, setLocation] = useState(LOCATIONS[0].name)
-  const [customLocation, setCustomLocation] = useState('')
+function CreatePollForm({ onCreated, groups, prefill }) {
+  const [title, setTitle] = useState(prefill?.title || 'Weekend Pickup ⚽')
+  const [location, setLocation] = useState(() => {
+    if (!prefill?.location) return LOCATIONS[0].name
+    return LOCATIONS.some(l => l.name === prefill.location) ? prefill.location : 'Other'
+  })
+  const [customLocation, setCustomLocation] = useState(() =>
+    prefill?.location && !LOCATIONS.some(l => l.name === prefill.location) ? prefill.location : ''
+  )
   const [slots, setSlots] = useState(['', ''])
-  const [minPlayers, setMinPlayers] = useState(12)
-  const [maxPlayers, setMaxPlayers] = useState(22)
-  const [notes, setNotes] = useState('')
+  const [minPlayers, setMinPlayers] = useState(prefill?.min_players || 12)
+  const [maxPlayers, setMaxPlayers] = useState(prefill?.max_players || 22)
+  const [notes, setNotes] = useState(prefill?.notes || '')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [visibility, setVisibility] = useState('all')
-  const [selectedGroupIds, setSelectedGroupIds] = useState([])
+  const [visibility, setVisibility] = useState(prefill?.visibility || 'all')
+  const [selectedGroupIds, setSelectedGroupIds] = useState(prefill?.group_ids || [])
 
   const toggleGroup = (id) => setSelectedGroupIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id])
 
@@ -101,6 +106,11 @@ function CreatePollForm({ onCreated, groups }) {
   return (
     <Card>
       <Label>Create a poll</Label>
+      {prefill && (
+        <div style={{ background: colors.accent + '18', border: `1px solid ${colors.accent}33`, borderRadius: 8, padding: '8px 12px', marginBottom: 12, fontSize: 13, color: colors.accent }}>
+          📋 Duplicated from "{prefill.title}" — fill in the new time slots below.
+        </div>
+      )}
       <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="Game title" />
 
       <select value={location} onChange={e => setLocation(e.target.value)} style={selectStyle}>
@@ -198,12 +208,13 @@ function CreatePollForm({ onCreated, groups }) {
   )
 }
 
-function PollCard({ poll, password, onAction, appUrl, groups }) {
+function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
   const [loading, setLoading] = useState(false)
   const [scoreA, setScoreA] = useState(poll.score_a ?? '')
   const [scoreB, setScoreB] = useState(poll.score_b ?? '')
   const [goalPlayer, setGoalPlayer] = useState('')
   const [goalTeam, setGoalTeam] = useState('A')
+  const [assistPlayer, setAssistPlayer] = useState('')
   const [editingAudience, setEditingAudience] = useState(false)
   const [audienceVisibility, setAudienceVisibility] = useState(poll.visibility)
   const [audienceGroupIds, setAudienceGroupIds] = useState(poll.group_ids)
@@ -315,6 +326,22 @@ function PollCard({ poll, password, onAction, appUrl, groups }) {
         </div>
       )}
 
+      {/* Declines */}
+      {isOpen && (poll.declines || []).length > 0 && (
+        <div style={{ marginTop: 10 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.muted, marginBottom: 6 }}>
+            Can't make it ({poll.declines.length})
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+            {poll.declines.map((name, i) => (
+              <span key={i} style={{ background: colors.danger + '18', border: `1px solid ${colors.danger}33`, color: colors.muted, borderRadius: 20, padding: '3px 10px', fontSize: 12 }}>
+                😕 {name}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Result */}
       {isConfirmed && (
         <div style={{ marginTop: 12 }}>
@@ -360,20 +387,31 @@ function PollCard({ poll, password, onAction, appUrl, groups }) {
               {(poll.goals || []).map((g, i) => (
                 <span key={i} style={{ background: g.team === 'A' ? colors.teamA + '22' : colors.teamB + '22', color: g.team === 'A' ? colors.teamA : colors.teamB, borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                   {g.team === 'A' ? '🟦' : '🟥'} {g.name}
+                  {g.assist && <span style={{ fontWeight: 400, opacity: 0.8 }}>↗ {g.assist}</span>}
                   <button onClick={() => doAction('setGoals', 'PATCH', { goals: (poll.goals || []).filter((_, j) => j !== i) })} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0, fontSize: 12, opacity: 0.7 }}>×</button>
                 </span>
               ))}
             </div>
           )}
           {/* Add goal row */}
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
             <select
               value={goalPlayer}
               onChange={e => setGoalPlayer(e.target.value)}
-              style={{ flex: 1, background: colors.pitchMid, border: `1px solid ${colors.grass}33`, color: goalPlayer ? colors.white : colors.muted, borderRadius: 6, padding: '6px 8px', fontSize: 12 }}
+              style={{ flex: 1, minWidth: 90, background: colors.pitchMid, border: `1px solid ${colors.grass}33`, color: goalPlayer ? colors.white : colors.muted, borderRadius: 6, padding: '6px 8px', fontSize: 12 }}
             >
-              <option value="">Player...</option>
+              <option value="">Scorer...</option>
               {[...(poll.teams?.teamA || []), ...(poll.teams?.teamB || [])].filter(p => !p.isGuest).map((p, i) => (
+                <option key={i} value={p.name}>{p.name}</option>
+              ))}
+            </select>
+            <select
+              value={assistPlayer}
+              onChange={e => setAssistPlayer(e.target.value)}
+              style={{ flex: 1, minWidth: 90, background: colors.pitchMid, border: `1px solid ${colors.grass}33`, color: assistPlayer ? colors.white : colors.muted, borderRadius: 6, padding: '6px 8px', fontSize: 12 }}
+            >
+              <option value="">Assist (opt.)</option>
+              {[...(poll.teams?.teamA || []), ...(poll.teams?.teamB || [])].filter(p => !p.isGuest && p.name !== goalPlayer).map((p, i) => (
                 <option key={i} value={p.name}>{p.name}</option>
               ))}
             </select>
@@ -386,7 +424,14 @@ function PollCard({ poll, password, onAction, appUrl, groups }) {
               <option value="B">🟥 {poll.team_b_name || 'Team B'}</option>
             </select>
             <button
-              onClick={() => { if (!goalPlayer) return; doAction('setGoals', 'PATCH', { goals: [...(poll.goals || []), { name: goalPlayer, team: goalTeam }] }); setGoalPlayer('') }}
+              onClick={() => {
+                if (!goalPlayer) return
+                const entry = { name: goalPlayer, team: goalTeam }
+                if (assistPlayer) entry.assist = assistPlayer
+                doAction('setGoals', 'PATCH', { goals: [...(poll.goals || []), entry] })
+                setGoalPlayer('')
+                setAssistPlayer('')
+              }}
               disabled={!goalPlayer || loading}
               style={{ background: colors.accent, color: colors.pitch, border: 'none', borderRadius: 6, padding: '6px 12px', fontSize: 12, fontWeight: 700, cursor: goalPlayer ? 'pointer' : 'default', opacity: goalPlayer ? 1 : 0.5 }}
             >
@@ -595,6 +640,9 @@ function PollCard({ poll, password, onAction, appUrl, groups }) {
         )}
         <Btn small variant="ghost" onClick={() => doAction('randomizeNames')} disabled={loading}>
           🎲 New team names
+        </Btn>
+        <Btn small variant="ghost" onClick={() => onDuplicate(poll)} disabled={loading}>
+          📋 Duplicate
         </Btn>
         <Btn small variant="danger" onClick={() => doAction(null, 'DELETE')} disabled={loading}>
           Delete
@@ -1417,6 +1465,7 @@ export default function AdminPage() {
   const [password, setPassword] = useState('')
   const [authed, setAuthed] = useState(false)
   const [tab, setTab] = useState('create')
+  const [prefill, setPrefill] = useState(null)
   const [toast, setToast] = useState('')
   const [loading, setLoading] = useState(false)
   const [authErr, setAuthErr] = useState('')
@@ -1531,7 +1580,7 @@ export default function AdminPage() {
         ))}
       </div>
 
-      {tab === 'create' && <CreatePollForm onCreated={handleCreated} groups={groups} />}
+      {tab === 'create' && <CreatePollForm key={prefill?.id || 'new'} prefill={prefill} onCreated={(data, pw) => { setPrefill(null); handleCreated(data, pw) }} groups={groups} />}
 
       {tab === 'recurring' && <RecurringTab password={password} groups={groups} showToast={showToast} />}
 
@@ -1556,6 +1605,7 @@ export default function AdminPage() {
               poll={poll}
               password={password}
               onAction={handleAction}
+              onDuplicate={p => { setPrefill(p); setTab('create') }}
               appUrl={appUrl}
               groups={groups}
             />

@@ -91,9 +91,10 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'POST') {
-    const { name, slots: votedSlots, playerId, positions, guests } = req.body
+    const { name, slots: votedSlots, playerId, positions, guests, note } = req.body
     if (!name) return res.status(400).json({ error: 'name is required' })
     const guestCount = Math.min(Math.max(0, parseInt(guests, 10) || 0), 2)
+    const noteText = note?.toString().trim().slice(0, 80) || null
 
     const MAX_RETRIES = 5
     try {
@@ -135,7 +136,7 @@ export default async function handler(req, res) {
 
         const updatedPlayers = [
           ...players,
-          { name: name.trim(), slots: votedSlots || [], playerId: playerId || null, positions: positions || [], guests: guestCount },
+          { name: name.trim(), slots: votedSlots || [], playerId: playerId || null, positions: positions || [], guests: guestCount, note: noteText },
         ]
 
         const { data: updated, error: updateErr } = await db
@@ -246,6 +247,41 @@ export default async function handler(req, res) {
       }
 
       return res.status(200).json(updated)
+    } catch (e) {
+      return res.status(500).json({ error: e.message })
+    }
+  }
+
+  // PUT /api/poll/[id] — decline a poll ("can't make it")
+  if (req.method === 'PUT') {
+    const { name, remove } = req.body
+    if (!name?.trim()) return res.status(400).json({ error: 'name is required' })
+
+    try {
+      const { data: poll, error: fetchErr } = await db.from('polls').select('*').eq('id', id).single()
+      if (fetchErr || !poll) return res.status(404).json({ error: 'Poll not found' })
+      if (poll.status !== 'open') return res.status(400).json({ error: 'Poll is no longer open' })
+
+      const declines = poll.declines || []
+      let updated
+
+      if (remove) {
+        updated = declines.filter(d => d.toLowerCase() !== name.trim().toLowerCase())
+      } else {
+        if (declines.some(d => d.toLowerCase() === name.trim().toLowerCase())) {
+          return res.status(409).json({ error: 'Already declined' })
+        }
+        updated = [...declines, name.trim()]
+      }
+
+      const { data, error } = await db
+        .from('polls')
+        .update({ declines: updated, version: poll.version + 1 })
+        .eq('id', id)
+        .select()
+        .single()
+      if (error) throw error
+      return res.status(200).json(data)
     } catch (e) {
       return res.status(500).json({ error: e.message })
     }

@@ -6,44 +6,41 @@ import { colors } from '../lib/tokens'
 
 const medal = (rank) => rank === 0 ? '🥇' : rank === 1 ? '🥈' : rank === 2 ? '🥉' : null
 
-function getSince(period) {
-  if (period === 'month') {
-    const d = new Date()
-    d.setDate(1); d.setHours(0, 0, 0, 0)
-    return d.toISOString()
-  }
-  if (period === '30d') {
-    const d = new Date()
-    d.setDate(d.getDate() - 30)
-    return d.toISOString()
-  }
-  return null
-}
+const PERIODS = [
+  { label: '30d', days: 30 },
+  { label: '90d', days: 90 },
+  { label: 'This month', days: null, month: true },
+  { label: 'All time', days: null },
+]
 
-export default function Leaderboard({ leaderboard: initialLeaderboard, error: initialError }) {
-  const [stats, setStats] = useState(initialLeaderboard)
-  const [period, setPeriod] = useState('all')
+export default function Leaderboard({ initialLeaderboard }) {
+  const [period, setPeriod] = useState(PERIODS[3])
+  const [leaderboard, setLeaderboard] = useState(initialLeaderboard)
   const [loading, setLoading] = useState(false)
-  const [fetchError, setFetchError] = useState(initialError)
+  const [error, setError] = useState('')
 
   useEffect(() => {
-    if (period === 'all' && initialLeaderboard !== null) {
-      setStats(initialLeaderboard)
-      setFetchError(initialError)
+    if (period === PERIODS[3] && initialLeaderboard) {
+      setLeaderboard(initialLeaderboard)
       return
     }
     setLoading(true)
-    const since = getSince(period)
+    setError('')
+    let since = ''
+    if (period.month) {
+      const d = new Date()
+      d.setDate(1); d.setHours(0, 0, 0, 0)
+      since = d.toISOString()
+    } else if (period.days) {
+      since = new Date(Date.now() - period.days * 86400000).toISOString()
+    }
     const url = since ? `/api/leaderboard?since=${encodeURIComponent(since)}` : '/api/leaderboard'
     fetch(url)
-      .then(r => r.json())
-      .then(data => { setStats(data); setFetchError(null) })
-      .catch(() => setFetchError('Failed to load leaderboard'))
-      .finally(() => setLoading(false))
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(data => { setLeaderboard(data); setLoading(false) })
+      .catch(() => { setError('Failed to load'); setLoading(false) })
   }, [period])
 
-  const leaderboard = stats
-  const error = fetchError
 
   return (
     <Layout title="Leaderboard — PitchUp">
@@ -51,40 +48,40 @@ export default function Leaderboard({ leaderboard: initialLeaderboard, error: in
         <h1 style={{ fontSize: 24, fontWeight: 900, letterSpacing: '-0.5px', margin: '0 0 6px' }}>
           🏆 Leaderboard
         </h1>
-        <p style={{ color: colors.muted, fontSize: 13, margin: 0 }}>
+        <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 16px' }}>
           Win record from scored games. Played/Committed shows all confirmed games.
         </p>
+        <div style={{ display: 'inline-flex', gap: 6, background: colors.pitchMid, borderRadius: 10, padding: 4 }}>
+          {PERIODS.map(p => (
+            <button
+              key={p.label}
+              onClick={() => setPeriod(p)}
+              style={{
+                background: period.label === p.label ? colors.accent : 'transparent',
+                color: period.label === p.label ? colors.pitch : colors.muted,
+                border: 'none',
+                borderRadius: 7,
+                padding: '5px 14px',
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: 'pointer',
+                transition: 'all 0.15s',
+              }}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
-        {[['all', 'All time'], ['month', 'This month'], ['30d', 'Last 30 days']].map(([key, label]) => (
-          <button
-            key={key}
-            onClick={() => setPeriod(key)}
-            style={{
-              background: period === key ? colors.accent : colors.pitchMid,
-              color: period === key ? colors.pitch : colors.muted,
-              border: 'none', borderRadius: 20, padding: '6px 14px',
-              fontSize: 12, fontWeight: 700, cursor: 'pointer',
-            }}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      {error && <Card><p style={{ color: colors.danger, fontSize: 13 }}>{error}</p></Card>}
 
-      {error && (
-        <Card><p style={{ color: colors.danger, fontSize: 13 }}>{error}</p></Card>
-      )}
-
-      {!error && (leaderboard === null || loading) && (
-        <Card><Spinner label="Loading leaderboard..." /></Card>
-      )}
+      {!error && loading && <Card><Spinner label="Loading leaderboard..." /></Card>}
 
       {!error && !loading && leaderboard !== null && leaderboard.length === 0 && (
         <Card>
           <div style={{ textAlign: 'center', color: colors.muted, padding: '20px 0', fontSize: 14 }}>
-            No game results yet — scores are recorded from the admin panel after a game.
+            No scored games in this period.
           </div>
         </Card>
       )}
@@ -103,12 +100,18 @@ export default function Leaderboard({ leaderboard: initialLeaderboard, error: in
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <span style={{ width: 24, textAlign: 'center', fontSize: 16 }}>{medal(i) || i + 1}</span>
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: 14 }}>
+                  <div style={{ fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
                     <Link href={`/player/${encodeURIComponent(p.name)}`} style={{ color: colors.accent, textDecoration: 'none', fontWeight: 800 }}>{p.name}</Link>
+                    {p.streak >= 3 && (
+                      <span style={{ fontSize: 11, fontWeight: 700, color: colors.cardYellow, background: colors.cardYellow + '22', border: `1px solid ${colors.cardYellow}44`, borderRadius: 6, padding: '1px 5px' }}>
+                        🔥 {p.streak}
+                      </span>
+                    )}
                   </div>
                   <div style={{ color: colors.muted, fontSize: 12, marginTop: 2 }}>
                     {p.wins}W - {p.losses}L - {p.draws}D · {p.gamesPlayed}/{p.gamesCommitted} game{p.gamesCommitted === 1 ? '' : 's'}
                     {p.goals > 0 && <span style={{ color: colors.grassLight, fontSize: 12, marginLeft: 6 }}>⚽ {p.goals}g</span>}
+                    {p.assists > 0 && <span style={{ color: colors.grassLight, fontSize: 12, marginLeft: 4 }}>↗ {p.assists}a</span>}
                   </div>
                 </div>
               </div>
@@ -125,10 +128,10 @@ export async function getServerSideProps() {
   try {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
     const res = await fetch(`${baseUrl}/api/leaderboard`)
-    if (!res.ok) return { props: { leaderboard: null, error: 'Failed to load leaderboard' } }
+    if (!res.ok) return { props: { initialLeaderboard: [] } }
     const leaderboard = await res.json()
-    return { props: { leaderboard } }
+    return { props: { initialLeaderboard: leaderboard } }
   } catch {
-    return { props: { leaderboard: null, error: 'Failed to load leaderboard' } }
+    return { props: { initialLeaderboard: [] } }
   }
 }

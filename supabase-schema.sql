@@ -219,3 +219,6 @@ alter table polls add column if not exists team_b_name text not null default 'Te
 
 -- Match comments — players can post short messages on any poll
 alter table polls add column if not exists comments jsonb not null default '[]';
+
+-- Players who declined this poll
+alter table polls add column if not exists declines jsonb not null default '[]';
