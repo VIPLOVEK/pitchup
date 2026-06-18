@@ -278,6 +278,11 @@ function Comments({ poll, profileName }) {
   const [name, setName] = useState(profileName || '')
   const [loading, setLoading] = useState(false)
 
+  // Profile loads async — sync name when it arrives
+  useEffect(() => {
+    if (profileName && !name) setName(profileName)
+  }, [profileName])
+
   async function submit(e) {
     e.preventDefault()
     if (!text.trim() || !name.trim()) return
@@ -319,7 +324,7 @@ function Comments({ poll, profileName }) {
         </div>
       ))}
       <form onSubmit={submit} style={{ marginTop: 8 }}>
-        {!profileName && (
+        {!name.trim() && (
           <input
             value={name}
             onChange={e => setName(e.target.value)}
