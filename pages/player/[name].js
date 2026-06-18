@@ -21,6 +21,9 @@ export default function PlayerPage({ player, error }) {
 
   const gamesPlayed = player.wins + player.losses + player.draws
   const winPct = gamesPlayed ? Math.round((player.wins / gamesPlayed) * 100) : 0
+  const attendancePct = player.totalConfirmed
+    ? Math.round((player.gamesAttended / player.totalConfirmed) * 100)
+    : null
 
   return (
     <Layout title={`${player.name} — Stats`}>
@@ -32,16 +35,20 @@ export default function PlayerPage({ player, error }) {
         <div style={{ textAlign: 'center', padding: '8px 0 16px' }}>
           <div style={{ fontSize: 40, marginBottom: 8 }}>👤</div>
           <h1 style={{ fontSize: 22, fontWeight: 900, margin: '0 0 4px', letterSpacing: '-0.5px' }}>{player.name}</h1>
-          <p style={{ color: colors.muted, fontSize: 13, margin: 0 }}>{gamesPlayed} game{gamesPlayed !== 1 ? 's' : ''} played</p>
+          <p style={{ color: colors.muted, fontSize: 13, margin: 0 }}>
+            {player.gamesAttended} of {player.totalConfirmed} game{player.totalConfirmed !== 1 ? 's' : ''} attended
+            {attendancePct !== null && <span style={{ color: colors.accent, marginLeft: 4 }}>({attendancePct}%)</span>}
+          </p>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 8, flexWrap: 'wrap' }}>
           <Pill color={colors.cardGreen}>{player.wins}W</Pill>
           <Pill color={colors.danger}>{player.losses}L</Pill>
           <Pill color={colors.cardYellow}>{player.draws}D</Pill>
           <Pill color={colors.accent}>{winPct}% win rate</Pill>
-          {player.goals > 0 && <Pill color={colors.grassLight}>⚽ {player.goals} goal{player.goals !== 1 ? 's' : ''}</Pill>}
-          {player.assists > 0 && <Pill color={colors.grassLight}>↗ {player.assists} assist{player.assists !== 1 ? 's' : ''}</Pill>}
-          {player.streak >= 2 && <Pill color={colors.cardYellow}>🔥 {player.streak} game streak</Pill>}
+          {player.goals > 0 && <Pill color={colors.grassLight}>⚽ {player.goals}g</Pill>}
+          {player.assists > 0 && <Pill color={colors.grassLight}>↗ {player.assists}a</Pill>}
+          {player.mvpWins > 0 && <Pill color="#f59e0b">⭐ {player.mvpWins}× MVP</Pill>}
+          {player.streak >= 2 && <Pill color={colors.cardYellow}>🔥 {player.streak} streak</Pill>}
         </div>
       </Card>
 
@@ -56,7 +63,10 @@ export default function PlayerPage({ player, error }) {
             <Link key={i} href={`/poll/${g.pollId}`} style={{ textDecoration: 'none' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: i < player.games.length - 1 ? `1px solid ${colors.grass}22` : 'none' }}>
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: colors.white }}>{g.title}</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: colors.white, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {g.title}
+                    {g.mvp && <span style={{ fontSize: 11, color: '#f59e0b', fontWeight: 700 }}>⭐ MVP</span>}
+                  </div>
                   <div style={{ fontSize: 12, color: colors.muted, marginTop: 2 }}>
                     {formatSlot(g.date)} · {g.team === 'A' ? '🟦 Team A' : '🟥 Team B'}
                     {g.goals > 0 && <span style={{ color: colors.grassLight, marginLeft: 6 }}>⚽ {g.goals}g</span>}

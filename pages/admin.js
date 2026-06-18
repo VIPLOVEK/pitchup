@@ -29,19 +29,24 @@ const skillSelectStyle = {
   fontWeight: 600,
 }
 
-function CreatePollForm({ onCreated, groups }) {
-  const [title, setTitle] = useState('Weekend Pickup ⚽')
-  const [location, setLocation] = useState(LOCATIONS[0].name)
-  const [customLocation, setCustomLocation] = useState('')
+function CreatePollForm({ onCreated, groups, prefill }) {
+  const [title, setTitle] = useState(prefill?.title || 'Weekend Pickup ⚽')
+  const [location, setLocation] = useState(() => {
+    if (!prefill?.location) return LOCATIONS[0].name
+    return LOCATIONS.some(l => l.name === prefill.location) ? prefill.location : 'Other'
+  })
+  const [customLocation, setCustomLocation] = useState(() =>
+    prefill?.location && !LOCATIONS.some(l => l.name === prefill.location) ? prefill.location : ''
+  )
   const [slots, setSlots] = useState(['', ''])
-  const [minPlayers, setMinPlayers] = useState(12)
-  const [maxPlayers, setMaxPlayers] = useState(22)
-  const [notes, setNotes] = useState('')
+  const [minPlayers, setMinPlayers] = useState(prefill?.min_players || 12)
+  const [maxPlayers, setMaxPlayers] = useState(prefill?.max_players || 22)
+  const [notes, setNotes] = useState(prefill?.notes || '')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [visibility, setVisibility] = useState('all')
-  const [selectedGroupIds, setSelectedGroupIds] = useState([])
+  const [visibility, setVisibility] = useState(prefill?.visibility || 'all')
+  const [selectedGroupIds, setSelectedGroupIds] = useState(prefill?.group_ids || [])
 
   const toggleGroup = (id) => setSelectedGroupIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id])
 
@@ -101,6 +106,11 @@ function CreatePollForm({ onCreated, groups }) {
   return (
     <Card>
       <Label>Create a poll</Label>
+      {prefill && (
+        <div style={{ background: colors.accent + '18', border: `1px solid ${colors.accent}33`, borderRadius: 8, padding: '8px 12px', marginBottom: 12, fontSize: 13, color: colors.accent }}>
+          📋 Duplicated from "{prefill.title}" — fill in the new time slots below.
+        </div>
+      )}
       <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="Game title" />
 
       <select value={location} onChange={e => setLocation(e.target.value)} style={selectStyle}>
@@ -198,7 +208,7 @@ function CreatePollForm({ onCreated, groups }) {
   )
 }
 
-function PollCard({ poll, password, onAction, appUrl, groups }) {
+function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
   const [loading, setLoading] = useState(false)
   const [scoreA, setScoreA] = useState(poll.score_a ?? '')
   const [scoreB, setScoreB] = useState(poll.score_b ?? '')
@@ -311,6 +321,22 @@ function PollCard({ poll, password, onAction, appUrl, groups }) {
                 meta={p.guests ? `+${p.guests} guest${p.guests > 1 ? 's' : ''}` : undefined}
                 onRemove={isOpen ? () => doAction('removePlayer', 'PATCH', { name: p.name }) : undefined}
               />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Declines */}
+      {isOpen && (poll.declines || []).length > 0 && (
+        <div style={{ marginTop: 10 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.muted, marginBottom: 6 }}>
+            Can't make it ({poll.declines.length})
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+            {poll.declines.map((name, i) => (
+              <span key={i} style={{ background: colors.danger + '18', border: `1px solid ${colors.danger}33`, color: colors.muted, borderRadius: 20, padding: '3px 10px', fontSize: 12 }}>
+                😕 {name}
+              </span>
             ))}
           </div>
         </div>
@@ -612,6 +638,9 @@ function PollCard({ poll, password, onAction, appUrl, groups }) {
             🔀 Reshuffle teams
           </Btn>
         )}
+        <Btn small variant="ghost" onClick={() => onDuplicate(poll)} disabled={loading}>
+          📋 Duplicate
+        </Btn>
         <Btn small variant="danger" onClick={() => doAction(null, 'DELETE')} disabled={loading}>
           Delete
         </Btn>
@@ -1433,6 +1462,7 @@ export default function AdminPage() {
   const [password, setPassword] = useState('')
   const [authed, setAuthed] = useState(false)
   const [tab, setTab] = useState('create')
+  const [prefill, setPrefill] = useState(null)
   const [toast, setToast] = useState('')
   const [loading, setLoading] = useState(false)
   const [authErr, setAuthErr] = useState('')
@@ -1547,7 +1577,7 @@ export default function AdminPage() {
         ))}
       </div>
 
-      {tab === 'create' && <CreatePollForm onCreated={handleCreated} groups={groups} />}
+      {tab === 'create' && <CreatePollForm key={prefill?.id || 'new'} prefill={prefill} onCreated={(data, pw) => { setPrefill(null); handleCreated(data, pw) }} groups={groups} />}
 
       {tab === 'recurring' && <RecurringTab password={password} groups={groups} showToast={showToast} />}
 
@@ -1572,6 +1602,7 @@ export default function AdminPage() {
               poll={poll}
               password={password}
               onAction={handleAction}
+              onDuplicate={p => { setPrefill(p); setTab('create') }}
               appUrl={appUrl}
               groups={groups}
             />

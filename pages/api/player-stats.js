@@ -11,7 +11,7 @@ export default async function handler(req, res) {
     const db = supabaseAdmin()
     const [{ data: polls, error }, { data: allConfirmed, error: allErr }] = await Promise.all([
       db.from('polls')
-        .select('id, title, game_time, location, teams, score_a, score_b, goals')
+        .select('id, title, game_time, location, teams, score_a, score_b, goals, mvp_votes')
         .eq('status', 'confirmed')
         .not('score_a', 'is', null)
         .not('score_b', 'is', null)
@@ -40,6 +40,13 @@ export default async function handler(req, res) {
       const playerGoals = (poll.goals || []).filter(g => g.name.toLowerCase() === nameLower).length
       const playerAssists = (poll.goals || []).filter(g => g.assist?.toLowerCase() === nameLower).length
 
+      // MVP: player wins if they have the joint-highest vote count (≥1)
+      const mvpVotes = poll.mvp_votes || []
+      const voteCounts = {}
+      mvpVotes.forEach(v => { voteCounts[v.votedFor?.toLowerCase()] = (voteCounts[v.votedFor?.toLowerCase()] || 0) + 1 })
+      const maxVotes = Math.max(0, ...Object.values(voteCounts))
+      const wonMvp = maxVotes > 0 && voteCounts[nameLower] === maxVotes
+
       if (result === 'win') wins++
       else if (result === 'loss') losses++
       else draws++
@@ -56,20 +63,31 @@ export default async function handler(req, res) {
         scoreB: poll.score_b,
         goals: playerGoals,
         assists: playerAssists,
+        mvp: wonMvp,
       })
     }
 
-    // Consecutive attended confirmed games (most recent first, including unscored).
-    let streak = 0
+    // Consecutive attendance streak + total attended count (from all confirmed, including unscored)
+    let streak = 0, gamesAttended = 0
     for (const poll of (allConfirmed || [])) {
       const { teamA = [], teamB = [] } = poll.teams || {}
       const attended = [...teamA, ...teamB].some(p => p.name.toLowerCase() === nameLower)
-      if (attended) streak++
-      else break
+      if (attended) {
+        gamesAttended++
+        if (streak === gamesAttended - 1) streak++ // still consecutive from the top
+      }
     }
 
     const totalAssists = games.reduce((sum, g) => sum + (g.assists || 0), 0)
-    return res.status(200).json({ name: name.trim(), wins, losses, draws, goals: totalGoals, assists: totalAssists, streak, games })
+    const mvpWins = games.filter(g => g.mvp).length
+    const totalConfirmed = (allConfirmed || []).length
+
+    return res.status(200).json({
+      name: name.trim(), wins, losses, draws,
+      goals: totalGoals, assists: totalAssists,
+      mvpWins, streak, gamesAttended, totalConfirmed,
+      games,
+    })
   } catch (e) {
     return res.status(500).json({ error: e.message })
   }
