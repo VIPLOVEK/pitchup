@@ -260,7 +260,7 @@ function WaitlistCard({ poll, waitlist, myEntry, onWaitlist, name, setName, prof
               Joining as <strong style={{ color: colors.white }}>{profile.name}</strong>
             </p>
           ) : (
-            <Input value={name} onChange={e => setName(e.target.value)} placeholder="Your name" />
+            <Input value={name} onChange={e => setName(e.target.value)} placeholder="Your name (required to send)" />
           )}
           <Btn onClick={handleJoinWaitlist} disabled={!name.trim() || loading}>
             {loading ? 'Joining...' : '⏳ Join waitlist'}
@@ -323,7 +323,7 @@ function Comments({ poll, profileName }) {
           <input
             value={name}
             onChange={e => setName(e.target.value)}
-            placeholder="Your name"
+            placeholder="Your name (required to send)"
             style={{ width: '100%', background: colors.pitchMid, border: `1px solid ${colors.grass}33`, color: colors.white, borderRadius: 8, padding: '8px 12px', fontSize: 13, marginBottom: 8, boxSizing: 'border-box' }}
           />
         )}
@@ -504,7 +504,7 @@ function GameConfirmed({ poll, profile }) {
         </div>
       </Card>
       <MvpVoting poll={poll} />
-      <Comments poll={poll} profileName={profile?.name || null} />
+      <Comments poll={poll} profileName={profile?.name || name || null} />
     </div>
   )
 }
@@ -924,7 +924,7 @@ export default function PollPage({ poll: initialPoll, error }) {
             <Input
               value={name}
               onChange={e => { setName(e.target.value); setPin('') }}
-              placeholder="Your name"
+              placeholder="Your name (required to send)"
               list="player-names"
             />
             <datalist id="player-names">
@@ -1059,7 +1059,7 @@ export default function PollPage({ poll: initialPoll, error }) {
         })()}
       </Card>
 
-      <Comments poll={poll} profileName={profile?.name || null} />
+      <Comments poll={poll} profileName={profile?.name || name || null} />
 
       <Toast msg={toast} />
     </Layout>
