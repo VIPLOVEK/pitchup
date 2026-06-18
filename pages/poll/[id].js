@@ -617,6 +617,7 @@ export default function PollPage({ poll: initialPoll, error }) {
   }, [initialPoll, profile])
 
   const matchedPlayer = !profile && players.find(p => p.name.toLowerCase() === name.trim().toLowerCase())
+  const ogImageUrl = poll ? `${process.env.NEXT_PUBLIC_APP_URL || ''}/api/og?id=${poll.id}` : undefined
 
   if (error) {
     return (
@@ -644,7 +645,7 @@ export default function PollPage({ poll: initialPoll, error }) {
 
   if (poll.status === 'confirmed') {
     return (
-      <Layout title={poll.title} description={`Game is on at ${poll.location} — ${formatSlot(poll.game_time)}.`}>
+      <Layout title={poll.title} description={`Game is on at ${poll.location} — ${formatSlot(poll.game_time)}.`} ogImageUrl={ogImageUrl}>
         <GameConfirmed poll={poll} profile={profile} />
         <WaitlistCard poll={poll} waitlist={waitlist} myEntry={myEntry} onWaitlist={onWaitlist}
           name={name} setName={setName} profile={profile}
@@ -743,7 +744,7 @@ export default function PollPage({ poll: initialPoll, error }) {
   }
 
   if (submitted) {
-    if (poll.status === 'cancelled') return <Layout title={poll.title}><GameCancelled poll={poll} /></Layout>
+    if (poll.status === 'cancelled') return <Layout title={poll.title} ogImageUrl={ogImageUrl}><GameCancelled poll={poll} /></Layout>
 
     return (
       <Layout title={poll.title}>
@@ -788,7 +789,7 @@ export default function PollPage({ poll: initialPoll, error }) {
   }
 
   return (
-    <Layout title={poll.title} description={`${poll.location} · ${totalSpots}/${poll.min_players}+ players — tap to vote on a time`}>
+    <Layout title={poll.title} description={`${poll.location} · ${totalSpots}/${poll.min_players}+ players — tap to vote on a time`} ogImageUrl={ogImageUrl}>
       <Card style={pollGroups.length > 0 ? { borderLeft: `4px solid ${pollGroups[0].color || colors.grassLight}` } : {}}>
         <Label>Open poll</Label>
         {pollGroups.length > 0 && (

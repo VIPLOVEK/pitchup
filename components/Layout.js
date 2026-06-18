@@ -3,11 +3,11 @@ import Link from 'next/link'
 import { useRouter } from 'next/router'
 import { colors } from '../lib/tokens'
 
-export default function Layout({ children, title = 'PitchUp', description = 'PitchUp — pickup soccer organizer' }) {
+export default function Layout({ children, title = 'PitchUp', description = 'PitchUp — pickup soccer organizer', ogImageUrl }) {
   const router = useRouter()
   const isAdmin = router.pathname.startsWith('/admin')
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || ''
-  const ogImage = appUrl ? `${appUrl}/logo.png` : '/logo.png'
+  const ogImage = ogImageUrl || (appUrl ? `${appUrl}/logo.png` : '/logo.png')
 
   return (
     <>
@@ -30,8 +30,11 @@ export default function Layout({ children, title = 'PitchUp', description = 'Pit
         <meta property="og:title" content={title} />
         <meta property="og:description" content={description} />
         <meta property="og:image" content={ogImage} />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
         <meta property="og:type" content="website" />
-        <meta name="twitter:card" content="summary" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:image" content={ogImage} />
       </Head>
 
       <header style={{
