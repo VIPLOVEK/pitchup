@@ -4,6 +4,7 @@ import { supabaseAdmin, isSupabaseConfigured } from '../../../lib/supabase'
 import { generateTeams, pickBestSlot, formatSlot, getActivePlayers, expandWithGuests, getWaitlist } from '../../../lib/teams'
 import { sendWhatsAppAnnouncement } from '../../../lib/whatsapp'
 import { sendPushToAll, sendPushToPlayer } from '../../../lib/push'
+import { pickTeamNames } from '../../../lib/teamNames'
 
 function isAdmin(req) {
   return req.headers.authorization === `Bearer ${process.env.ADMIN_PASSWORD}`
@@ -66,8 +67,17 @@ export default async function handler(req, res) {
 
       if (action === 'shuffle') {
         const teams = generateTeams(await withSkillRatings(db, getActivePlayers(poll)))
+        const { teamAName, teamBName } = pickTeamNames()
         const { data, error } = await db
-          .from('polls').update({ teams, version: poll.version + 1 }).eq('id', id).select().single()
+          .from('polls').update({ teams, team_a_name: teamAName, team_b_name: teamBName, version: poll.version + 1 }).eq('id', id).select().single()
+        if (error) throw error
+        return res.status(200).json(data)
+      }
+
+      if (action === 'randomizeNames') {
+        const { teamAName, teamBName } = pickTeamNames()
+        const { data, error } = await db
+          .from('polls').update({ team_a_name: teamAName, team_b_name: teamBName, version: poll.version + 1 }).eq('id', id).select().single()
         if (error) throw error
         return res.status(200).json(data)
       }

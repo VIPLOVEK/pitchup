@@ -593,6 +593,9 @@ function PollCard({ poll, password, onAction, appUrl, groups }) {
             🔀 Reshuffle teams
           </Btn>
         )}
+        <Btn small variant="ghost" onClick={() => doAction('randomizeNames')} disabled={loading}>
+          🎲 New team names
+        </Btn>
         <Btn small variant="danger" onClick={() => doAction(null, 'DELETE')} disabled={loading}>
           Delete
         </Btn>
