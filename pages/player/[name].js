@@ -40,6 +40,8 @@ export default function PlayerPage({ player, error }) {
           <Pill color={colors.cardYellow}>{player.draws}D</Pill>
           <Pill color={colors.accent}>{winPct}% win rate</Pill>
           {player.goals > 0 && <Pill color={colors.grassLight}>⚽ {player.goals} goal{player.goals !== 1 ? 's' : ''}</Pill>}
+          {player.assists > 0 && <Pill color={colors.grassLight}>↗ {player.assists} assist{player.assists !== 1 ? 's' : ''}</Pill>}
+          {player.streak >= 2 && <Pill color={colors.cardYellow}>🔥 {player.streak} game streak</Pill>}
         </div>
       </Card>
 
@@ -57,7 +59,8 @@ export default function PlayerPage({ player, error }) {
                   <div style={{ fontSize: 14, fontWeight: 600, color: colors.white }}>{g.title}</div>
                   <div style={{ fontSize: 12, color: colors.muted, marginTop: 2 }}>
                     {formatSlot(g.date)} · {g.team === 'A' ? '🟦 Team A' : '🟥 Team B'}
-                    {g.goals > 0 && <span style={{ color: colors.grassLight, marginLeft: 6 }}>⚽ {g.goals} goal{g.goals !== 1 ? 's' : ''}</span>}
+                    {g.goals > 0 && <span style={{ color: colors.grassLight, marginLeft: 6 }}>⚽ {g.goals}g</span>}
+                    {g.assists > 0 && <span style={{ color: colors.grassLight, marginLeft: 4 }}>↗ {g.assists}a</span>}
                   </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>

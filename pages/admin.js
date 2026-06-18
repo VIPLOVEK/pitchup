@@ -204,6 +204,7 @@ function PollCard({ poll, password, onAction, appUrl, groups }) {
   const [scoreB, setScoreB] = useState(poll.score_b ?? '')
   const [goalPlayer, setGoalPlayer] = useState('')
   const [goalTeam, setGoalTeam] = useState('A')
+  const [assistPlayer, setAssistPlayer] = useState('')
   const [editingAudience, setEditingAudience] = useState(false)
   const [audienceVisibility, setAudienceVisibility] = useState(poll.visibility)
   const [audienceGroupIds, setAudienceGroupIds] = useState(poll.group_ids)
@@ -360,20 +361,31 @@ function PollCard({ poll, password, onAction, appUrl, groups }) {
               {(poll.goals || []).map((g, i) => (
                 <span key={i} style={{ background: g.team === 'A' ? colors.teamA + '22' : colors.teamB + '22', color: g.team === 'A' ? colors.teamA : colors.teamB, borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                   {g.team === 'A' ? '🟦' : '🟥'} {g.name}
+                  {g.assist && <span style={{ fontWeight: 400, opacity: 0.8 }}>↗ {g.assist}</span>}
                   <button onClick={() => doAction('setGoals', 'PATCH', { goals: (poll.goals || []).filter((_, j) => j !== i) })} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0, fontSize: 12, opacity: 0.7 }}>×</button>
                 </span>
               ))}
             </div>
           )}
           {/* Add goal row */}
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
             <select
               value={goalPlayer}
               onChange={e => setGoalPlayer(e.target.value)}
-              style={{ flex: 1, background: colors.pitchMid, border: `1px solid ${colors.grass}33`, color: goalPlayer ? colors.white : colors.muted, borderRadius: 6, padding: '6px 8px', fontSize: 12 }}
+              style={{ flex: 1, minWidth: 90, background: colors.pitchMid, border: `1px solid ${colors.grass}33`, color: goalPlayer ? colors.white : colors.muted, borderRadius: 6, padding: '6px 8px', fontSize: 12 }}
             >
-              <option value="">Player...</option>
+              <option value="">Scorer...</option>
               {[...(poll.teams?.teamA || []), ...(poll.teams?.teamB || [])].filter(p => !p.isGuest).map((p, i) => (
+                <option key={i} value={p.name}>{p.name}</option>
+              ))}
+            </select>
+            <select
+              value={assistPlayer}
+              onChange={e => setAssistPlayer(e.target.value)}
+              style={{ flex: 1, minWidth: 90, background: colors.pitchMid, border: `1px solid ${colors.grass}33`, color: assistPlayer ? colors.white : colors.muted, borderRadius: 6, padding: '6px 8px', fontSize: 12 }}
+            >
+              <option value="">Assist (opt.)</option>
+              {[...(poll.teams?.teamA || []), ...(poll.teams?.teamB || [])].filter(p => !p.isGuest && p.name !== goalPlayer).map((p, i) => (
                 <option key={i} value={p.name}>{p.name}</option>
               ))}
             </select>
@@ -386,7 +398,14 @@ function PollCard({ poll, password, onAction, appUrl, groups }) {
               <option value="B">🟥 B</option>
             </select>
             <button
-              onClick={() => { if (!goalPlayer) return; doAction('setGoals', 'PATCH', { goals: [...(poll.goals || []), { name: goalPlayer, team: goalTeam }] }); setGoalPlayer('') }}
+              onClick={() => {
+                if (!goalPlayer) return
+                const entry = { name: goalPlayer, team: goalTeam }
+                if (assistPlayer) entry.assist = assistPlayer
+                doAction('setGoals', 'PATCH', { goals: [...(poll.goals || []), entry] })
+                setGoalPlayer('')
+                setAssistPlayer('')
+              }}
               disabled={!goalPlayer || loading}
               style={{ background: colors.accent, color: colors.pitch, border: 'none', borderRadius: 6, padding: '6px 12px', fontSize: 12, fontWeight: 700, cursor: goalPlayer ? 'pointer' : 'default', opacity: goalPlayer ? 1 : 0.5 }}
             >

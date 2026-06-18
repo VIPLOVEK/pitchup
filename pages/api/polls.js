@@ -1,6 +1,7 @@
 // POST /api/polls — create a new poll (admin only)
 import { supabaseAdmin, isSupabaseConfigured } from '../../lib/supabase'
 import { sendWhatsAppPollCreated } from '../../lib/whatsapp'
+import { sendPushToAll } from '../../lib/push'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
@@ -54,13 +55,22 @@ export default async function handler(req, res) {
 
     if (error) throw error
 
-    // Skip the club-wide WhatsApp broadcast for group-restricted polls — it
+    // Skip the club-wide broadcasts for group-restricted polls — it
     // would notify everyone even though only some members can vote.
     if (pollVisibility !== 'groups') {
       try {
         await sendWhatsAppPollCreated({ poll: data })
       } catch (e) {
         console.error('WhatsApp notification failed (non-fatal):', e.message)
+      }
+      try {
+        await sendPushToAll({
+          title: '⚽ New game poll',
+          body: `${data.title} — vote on your time now!`,
+          url: `/poll/${data.id}`,
+        })
+      } catch (e) {
+        console.error('Push notification failed (non-fatal):', e.message)
       }
     }
 

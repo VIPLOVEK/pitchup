@@ -337,13 +337,18 @@ function GameConfirmed({ poll }) {
             {['A', 'B'].map(team => {
               const teamGoals = (poll.goals || []).filter(g => g.team === team)
               if (!teamGoals.length) return null
-              const grouped = teamGoals.reduce((acc, g) => { acc[g.name] = (acc[g.name] || 0) + 1; return acc }, {})
               return (
                 <div key={team} style={{ fontSize: 13, marginBottom: 4 }}>
                   <span style={{ color: team === 'A' ? colors.teamA : colors.teamB, fontWeight: 700, marginRight: 6 }}>
                     {team === 'A' ? '🟦' : '🟥'}
                   </span>
-                  {Object.entries(grouped).map(([name, count]) => `${name}${count > 1 ? ` ×${count}` : ''}`).join(', ')}
+                  {teamGoals.map((g, i) => (
+                    <span key={i}>
+                      {i > 0 && ', '}
+                      {g.name}
+                      {g.assist && <span style={{ color: colors.muted, fontWeight: 400 }}> (↗ {g.assist})</span>}
+                    </span>
+                  ))}
                 </div>
               )
             })}
@@ -464,6 +469,7 @@ export default function PollPage({ poll: initialPoll, error }) {
   const [players, setPlayers] = useState([])
   const [selectedSlots, setSelectedSlots] = useState([])
   const [guests, setGuests] = useState(0)
+  const [note, setNote] = useState('')
   const [submitted, setSubmitted] = useState(false)
   const [loading, setLoading] = useState(false)
   const [kicking, setKicking] = useState(false)
@@ -625,6 +631,7 @@ export default function PollPage({ poll: initialPoll, error }) {
           playerId,
           positions,
           guests,
+          note: note.trim() || undefined,
         }),
       })
       const data = await res.json()
@@ -664,7 +671,7 @@ export default function PollPage({ poll: initialPoll, error }) {
               {waitlist.length > 0 ? ` · ${waitlist.length} waiting` : ''}
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center' }}>
-              {active.map((p, i) => <PlayerChip key={i} name={p.name} meta={p.guests ? `+${p.guests} guest${p.guests > 1 ? 's' : ''}` : p.positions?.length ? p.positions.join(', ') : undefined} />)}
+              {active.map((p, i) => <PlayerChip key={i} name={p.name} meta={p.note || (p.guests ? `+${p.guests} guest${p.guests > 1 ? 's' : ''}` : p.positions?.length ? p.positions.join(', ') : undefined)} />)}
             </div>
             {waitlist.length > 0 && (
               <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', marginTop: 8 }}>
@@ -676,6 +683,37 @@ export default function PollPage({ poll: initialPoll, error }) {
                 Leave game
               </Btn>
             )}
+            <div style={{ marginTop: 20, borderTop: `1px solid ${colors.grass}22`, paddingTop: 16 }}>
+              <p style={{ color: colors.muted, fontSize: 12, marginBottom: 10 }}>
+                Know someone who should join? Send them the link.
+              </p>
+              <button
+                onClick={async () => {
+                  const url = window.location.href
+                  const shareData = { title: poll.title, text: `Join us for ${poll.title} at ${poll.location} — vote on a time!`, url }
+                  if (navigator.share && navigator.canShare?.(shareData)) {
+                    try { await navigator.share(shareData) } catch (_) {}
+                  } else {
+                    await navigator.clipboard.writeText(url)
+                    setToast('Link copied!')
+                    setTimeout(() => setToast(''), 2500)
+                  }
+                }}
+                style={{
+                  background: '#25D366',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 8,
+                  padding: '10px 20px',
+                  fontWeight: 700,
+                  fontSize: 13,
+                  cursor: 'pointer',
+                  width: '100%',
+                }}
+              >
+                📤 Invite a friend
+              </button>
+            </div>
           </div>
         </Card>
         {active.length >= poll.min_players && <DraftTeams poll={poll} active={active} />}
@@ -714,7 +752,7 @@ export default function PollPage({ poll: initialPoll, error }) {
           {waitlist.length > 0 ? ` · ${waitlist.length} waiting` : ''}
         </p>
         <div style={{ display: 'flex', flexWrap: 'wrap' }}>
-          {active.map((p, i) => <PlayerChip key={i} name={p.name} meta={p.guests ? `+${p.guests} guest${p.guests > 1 ? 's' : ''}` : p.positions?.length ? p.positions.join(', ') : undefined} />)}
+          {active.map((p, i) => <PlayerChip key={i} name={p.name} meta={p.note || (p.guests ? `+${p.guests} guest${p.guests > 1 ? 's' : ''}` : p.positions?.length ? p.positions.join(', ') : undefined)} />)}
         </div>
         {waitlist.length > 0 && (
           <>
@@ -725,6 +763,11 @@ export default function PollPage({ poll: initialPoll, error }) {
               {waitlist.map((p, i) => <PlayerChip key={i} name={p.name} color={colors.cardYellow} />)}
             </div>
           </>
+        )}
+        {(poll.declines || []).length > 0 && (
+          <div style={{ fontSize: 12, color: colors.muted, margin: '8px 0 0' }}>
+            😕 {poll.declines.length} can't make it
+          </div>
         )}
         {totalSpots >= poll.min_players && (
           <div style={{
@@ -856,7 +899,13 @@ export default function PollPage({ poll: initialPoll, error }) {
             ))
           })()}
         </div>
-        <div style={{ marginTop: 16 }}>
+        <Input
+          value={note}
+          onChange={e => setNote(e.target.value)}
+          placeholder="Note for the group (optional, e.g. 'running 5 min late')"
+          style={{ marginTop: 12 }}
+        />
+        <div style={{ marginTop: 8 }}>
           <Btn
             full
             onClick={handleVote}
@@ -865,6 +914,45 @@ export default function PollPage({ poll: initialPoll, error }) {
             {kicking ? <>Joining <span className="kick-ball">⚽</span></> : loading ? 'Joining...' : "I'm in ⚽"}
           </Btn>
         </div>
+        {name.trim() && !myEntry && (() => {
+          const declines = poll.declines || []
+          const hasDeclined = declines.some(d => d.toLowerCase() === name.trim().toLowerCase())
+          const handleDecline = async () => {
+            setLoading(true)
+            try {
+              const res = await fetch(`/api/poll/${poll.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: name.trim(), remove: hasDeclined }),
+              })
+              const data = await res.json()
+              if (!res.ok) throw new Error(data.error)
+              setPoll(data)
+              setToast(hasDeclined ? 'Removed — you can still join!' : "Got it — we'll miss you 👋")
+              setTimeout(() => setToast(''), 2500)
+            } catch (e) {
+              setToast(e.message || 'Something went wrong')
+            } finally {
+              setLoading(false)
+            }
+          }
+          return (
+            <div style={{ textAlign: 'center', marginTop: 12 }}>
+              <button
+                onClick={handleDecline}
+                disabled={loading}
+                style={{ background: 'none', border: 'none', color: hasDeclined ? colors.danger : colors.muted, fontSize: 13, cursor: 'pointer', textDecoration: 'underline' }}
+              >
+                {hasDeclined ? '✓ You said you can\'t make it — undo?' : "Can't make it this time"}
+              </button>
+              {declines.length > 0 && (
+                <div style={{ fontSize: 11, color: colors.muted, marginTop: 4 }}>
+                  {declines.length} player{declines.length !== 1 ? 's' : ''} can't make it
+                </div>
+              )}
+            </div>
+          )
+        })()}
       </Card>
 
       <Toast msg={toast} />

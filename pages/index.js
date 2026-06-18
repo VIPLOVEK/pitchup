@@ -111,6 +111,11 @@ export default function Home({ polls, groups }) {
               </Card>
             </Link>
           ))}
+          {pastPolls.length > 3 && (
+            <Link href="/games" style={{ display: 'block', textAlign: 'center', color: colors.accent, fontSize: 13, fontWeight: 700, marginTop: 8, textDecoration: 'none' }}>
+              See all {pastPolls.length} games →
+            </Link>
+          )}
         </div>
       )}
 

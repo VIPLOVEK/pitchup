@@ -6,6 +6,10 @@ export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).end()
   if (!isSupabaseConfigured()) return res.status(200).json([])
 
+  // Optional ?since=ISO8601 to restrict to games after a given date
+  const { since } = req.query
+  const sinceDate = since ? new Date(since) : null
+
   try {
     const db = supabaseAdmin()
 
@@ -14,18 +18,23 @@ export default async function handler(req, res) {
       .select('id, name')
     if (playersError) throw playersError
 
-    const { data: polls, error: pollsError } = await db
+    let scoredQuery = db
       .from('polls')
-      .select('teams, score_a, score_b, goals')
+      .select('teams, score_a, score_b, goals, game_time')
       .eq('status', 'confirmed')
       .not('score_a', 'is', null)
       .not('score_b', 'is', null)
+    if (sinceDate) scoredQuery = scoredQuery.gte('game_time', sinceDate.toISOString())
+    const { data: polls, error: pollsError } = await scoredQuery
     if (pollsError) throw pollsError
 
-    const { data: allConfirmed, error: allErr } = await db
+    let allQuery = db
       .from('polls')
-      .select('teams')
+      .select('teams, game_time')
       .eq('status', 'confirmed')
+      .order('game_time', { ascending: false })
+    if (sinceDate) allQuery = allQuery.gte('game_time', sinceDate.toISOString())
+    const { data: allConfirmed, error: allErr } = await allQuery
     if (allErr) throw allErr
 
     const records = {} // key -> { name, wins, losses, draws }
@@ -45,9 +54,11 @@ export default async function handler(req, res) {
     }
 
     const goalCounts = {}
+    const assistCounts = {}
     for (const poll of polls) {
       ;(poll.goals || []).forEach(g => {
         goalCounts[g.name.toLowerCase()] = (goalCounts[g.name.toLowerCase()] || 0) + 1
+        if (g.assist) assistCounts[g.assist.toLowerCase()] = (assistCounts[g.assist.toLowerCase()] || 0) + 1
       })
     }
 
@@ -60,6 +71,19 @@ export default async function handler(req, res) {
       })
     }
 
+    // Compute current attendance streak (consecutive most-recent confirmed games attended).
+    const streaks = {}
+    for (const key of Object.keys(records)) {
+      let streak = 0
+      for (const poll of allConfirmed) {
+        const { teamA = [], teamB = [] } = poll.teams || {}
+        const attended = [...teamA, ...teamB].some(p => keyFor(p) === key)
+        if (attended) streak++
+        else break
+      }
+      streaks[key] = streak
+    }
+
     // Prefer the profile's current name (in case a player renamed themselves).
     for (const player of players) {
       const key = `id:${player.id}`
@@ -70,7 +94,7 @@ export default async function handler(req, res) {
       .map(([key, r]) => {
         const gamesPlayed = r.wins + r.losses + r.draws
         const gamesCommitted = committed[key] || gamesPlayed
-        return { ...r, gamesPlayed, gamesCommitted, winPct: gamesPlayed ? r.wins / gamesPlayed : 0, goals: goalCounts[r.name.toLowerCase()] || 0 }
+        return { ...r, gamesPlayed, gamesCommitted, winPct: gamesPlayed ? r.wins / gamesPlayed : 0, goals: goalCounts[r.name.toLowerCase()] || 0, assists: assistCounts[r.name.toLowerCase()] || 0, streak: streaks[key] || 0 }
       })
       .sort((a, b) => b.winPct - a.winPct || b.wins - a.wins || b.gamesPlayed - a.gamesPlayed)
 
