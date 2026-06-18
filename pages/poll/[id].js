@@ -562,6 +562,61 @@ function DraftTeams({ poll, active }) {
   )
 }
 
+// ── Admin sticky bar (only shown when ?admin=1 in URL) ───────────────────────
+function AdminBar({ poll, onUpdate }) {
+  const [loading, setLoading] = useState(false)
+  const pw = process.env.NEXT_PUBLIC_ADMIN_PASSWORD
+  if (!pw) return null
+
+  async function doAction(action, extra = {}) {
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/admin/${poll.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${pw}` },
+        body: JSON.stringify({ action, ...extra }),
+      })
+      if (res.ok) onUpdate(await res.json())
+    } finally { setLoading(false) }
+  }
+
+  const isOpen = poll.status === 'open'
+  const isConfirmed = poll.status === 'confirmed'
+
+  return (
+    <div style={{
+      position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 200,
+      background: '#0a1a0c', borderTop: `2px solid ${colors.accent}`,
+      padding: '10px 16px', display: 'flex', alignItems: 'center',
+      gap: 8, flexWrap: 'wrap', boxShadow: '0 -4px 20px rgba(0,0,0,0.5)',
+    }}>
+      <Link href="/admin" style={{ color: colors.accent, fontWeight: 700, fontSize: 13, textDecoration: 'none', marginRight: 4 }}>
+        ⚙️ Admin
+      </Link>
+      <span style={{ color: colors.grass + '66', fontSize: 13 }}>|</span>
+      {isOpen && (
+        <button onClick={() => doAction('close')} disabled={loading}
+          style={{ background: colors.accent, color: colors.pitch, border: 'none', borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+          ✅ Confirm game
+        </button>
+      )}
+      {isConfirmed && (
+        <button onClick={() => doAction('shuffle')} disabled={loading}
+          style={{ background: colors.pitchMid, color: colors.white, border: `1px solid ${colors.grass}44`, borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+          🔀 Reshuffle
+        </button>
+      )}
+      <button onClick={() => doAction('randomizeNames')} disabled={loading}
+        style={{ background: colors.pitchMid, color: colors.white, border: `1px solid ${colors.grass}44`, borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+        🎲 New names
+      </button>
+      <Link href={`/admin`} style={{ marginLeft: 'auto', color: colors.muted, fontSize: 12, textDecoration: 'none' }}>
+        More controls →
+      </Link>
+    </div>
+  )
+}
+
 // ── Main vote page ────────────────────────────────────────────────────────────
 export default function PollPage({ poll: initialPoll, error }) {
   const router = useRouter()
@@ -624,6 +679,7 @@ export default function PollPage({ poll: initialPoll, error }) {
 
   const matchedPlayer = !profile && players.find(p => p.name.toLowerCase() === name.trim().toLowerCase())
   const ogImageUrl = poll ? `${process.env.NEXT_PUBLIC_APP_URL || ''}/api/og?id=${poll.id}` : undefined
+  const isAdminMode = router.query.admin === '1'
 
   if (error) {
     return (
@@ -657,6 +713,7 @@ export default function PollPage({ poll: initialPoll, error }) {
           name={name} setName={setName} profile={profile}
           loading={loading} setLoading={setLoading} setToast={setToast} setPoll={setPoll} />
         <Toast msg={toast} />
+        {isAdminMode && <AdminBar poll={poll} onUpdate={setPoll} />}
       </Layout>
     )
   }
@@ -1062,6 +1119,7 @@ export default function PollPage({ poll: initialPoll, error }) {
       <Comments poll={poll} profileName={profile?.name || name || null} />
 
       <Toast msg={toast} />
+      {isAdminMode && <AdminBar poll={poll} onUpdate={setPoll} />}
     </Layout>
   )
 }
