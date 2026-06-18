@@ -322,7 +322,7 @@ export function WeatherBadge({ lat, lon, datetime }) {
         {condition.emoji} {condition.label}
       </span>
       <span style={{ color: '#94a3b8', marginLeft: 6 }}>
-        {weather.temp}°F{feelsDiff ? ` · feels ${weather.apparent}°F` : ''}
+        {weather.isCurrent ? 'Now · ' : ''}{weather.temp}°F{feelsDiff ? ` · feels ${weather.apparent}°F` : ''}
         {weather.wind >= 10 ? ` · ${weather.wind} mph wind` : ''}
       </span>
       {condition.tip && (
