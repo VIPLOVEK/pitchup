@@ -3,11 +3,22 @@ import Link from 'next/link'
 import { useRouter } from 'next/router'
 import { colors } from '../lib/tokens'
 
+const NAV_ITEMS = [
+  { href: '/', label: 'Home', icon: '🏠' },
+  { href: '/leaderboard', label: 'Leaderboard', icon: '🏆' },
+  { href: '/profile', label: 'Profile', icon: '👤' },
+]
+
 export default function Layout({ children, title = 'PitchUp', description = 'PitchUp — pickup soccer organizer', ogImageUrl }) {
   const router = useRouter()
   const isAdmin = router.pathname.startsWith('/admin')
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || ''
   const ogImage = ogImageUrl || (appUrl ? `${appUrl}/logo.png` : '/logo.png')
+
+  function isActive(href) {
+    if (href === '/') return router.pathname === '/'
+    return router.pathname.startsWith(href)
+  }
 
   return (
     <>
@@ -54,39 +65,24 @@ export default function Layout({ children, title = 'PitchUp', description = 'Pit
           <img className="brand-logo" src="/logo.png" alt="PitchUp" style={{ height: 32, width: 32, borderRadius: '50%', boxShadow: `0 0 0 2px ${colors.accent}33` }} />
           <span>Pitch<span style={{ color: colors.accent }}>Up</span></span>
         </Link>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Link
-            href="/profile"
-            style={{
-              color: colors.muted,
-              border: `1px solid ${colors.grass}44`,
-              borderRadius: 6,
-              padding: '6px 14px',
-              fontWeight: 600,
-              fontSize: 13,
-            }}
-          >
-            👤 Profile
-          </Link>
-          <Link
-            href={isAdmin ? '/' : '/admin'}
-            style={{
-              background: isAdmin ? 'transparent' : colors.accent,
-              color: isAdmin ? colors.muted : colors.pitch,
-              border: isAdmin ? `1px solid ${colors.grass}44` : 'none',
-              borderRadius: 6,
-              padding: '6px 14px',
-              fontWeight: 600,
-              fontSize: 13,
-              boxShadow: isAdmin ? 'none' : `0 2px 10px ${colors.accent}33`,
-            }}
-          >
-            {isAdmin ? '← Vote' : 'Admin'}
-          </Link>
-        </div>
+        <Link
+          href={isAdmin ? '/' : '/admin'}
+          style={{
+            background: isAdmin ? 'transparent' : colors.accent,
+            color: isAdmin ? colors.muted : colors.pitch,
+            border: isAdmin ? `1px solid ${colors.grass}44` : 'none',
+            borderRadius: 6,
+            padding: '6px 14px',
+            fontWeight: 600,
+            fontSize: 13,
+            boxShadow: isAdmin ? 'none' : `0 2px 10px ${colors.accent}33`,
+          }}
+        >
+          {isAdmin ? '← Back' : 'Admin'}
+        </Link>
       </header>
 
-      <main style={{ maxWidth: 480, margin: '0 auto', padding: '24px 16px 80px', animation: 'fadeInUp 0.3s ease' }}>
+      <main style={{ maxWidth: 480, margin: '0 auto', padding: '24px 16px 100px', animation: 'fadeInUp 0.3s ease' }}>
         {children}
         <div style={{ textAlign: 'center', marginTop: 8 }}>
           <Link href="/feedback" style={{ color: colors.muted, fontSize: 12, fontWeight: 600 }}>
@@ -94,6 +90,59 @@ export default function Layout({ children, title = 'PitchUp', description = 'Pit
           </Link>
         </div>
       </main>
+
+      {/* Bottom navigation */}
+      <nav style={{
+        position: 'fixed',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        zIndex: 100,
+        background: colors.pitchMid,
+        borderTop: `1px solid ${colors.grass}33`,
+        display: 'flex',
+        boxShadow: '0 -4px 20px rgba(0,0,0,0.3)',
+      }}>
+        {NAV_ITEMS.map(({ href, label, icon }) => {
+          const active = isActive(href)
+          return (
+            <Link
+              key={href}
+              href={href}
+              style={{
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '10px 0 12px',
+                textDecoration: 'none',
+                gap: 3,
+              }}
+            >
+              <span style={{ fontSize: 22, lineHeight: 1 }}>{icon}</span>
+              <span style={{
+                fontSize: 11,
+                fontWeight: active ? 700 : 500,
+                color: active ? colors.accent : colors.muted,
+                letterSpacing: '0.02em',
+              }}>
+                {label}
+              </span>
+              {active && (
+                <div style={{
+                  position: 'absolute',
+                  bottom: 0,
+                  width: 32,
+                  height: 2,
+                  background: colors.accent,
+                  borderRadius: 2,
+                }} />
+              )}
+            </Link>
+          )
+        })}
+      </nav>
     </>
   )
 }
