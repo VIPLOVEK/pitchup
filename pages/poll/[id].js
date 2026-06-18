@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/router'
 import Link from 'next/link'
 import Layout from '../../components/Layout'
 import { Card, Label, ProgressBar, Btn, Input, Pill, PlayerChip, Toast, GoalCelebration, WeatherBadge } from '../../components/UI'
+import { supabase } from '../../lib/supabase'
 import { colors, radius } from '../../lib/tokens'
 import { formatSlot, getActivePlayers, getWaitlist, getTotalSpots, expandWithGuests } from '../../lib/teams'
 import { findLocation } from '../../lib/locations'
@@ -286,11 +287,33 @@ function Comments({ poll, profileName }) {
   const [text, setText] = useState('')
   const [name, setName] = useState(profileName || '')
   const [loading, setLoading] = useState(false)
+  const bottomRef = useRef(null)
 
   // Profile loads async — sync name when it arrives
   useEffect(() => {
     if (profileName && !name) setName(profileName)
   }, [profileName])
+
+  // Live updates via Supabase Realtime
+  useEffect(() => {
+    const channel = supabase
+      .channel(`poll-chat-${poll.id}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'polls',
+        filter: `id=eq.${poll.id}`,
+      }, (payload) => {
+        if (payload.new?.comments) setComments(payload.new.comments)
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [poll.id])
+
+  // Scroll to bottom when new messages arrive
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [comments.length])
 
   async function submit(e) {
     e.preventDefault()
@@ -332,6 +355,7 @@ function Comments({ poll, profileName }) {
           <div style={{ fontSize: 13, color: colors.white, lineHeight: 1.5 }}>{renderMentions(c.text)}</div>
         </div>
       ))}
+      <div ref={bottomRef} />
       <form onSubmit={submit} style={{ marginTop: 8 }}>
         {!name.trim() && (
           <input
