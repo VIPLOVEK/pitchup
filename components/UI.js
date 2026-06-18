@@ -1,6 +1,6 @@
 import { colors, radius } from '../lib/tokens'
 import { useState, useEffect } from 'react'
-import { fetchWeatherForLocation, getWeatherForSlot } from '../lib/weather'
+import { fetchWeatherForLocation, getWeatherForSlot, getCondition } from '../lib/weather'
 
 // ── ProgressBar ───────────────────────────────────────────────────────────────
 export function ProgressBar({ value, max }) {
@@ -286,6 +286,13 @@ export function CopyBtn({ text, label = 'Copy' }) {
 }
 
 // ── Weather badge ─────────────────────────────────────────────────────────────
+const SEVERITY_COLOR = {
+  good:    '#22c55e',
+  ok:      '#94a3b8',
+  caution: '#f59e0b',
+  bad:     '#ef4444',
+}
+
 export function WeatherBadge({ lat, lon, datetime }) {
   const [weather, setWeather] = useState(null)
   useEffect(() => {
@@ -297,10 +304,32 @@ export function WeatherBadge({ lat, lon, datetime }) {
     return () => { cancelled = true }
   }, [lat, lon, datetime])
   if (!weather) return null
-  const rainColor = weather.precip >= 60 ? colors.danger : weather.precip >= 30 ? colors.cardYellow : colors.cardGreen
+
+  const condition = getCondition(weather)
+  const labelColor = SEVERITY_COLOR[condition.severity]
+  const feelsDiff = Math.abs(weather.apparent - weather.temp) >= 5
+
   return (
-    <span style={{ display: 'block', fontSize: 11, marginTop: 3, color: colors.muted }}>
-      {weather.emoji} {weather.temp}°F · <span style={{ color: rainColor }}>{weather.precip}% rain</span>
+    <span style={{
+      display: 'block', marginTop: 4,
+      background: labelColor + '18',
+      border: `1px solid ${labelColor}33`,
+      borderRadius: 6,
+      padding: '3px 8px',
+      fontSize: 11,
+    }}>
+      <span style={{ fontWeight: 700, color: labelColor }}>
+        {condition.emoji} {condition.label}
+      </span>
+      <span style={{ color: '#94a3b8', marginLeft: 6 }}>
+        {weather.temp}°F{feelsDiff ? ` · feels ${weather.apparent}°F` : ''}
+        {weather.wind >= 10 ? ` · ${weather.wind} mph wind` : ''}
+      </span>
+      {condition.tip && (
+        <span style={{ display: 'block', color: labelColor, opacity: 0.85, marginTop: 1 }}>
+          ↳ {condition.tip}
+        </span>
+      )}
     </span>
   )
 }
