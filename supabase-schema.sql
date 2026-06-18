@@ -222,3 +222,6 @@ alter table polls add column if not exists comments jsonb not null default '[]';
 
 -- Players who declined this poll
 alter table polls add column if not exists declines jsonb not null default '[]';
+
+-- Fired ~2 days before game to nudge players who haven't voted yet
+alter table polls add column if not exists vote_reminder_sent boolean not null default false;

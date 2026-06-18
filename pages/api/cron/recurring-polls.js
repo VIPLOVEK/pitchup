@@ -6,6 +6,7 @@ import { nextOccurrence, buildSlots, daysUntil } from '../../../lib/recurring'
 import { dateToKey } from '../../../lib/datetime'
 import { sendWhatsAppPollCreated } from '../../../lib/whatsapp'
 import { pickTeamNames } from '../../../lib/teamNames'
+import { sendPushToAll } from '../../../lib/push'
 
 export default async function handler(req, res) {
   if (process.env.CRON_SECRET && req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -54,6 +55,15 @@ export default async function handler(req, res) {
           await sendWhatsAppPollCreated({ poll })
         } catch (e) {
           console.error('WhatsApp notification failed (non-fatal):', e.message)
+        }
+        try {
+          await sendPushToAll({
+            title: '⚽ New game poll',
+            body: `${poll.title} — vote on your time now!`,
+            url: `/poll/${poll.id}`,
+          })
+        } catch (e) {
+          console.error('Push notification failed (non-fatal):', e.message)
         }
       }
 

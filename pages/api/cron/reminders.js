@@ -2,7 +2,7 @@
 // are short on players and approaching their voting cutoff. Intended to
 // be called periodically (e.g. by Vercel Cron, see vercel.json).
 import { supabaseAdmin, isSupabaseConfigured } from '../../../lib/supabase'
-import { shouldSendReminder, shouldSendConfirmedReminder } from '../../../lib/pollStatus'
+import { shouldSendReminder, shouldSendConfirmedReminder, shouldSendVoteReminder } from '../../../lib/pollStatus'
 import { sendWhatsAppReminder } from '../../../lib/whatsapp'
 import { sendPushToAll } from '../../../lib/push'
 import { formatSlot } from '../../../lib/teams'
@@ -42,6 +42,23 @@ export default async function handler(req, res) {
         sent++
       } catch (e) {
         console.error(`Reminder failed for poll ${poll.id}:`, e.message)
+      }
+    }
+
+    // ~2-day-before vote reminder for open polls
+    for (const poll of openPolls) {
+      if (!shouldSendVoteReminder(poll)) continue
+      try {
+        const count = poll.players?.length ?? 0
+        await sendPushToAll({
+          title: '📋 Don\'t forget to vote!',
+          body: `${poll.title} — ${count} player${count !== 1 ? 's' : ''} signed up so far. Pick your slot!`,
+          url: `/poll/${poll.id}`,
+        })
+        await db.from('polls').update({ vote_reminder_sent: true, version: poll.version + 1 }).eq('id', poll.id).eq('version', poll.version)
+        sent++
+      } catch (e) {
+        console.error(`Vote reminder failed for poll ${poll.id}:`, e.message)
       }
     }
 
