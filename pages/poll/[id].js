@@ -1082,35 +1082,52 @@ export default function PollPage({ poll: initialPoll, error }) {
           ))}
         </div>
         <p style={{ color: colors.muted, fontSize: 13, marginBottom: 10 }}>Pick times that work for you:</p>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {(() => {
-            const slotVotes = poll.slots.map((_, i) => poll.players.filter(p => (p.slots || []).includes(i)).length)
-            return poll.slots.map((slot, i) => (
-              <button
-                key={i}
-                onClick={() => toggleSlot(i)}
-                style={{
-                  background: selectedSlots.includes(i) ? colors.accent + '22' : colors.pitchMid,
-                  border: `1.5px solid ${selectedSlots.includes(i) ? colors.accent : colors.grass + '33'}`,
-                  color: selectedSlots.includes(i) ? colors.accent : colors.muted,
-                  borderRadius: 8,
-                  padding: '8px 14px',
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  transition: 'all 0.15s',
-                  textAlign: 'left',
-                }}
-              >
-                {formatSlot(slot)}
-                {slotVotes[i] > 0 && (
-                  <span style={{ display: 'block', fontSize: 10, color: colors.muted, marginTop: 1 }}>
-                    {slotVotes[i]} player{slotVotes[i] !== 1 ? 's' : ''}
-                  </span>
-                )}
-                <WeatherBadge lat={venue?.lat} lon={venue?.lon} datetime={slot} />
-              </button>
-            ))
+            return poll.slots.map((slot, i) => {
+              const voters = poll.players.filter(p => (p.slots || []).includes(i))
+              const shown = voters.slice(0, 5)
+              const extra = voters.length - 5
+              const selected = selectedSlots.includes(i)
+              return (
+                <button
+                  key={i}
+                  onClick={() => toggleSlot(i)}
+                  style={{
+                    background: selected ? colors.accent + '22' : colors.pitchMid,
+                    border: `1.5px solid ${selected ? colors.accent : colors.grass + '33'}`,
+                    color: selected ? colors.accent : colors.muted,
+                    borderRadius: 8,
+                    padding: '8px 14px',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s',
+                    textAlign: 'left',
+                    width: '100%',
+                  }}
+                >
+                  {formatSlot(slot)}
+                  {voters.length > 0 && (
+                    <span style={{ display: 'block', fontSize: 10, color: colors.muted, marginTop: 1 }}>
+                      {voters.length} player{voters.length !== 1 ? 's' : ''}
+                    </span>
+                  )}
+                  <WeatherBadge lat={venue?.lat} lon={venue?.lon} datetime={slot} />
+                  {voters.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 8, alignItems: 'center' }}>
+                      {shown.map((p, j) => (
+                        <span key={j} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: colors.grass + '15', border: `1px solid ${colors.grass}33`, borderRadius: 20, padding: '2px 8px 2px 3px', fontSize: 11, color: colors.white, fontWeight: 500 }}>
+                          <Avatar name={p.name} src={p.avatar_url} size={16} />
+                          {p.name.split(' ')[0]}
+                        </span>
+                      ))}
+                      {extra > 0 && <span style={{ fontSize: 11, color: colors.muted }}>+{extra} more</span>}
+                    </div>
+                  )}
+                </button>
+              )
+            })
           })()}
         </div>
         <Input
