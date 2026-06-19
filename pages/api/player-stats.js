@@ -83,10 +83,15 @@ export default async function handler(req, res) {
     const mvpWins = games.filter(g => g.mvp).length
     const totalConfirmed = (allConfirmed || []).length
 
+    // Look up avatar from the players table
+    const { data: profile } = await db.from('players').select('avatar_url').ilike('name', name.trim()).maybeSingle()
+    const avatarUrl = profile?.avatar_url || null
+
     return res.status(200).json({
       name: name.trim(), wins, losses, draws,
       goals: totalGoals, assists: totalAssists,
       mvpWins, streak, gamesAttended, totalConfirmed,
+      avatar_url: avatarUrl,
       games,
     })
   } catch (e) {

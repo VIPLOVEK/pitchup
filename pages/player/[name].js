@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import Layout from '../../components/Layout'
-import { Card, Label, Pill } from '../../components/UI'
+import { Card, Label, Pill, Avatar } from '../../components/UI'
 import { colors } from '../../lib/tokens'
 import { formatSlot } from '../../lib/teams'
 
@@ -33,7 +33,9 @@ export default function PlayerPage({ player, error }) {
 
       <Card highlight>
         <div style={{ textAlign: 'center', padding: '8px 0 16px' }}>
-          <div style={{ fontSize: 40, marginBottom: 8 }}>👤</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}>
+            <Avatar name={player.name} src={player.avatar_url} size={64} />
+          </div>
           <h1 style={{ fontSize: 22, fontWeight: 900, margin: '0 0 4px', letterSpacing: '-0.5px' }}>{player.name}</h1>
           <p style={{ color: colors.muted, fontSize: 13, margin: 0 }}>
             {player.gamesAttended} of {player.totalConfirmed} game{player.totalConfirmed !== 1 ? 's' : ''} attended
