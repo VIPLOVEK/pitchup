@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/router'
 import Link from 'next/link'
 import Layout from '../../components/Layout'
-import { Card, Label, ProgressBar, Btn, Input, Pill, PlayerChip, Toast, GoalCelebration, WeatherBadge } from '../../components/UI'
+import { Card, Label, ProgressBar, Btn, Input, Pill, PlayerChip, Avatar, Toast, GoalCelebration, WeatherBadge } from '../../components/UI'
 import { supabase } from '../../lib/supabase'
 import { colors, radius } from '../../lib/tokens'
 import { formatSlot, getActivePlayers, getWaitlist, getTotalSpots, expandWithGuests } from '../../lib/teams'
@@ -229,7 +229,7 @@ function WaitlistCard({ poll, waitlist, myEntry, onWaitlist, name, setName, prof
           </p>
           <div style={{ display: 'flex', flexWrap: 'wrap' }}>
             {waitlist.map((p, i) => (
-              <PlayerChip key={i} name={p.name} color={colors.cardYellow}
+              <PlayerChip key={i} name={p.name} color={colors.cardYellow} avatar={p.avatar_url}
                 meta={p.guests ? `+${p.guests} guest${p.guests > 1 ? 's' : ''}` : undefined} />
             ))}
           </div>
@@ -479,7 +479,7 @@ function GameConfirmed({ poll, profile }) {
             <PositionSummary players={teamA} />
             {teamA.map((p, i) => (
               <div key={i} style={{ display: 'flex', marginBottom: 4 }}>
-                <PlayerChip name={p.name} color={colors.teamA} />
+                <PlayerChip name={p.name} color={colors.teamA} avatar={p.avatar_url} />
               </div>
             ))}
           </div>
@@ -490,7 +490,7 @@ function GameConfirmed({ poll, profile }) {
             <PositionSummary players={teamB} />
             {teamB.map((p, i) => (
               <div key={i} style={{ display: 'flex', marginBottom: 4 }}>
-                <PlayerChip name={p.name} color={colors.teamB} />
+                <PlayerChip name={p.name} color={colors.teamB} avatar={p.avatar_url} />
               </div>
             ))}
           </div>
@@ -580,7 +580,7 @@ function DraftTeams({ poll, active }) {
           <PositionSummary players={teamA} />
           {teamA.map((p, i) => (
             <div key={i} style={{ display: 'flex', marginBottom: 4 }}>
-              <PlayerChip name={p.name} color={colors.teamA} />
+              <PlayerChip name={p.name} color={colors.teamA} avatar={p.avatar_url} />
             </div>
           ))}
         </div>
@@ -591,7 +591,7 @@ function DraftTeams({ poll, active }) {
           <PositionSummary players={teamB} />
           {teamB.map((p, i) => (
             <div key={i} style={{ display: 'flex', marginBottom: 4 }}>
-              <PlayerChip name={p.name} color={colors.teamB} />
+              <PlayerChip name={p.name} color={colors.teamB} avatar={p.avatar_url} />
             </div>
           ))}
         </div>
@@ -885,11 +885,11 @@ export default function PollPage({ poll: initialPoll, error }) {
               {waitlist.length > 0 ? ` · ${waitlist.length} waiting` : ''}
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center' }}>
-              {active.map((p, i) => <PlayerChip key={i} name={p.name} meta={p.note || (p.guests ? `+${p.guests} guest${p.guests > 1 ? 's' : ''}` : p.positions?.length ? p.positions.join(', ') : undefined)} />)}
+              {active.map((p, i) => <PlayerChip key={i} name={p.name} avatar={p.avatar_url} meta={p.note || (p.guests ? `+${p.guests} guest${p.guests > 1 ? 's' : ''}` : p.positions?.length ? p.positions.join(', ') : undefined)} />)}
             </div>
             {waitlist.length > 0 && (
               <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', marginTop: 8 }}>
-                {waitlist.map((p, i) => <PlayerChip key={i} name={p.name} color={colors.cardYellow} meta={p.guests ? `+${p.guests} guest${p.guests > 1 ? 's' : ''}` : undefined} />)}
+                {waitlist.map((p, i) => <PlayerChip key={i} name={p.name} color={colors.cardYellow} avatar={p.avatar_url} meta={p.guests ? `+${p.guests} guest${p.guests > 1 ? 's' : ''}` : undefined} />)}
               </div>
             )}
             {myEntry && (
@@ -966,7 +966,7 @@ export default function PollPage({ poll: initialPoll, error }) {
           {waitlist.length > 0 ? ` · ${waitlist.length} waiting` : ''}
         </p>
         <div style={{ display: 'flex', flexWrap: 'wrap' }}>
-          {active.map((p, i) => <PlayerChip key={i} name={p.name} meta={p.note || (p.guests ? `+${p.guests} guest${p.guests > 1 ? 's' : ''}` : p.positions?.length ? p.positions.join(', ') : undefined)} />)}
+          {active.map((p, i) => <PlayerChip key={i} name={p.name} avatar={p.avatar_url} meta={p.note || (p.guests ? `+${p.guests} guest${p.guests > 1 ? 's' : ''}` : p.positions?.length ? p.positions.join(', ') : undefined)} />)}
         </div>
         {waitlist.length > 0 && (
           <>

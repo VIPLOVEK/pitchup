@@ -15,7 +15,7 @@ export default async function handler(req, res) {
 
     const { data: players, error: playersError } = await db
       .from('players')
-      .select('id, name')
+      .select('id, name, avatar_url')
     if (playersError) throw playersError
 
     let scoredQuery = db
@@ -84,10 +84,13 @@ export default async function handler(req, res) {
       streaks[key] = streak
     }
 
-    // Prefer the profile's current name (in case a player renamed themselves).
+    // Prefer the profile's current name + avatar (in case a player renamed themselves).
     for (const player of players) {
       const key = `id:${player.id}`
-      if (records[key]) records[key].name = player.name
+      if (records[key]) {
+        records[key].name = player.name
+        records[key].avatar_url = player.avatar_url || null
+      }
     }
 
     const leaderboard = Object.entries(records)

@@ -134,9 +134,16 @@ export default async function handler(req, res) {
           return res.status(409).json({ error: 'Name already registered' })
         }
 
+        // Look up avatar for players with a profile so it's available in team displays
+        let avatarUrl = null
+        if (playerId) {
+          const { data: profile } = await db.from('players').select('avatar_url').eq('id', playerId).maybeSingle()
+          avatarUrl = profile?.avatar_url || null
+        }
+
         const updatedPlayers = [
           ...players,
-          { name: name.trim(), slots: votedSlots || [], playerId: playerId || null, positions: positions || [], guests: guestCount, note: noteText },
+          { name: name.trim(), slots: votedSlots || [], playerId: playerId || null, positions: positions || [], guests: guestCount, note: noteText, avatar_url: avatarUrl },
         ]
 
         const { data: updated, error: updateErr } = await db

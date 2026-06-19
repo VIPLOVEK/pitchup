@@ -1,6 +1,17 @@
 import { formatSlot } from '../../../lib/teams'
 import { colors } from '../../../lib/tokens'
 
+function AvatarShare({ name, src }) {
+  const initials = (name || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase()
+  const hue = [...(name || '')].reduce((h, c) => h + c.charCodeAt(0), 0) % 360
+  if (src) return <img src={src} alt={name} style={{ width: 24, height: 24, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+  return (
+    <span style={{ width: 24, height: 24, borderRadius: '50%', flexShrink: 0, background: `hsl(${hue},40%,35%)`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: '#fff' }}>
+      {initials}
+    </span>
+  )
+}
+
 export default function SharePage({ poll, error }) {
   if (error || !poll || poll.status !== 'confirmed') {
     return (
@@ -46,7 +57,8 @@ export default function SharePage({ poll, error }) {
             🟦 {nameA}
           </div>
           {teamA.filter(p => !p.isGuest).map((p, i) => (
-            <div key={i} style={{ fontSize: 14, color: colors.white, padding: '4px 0', borderBottom: i < teamA.filter(x=>!x.isGuest).length - 1 ? `1px solid ${colors.teamA}22` : 'none' }}>
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: colors.white, padding: '5px 0', borderBottom: i < teamA.filter(x=>!x.isGuest).length - 1 ? `1px solid ${colors.teamA}22` : 'none' }}>
+              <AvatarShare name={p.name} src={p.avatar_url} />
               {p.name}
             </div>
           ))}
@@ -58,7 +70,8 @@ export default function SharePage({ poll, error }) {
             🟥 {nameB}
           </div>
           {teamB.filter(p => !p.isGuest).map((p, i) => (
-            <div key={i} style={{ fontSize: 14, color: colors.white, padding: '4px 0', borderBottom: i < teamB.filter(x=>!x.isGuest).length - 1 ? `1px solid ${colors.teamB}22` : 'none' }}>
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: colors.white, padding: '5px 0', borderBottom: i < teamB.filter(x=>!x.isGuest).length - 1 ? `1px solid ${colors.teamB}22` : 'none' }}>
+              <AvatarShare name={p.name} src={p.avatar_url} />
               {p.name}
             </div>
           ))}

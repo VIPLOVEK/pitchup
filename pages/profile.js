@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Layout from '../components/Layout'
 import { Card, Label, Btn, Input, Toast } from '../components/UI'
 import { colors, radius } from '../lib/tokens'
@@ -235,6 +235,78 @@ function GroupsSection({ player, showToast }) {
   )
 }
 
+function resizeToJpegBase64(file, maxPx = 256) {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      const scale = Math.min(1, maxPx / Math.max(img.width, img.height))
+      const w = Math.round(img.width * scale)
+      const h = Math.round(img.height * scale)
+      const canvas = document.createElement('canvas')
+      canvas.width = w; canvas.height = h
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h)
+      const b64 = canvas.toDataURL('image/jpeg', 0.85).split(',')[1]
+      resolve(b64)
+    }
+    img.onerror = reject
+    img.src = url
+  })
+}
+
+function AvatarUpload({ player, onUpdate, showToast }) {
+  const [uploading, setUploading] = useState(false)
+  const inputRef = useRef(null)
+
+  async function handleFile(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    try {
+      const imageBase64 = await resizeToJpegBase64(file)
+      const pin = window.prompt('Enter your PIN to update your photo:')
+      if (!pin) return
+      const res = await fetch('/api/profile/avatar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ playerId: player.id, pin, imageBase64 }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      onUpdate({ ...player, avatar_url: data.avatar_url })
+      showToast('Photo updated!')
+    } catch (err) {
+      showToast(err.message || 'Upload failed')
+    } finally {
+      setUploading(false)
+      if (inputRef.current) inputRef.current.value = ''
+    }
+  }
+
+  const initials = player.name.trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase()
+  const hue = [...player.name].reduce((h, c) => h + c.charCodeAt(0), 0) % 360
+
+  return (
+    <div style={{ position: 'relative', flexShrink: 0 }}>
+      <div
+        onClick={() => !uploading && inputRef.current?.click()}
+        style={{ width: 64, height: 64, borderRadius: '50%', cursor: 'pointer', overflow: 'hidden', border: `2px solid ${colors.accent}44`, position: 'relative' }}
+      >
+        {player.avatar_url
+          ? <img src={player.avatar_url} alt={player.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          : <div style={{ width: '100%', height: '100%', background: `hsl(${hue},40%,35%)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 700, color: '#fff' }}>{initials}</div>
+        }
+        {uploading && (
+          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>⏳</div>
+        )}
+      </div>
+      <div style={{ position: 'absolute', bottom: 0, right: 0, background: colors.accent, borderRadius: '50%', width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, cursor: 'pointer', pointerEvents: 'none' }}>📷</div>
+      <input ref={inputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFile} />
+    </div>
+  )
+}
+
 export default function ProfilePage() {
   const [player, setPlayer] = useState(null)
   const [loaded, setLoaded] = useState(false)
@@ -360,9 +432,15 @@ export default function ProfilePage() {
       <Layout title="My Profile — PitchUp">
         <Card>
           <Label>My profile</Label>
-          <h1 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 12px', letterSpacing: '-0.5px' }}>
-            {player.name}
-          </h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
+            <AvatarUpload player={player} onUpdate={updated => {
+              setPlayer(updated)
+              localStorage.setItem(STORAGE_KEY, JSON.stringify(updated))
+            }} showToast={showToast} />
+            <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0, letterSpacing: '-0.5px' }}>
+              {player.name}
+            </h1>
+          </div>
           {player.phone && (
             <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 4px' }}>📱 {player.phone}</p>
           )}

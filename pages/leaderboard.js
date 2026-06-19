@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Layout from '../components/Layout'
-import { Card, Label, Pill, Spinner } from '../components/UI'
+import { Card, Label, Pill, Spinner, Avatar } from '../components/UI'
 import { colors } from '../lib/tokens'
 
 const medal = (rank) => rank === 0 ? '🥇' : rank === 1 ? '🥈' : rank === 2 ? '🥉' : null
@@ -99,6 +99,7 @@ export default function Leaderboard({ initialLeaderboard }) {
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <span style={{ width: 24, textAlign: 'center', fontSize: 16 }}>{medal(i) || i + 1}</span>
+                <Avatar name={p.name} src={p.avatar_url} size={32} />
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
                     <Link href={`/player/${encodeURIComponent(p.name)}`} style={{ color: colors.accent, textDecoration: 'none', fontWeight: 800 }}>{p.name}</Link>

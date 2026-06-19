@@ -13,7 +13,7 @@ export default async function handler(req, res) {
     try {
       const { data, error } = await db
         .from('players')
-        .select('id, name, phone, positions, skill_rating, skill_rating_updated_at, position_skills')
+        .select('id, name, phone, positions, skill_rating, skill_rating_updated_at, position_skills, avatar_url')
         .eq('id', id)
         .maybeSingle()
       if (error) throw error
@@ -57,7 +57,7 @@ export default async function handler(req, res) {
         .from('players')
         .update(update)
         .eq('id', id)
-        .select('id, name, phone, positions, skill_rating, skill_rating_updated_at, position_skills')
+        .select('id, name, phone, positions, skill_rating, skill_rating_updated_at, position_skills, avatar_url')
         .single()
       if (error) throw error
 

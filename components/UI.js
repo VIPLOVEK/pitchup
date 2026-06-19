@@ -226,8 +226,27 @@ export function GoalCelebration() {
   )
 }
 
+// ── Avatar helpers ─────────────────────────────────────────────────────────────
+export function Avatar({ name, src, size = 24 }) {
+  const initials = (name || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase()
+  if (src) {
+    return <img src={src} alt={name} style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+  }
+  const hue = [...(name || '')].reduce((h, c) => h + c.charCodeAt(0), 0) % 360
+  return (
+    <span style={{
+      width: size, height: size, borderRadius: '50%', flexShrink: 0,
+      background: `hsl(${hue},40%,35%)`,
+      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+      fontSize: size * 0.42, fontWeight: 700, color: '#fff', lineHeight: 1,
+    }}>
+      {initials}
+    </span>
+  )
+}
+
 // ── Player chips ──────────────────────────────────────────────────────────────
-export function PlayerChip({ name, onRemove, color, meta }) {
+export function PlayerChip({ name, onRemove, color, meta, avatar }) {
   const c = color || colors.grassLight
   return (
     <span style={{
@@ -237,13 +256,14 @@ export function PlayerChip({ name, onRemove, color, meta }) {
       background: c + '18',
       border: `1px solid ${c}33`,
       borderRadius: radius.full,
-      padding: '4px 12px',
+      padding: '4px 10px 4px 4px',
       fontSize: 13,
       fontWeight: 600,
       color: colors.white,
       margin: 3,
     }}>
-      <span style={{ fontSize: 10 }}>⚽</span> {name}
+      <Avatar name={name} src={avatar} size={22} />
+      {name}
       {meta && <span style={{ color: colors.muted, fontWeight: 500, fontSize: 11 }}>· {meta}</span>}
       {onRemove && (
         <button

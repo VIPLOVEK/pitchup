@@ -229,6 +229,14 @@ alter table polls add column if not exists vote_reminder_sent boolean not null d
 -- Enable Supabase Realtime on polls so the match chat updates live
 alter publication supabase_realtime add table polls;
 
+-- Player profile photo URL (stored in 'player-avatars' Supabase Storage bucket)
+alter table players add column if not exists avatar_url text;
+
+-- Storage bucket for player avatars (public read, service-role write)
+insert into storage.buckets (id, name, public)
+values ('player-avatars', 'player-avatars', true)
+on conflict (id) do nothing;
+
 -- Admin broadcast announcements — pinned to homepage until cleared
 create table if not exists announcements (
   id          text primary key default encode(gen_random_bytes(6), 'hex'),
