@@ -721,6 +721,20 @@ export default function PollPage({ poll: initialPoll, error }) {
       .catch(() => setHasAccess(false))
   }, [initialPoll, profile])
 
+  // Pre-populate slots when the player already has an entry (allows changing vote).
+  // Use a ref so realtime poll updates don't clobber in-progress slot changes.
+  const slotsSeededRef = useRef(false)
+  useEffect(() => {
+    if (slotsSeededRef.current) return
+    const entry = (poll?.players || []).find(p =>
+      profile ? p.playerId === profile.id : (name.trim() && p.name.toLowerCase() === name.trim().toLowerCase())
+    )
+    if (entry?.slots?.length) {
+      setSelectedSlots(entry.slots)
+      slotsSeededRef.current = true
+    }
+  }, [poll?.players, profile?.id, name])
+
   const matchedPlayer = !profile && players.find(p => p.name.toLowerCase() === name.trim().toLowerCase())
   const ogImageUrl = poll ? `${process.env.NEXT_PUBLIC_APP_URL || ''}/api/og?id=${poll.id}` : undefined
   const [isAdminMode, setIsAdminMode] = useState(false)

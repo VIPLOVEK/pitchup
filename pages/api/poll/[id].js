@@ -130,9 +130,7 @@ export default async function handler(req, res) {
         }
 
         const players = current.players || []
-        if (players.some(p => p.name.toLowerCase() === name.trim().toLowerCase())) {
-          return res.status(409).json({ error: 'Name already registered' })
-        }
+        const existingIdx = players.findIndex(p => p.name.toLowerCase() === name.trim().toLowerCase())
 
         // Look up avatar for players with a profile so it's available in team displays
         let avatarUrl = null
@@ -141,10 +139,20 @@ export default async function handler(req, res) {
           avatarUrl = profile?.avatar_url || null
         }
 
-        const updatedPlayers = [
-          ...players,
-          { name: name.trim(), slots: votedSlots || [], playerId: playerId || null, positions: positions || [], guests: guestCount, note: noteText, avatar_url: avatarUrl },
-        ]
+        let updatedPlayers
+        if (existingIdx !== -1) {
+          // Update existing entry — player is changing their slot selection
+          updatedPlayers = players.map((p, idx) =>
+            idx === existingIdx
+              ? { ...p, slots: votedSlots || [], guests: guestCount, note: noteText, ...(avatarUrl ? { avatar_url: avatarUrl } : {}) }
+              : p
+          )
+        } else {
+          updatedPlayers = [
+            ...players,
+            { name: name.trim(), slots: votedSlots || [], playerId: playerId || null, positions: positions || [], guests: guestCount, note: noteText, avatar_url: avatarUrl },
+          ]
+        }
 
         const { data: updated, error: updateErr } = await db
           .from('polls')
