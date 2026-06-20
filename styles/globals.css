@@ -1,19 +1,16 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-html { font-size: 15px; }
+html { font-size: 16px; }
 
 body {
   background:
-    /* center-circle marking */
-    radial-gradient(circle at 50% 230px, transparent 96px, rgba(245, 240, 225, 0.05) 97px, rgba(245, 240, 225, 0.05) 99px, transparent 100px),
-    /* halfway line */
-    linear-gradient(to bottom, transparent 229px, rgba(245, 240, 225, 0.05) 229px, rgba(245, 240, 225, 0.05) 231px, transparent 231px),
-    /* mowed-grass stripes */
-    repeating-linear-gradient(115deg, rgba(245, 240, 225, 0.015) 0px, rgba(245, 240, 225, 0.015) 60px, transparent 60px, transparent 120px),
-    radial-gradient(circle at 50% -10%, #1b3157 0%, #0a1628 55%, #060d18 100%);
+    radial-gradient(circle at 50% 220px, transparent 95px, rgba(34,197,94,0.05) 96px, rgba(34,197,94,0.05) 98px, transparent 99px),
+    linear-gradient(to bottom, transparent 218px, rgba(34,197,94,0.05) 218px, rgba(34,197,94,0.05) 220px, transparent 221px),
+    repeating-linear-gradient(112deg, rgba(34,197,94,0.018) 0px, rgba(34,197,94,0.018) 56px, transparent 56px, transparent 112px),
+    radial-gradient(ellipse at 50% -5%, #0f2040 0%, #060d18 55%, #030810 100%);
   background-attachment: fixed;
   background-repeat: no-repeat, no-repeat, repeat, no-repeat;
-  color: #f5f0e1;
+  color: #f8f4ea;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
@@ -21,27 +18,30 @@ body {
 
 button { cursor: pointer; font-family: inherit; transition: filter 0.15s ease, transform 0.1s ease; }
 button:disabled { opacity: 0.4; cursor: not-allowed; }
-button:not(:disabled):hover { filter: brightness(1.12); }
-button:not(:disabled):active { transform: scale(0.98); }
+button:not(:disabled):hover { filter: brightness(1.1); }
+button:not(:disabled):active { transform: scale(0.97); }
 
 input, textarea, select {
   font-family: inherit;
-  font-size: 14px;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  font-size: 15px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 }
 input:focus, textarea:focus, select:focus {
-  border-color: #d4af37 !important;
-  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.15);
+  border-color: rgba(240, 192, 48, 0.5) !important;
+  box-shadow: 0 0 0 3px rgba(240, 192, 48, 0.12) !important;
+  outline: none;
 }
 
 a { color: inherit; text-decoration: none; }
 
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: #0a1628; }
-::-webkit-scrollbar-thumb { background: #d4af37; border-radius: 4px; }
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: #060d18; }
+::-webkit-scrollbar-thumb { background: #f0c030; border-radius: 4px; }
+
+/* ── Entrance animations ─────────────────────────────────────────────── */
 
 @keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(10px); }
+  from { opacity: 0; transform: translateY(12px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
@@ -50,13 +50,29 @@ a { color: inherit; text-decoration: none; }
   50%       { opacity: 0.5; }
 }
 
+/* Page stagger: direct children of main animate in sequence */
+main > * {
+  animation: fadeInUp 0.38s ease both;
+}
+main > *:nth-child(1)  { animation-delay: 0ms; }
+main > *:nth-child(2)  { animation-delay: 60ms; }
+main > *:nth-child(3)  { animation-delay: 110ms; }
+main > *:nth-child(4)  { animation-delay: 155ms; }
+main > *:nth-child(5)  { animation-delay: 195ms; }
+main > *:nth-child(6)  { animation-delay: 230ms; }
+main > *:nth-child(n+7){ animation-delay: 260ms; }
+
+/* ── Card interactions ───────────────────────────────────────────────── */
+
 .card-link {
-  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 .card-link:hover {
-  border-color: #d4af3766 !important;
   transform: translateY(-2px);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45) !important;
+}
+.card-link:active {
+  transform: scale(0.99);
 }
 
 /* ── Soccer-themed motion ─────────────────────────────────────────────── */
@@ -87,7 +103,6 @@ a { color: inherit; text-decoration: none; }
   75%      { transform: rotate(8deg); }
 }
 
-/* Header crest: rolls in on load, spins playfully on hover/tap */
 .brand-logo {
   animation: ball-roll-in 0.7s ease-out;
 }
@@ -95,18 +110,15 @@ a { color: inherit; text-decoration: none; }
   animation: ball-spin 0.6s ease-in-out;
 }
 
-/* Decorative floating ball, e.g. in the hero */
 .floating-ball {
   display: inline-block;
   animation: ball-float 3s ease-in-out infinite;
 }
 
-/* Bouncing ball marker shown when a progress bar fills up */
 .progress-ball {
   animation: ball-bounce 0.6s ease-in-out infinite;
 }
 
-/* Score pill celebration wiggle */
 .score-celebrate {
   animation: net-shake 0.5s ease-in-out;
 }
@@ -115,18 +127,29 @@ a { color: inherit; text-decoration: none; }
   to { transform: rotate(360deg); }
 }
 
-/* Inline rolling-ball loading spinner */
 .spinner-ball {
   display: inline-block;
   animation: ball-spin-loop 0.9s linear infinite;
 }
+
+/* ── CTA pulse — draws eye to the join button ───────────────────────── */
+
+@keyframes cta-pulse {
+  0%, 100% { box-shadow: 0 4px 20px rgba(240,192,48,0.35), inset 0 1px 0 rgba(255,255,255,0.12); }
+  50%      { box-shadow: 0 4px 28px rgba(240,192,48,0.6),  inset 0 1px 0 rgba(255,255,255,0.12); }
+}
+
+.btn-cta-pulse {
+  animation: cta-pulse 2s ease-in-out infinite;
+}
+
+/* ── Confetti / goal celebration ─────────────────────────────────────── */
 
 @keyframes confetti-fall {
   0%   { transform: translateY(-10px) rotate(0deg); opacity: 1; }
   100% { transform: translateY(160px) rotate(360deg); opacity: 0; }
 }
 
-/* Goal celebration confetti burst */
 .goal-celebration {
   position: relative;
   height: 0;
@@ -139,28 +162,45 @@ a { color: inherit; text-decoration: none; }
   animation: confetti-fall 1.6s ease-in forwards;
 }
 
-/* Toast: kicks in like a ball */
+/* ── Toast animation ─────────────────────────────────────────────────── */
+
 .toast-pop {
-  animation: fadeInUp 0.2s ease, ball-bounce 0.5s ease-in-out 0.15s;
+  animation: fadeInUp 0.2s ease;
 }
 
-@keyframes ball-kick {
-  0%   { transform: translate(0, 0) rotate(0deg); opacity: 1; }
-  100% { transform: translate(70px, -50px) rotate(360deg); opacity: 0; }
-}
-
-/* Ball flies off the "I'm in" button while the vote is submitting */
-.kick-ball {
-  display: inline-block;
-  animation: ball-kick 0.45s ease-out forwards;
-}
+/* ── Vote success pop-in ─────────────────────────────────────────────── */
 
 @keyframes pop-in {
   0%   { transform: scale(0.93); opacity: 0; }
   100% { transform: scale(1); opacity: 1; }
 }
 
-/* Confirmation card pops in after a vote is submitted */
 .vote-success {
   animation: pop-in 0.35s ease-out;
+}
+
+/* ── Skeleton shimmer ────────────────────────────────────────────────── */
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #0d1e35 25%, #142848 50%, #0d1e35 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 8px;
+}
+
+/* ── Ball-kick submit animation ──────────────────────────────────────── */
+
+@keyframes ball-kick {
+  0%   { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+  100% { transform: translate(70px, -50px) rotate(360deg); opacity: 0; }
+}
+
+.kick-ball {
+  display: inline-block;
+  animation: ball-kick 0.45s ease-out forwards;
 }

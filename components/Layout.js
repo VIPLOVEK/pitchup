@@ -3,10 +3,44 @@ import Link from 'next/link'
 import { useRouter } from 'next/router'
 import { colors } from '../lib/tokens'
 
+// ── SVG nav icons ─────────────────────────────────────────────────────────────
+function HomeIcon({ active }) {
+  const c = active ? colors.accent : colors.muted
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 12l9-9 9 9" />
+      <path d="M5 10v9a1 1 0 001 1h4v-5h4v5h4a1 1 0 001-1v-9" />
+    </svg>
+  )
+}
+
+function TrophyIcon({ active }) {
+  const c = active ? colors.accent : colors.muted
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 3h12v8c0 3.314-2.686 6-6 6s-6-2.686-6-6V3z" />
+      <path d="M6 5H4a2 2 0 00-2 2v1c0 1.657 1.343 3 3 3h1" />
+      <path d="M18 5h2a2 2 0 012 2v1c0 1.657-1.343 3-3 3h-1" />
+      <line x1="12" y1="17" x2="12" y2="21" />
+      <line x1="8" y1="21" x2="16" y2="21" />
+    </svg>
+  )
+}
+
+function PersonIcon({ active }) {
+  const c = active ? colors.accent : colors.muted
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 20c0-4 3.582-7 8-7s8 3 8 7" />
+    </svg>
+  )
+}
+
 const NAV_ITEMS = [
-  { href: '/', label: 'Home', icon: '🏠' },
-  { href: '/leaderboard', label: 'Rankings', icon: '🏆' },
-  { href: '/profile', label: 'My Profile', icon: '👤' },
+  { href: '/', label: 'Home',     Icon: HomeIcon   },
+  { href: '/leaderboard', label: 'Rankings', Icon: TrophyIcon },
+  { href: '/profile', label: 'Me',       Icon: PersonIcon },
 ]
 
 export default function Layout({ children, title = 'PitchUp', description = 'PitchUp — pickup soccer organizer', ogImageUrl }) {
@@ -27,8 +61,6 @@ export default function Layout({ children, title = 'PitchUp', description = 'Pit
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="description" content={description} />
         <link rel="icon" href="/logo.png" />
-
-        {/* PWA / "Add to Home Screen" support */}
         <link rel="manifest" href="/manifest.json" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <meta name="theme-color" content={colors.pitch} />
@@ -36,8 +68,6 @@ export default function Layout({ children, title = 'PitchUp', description = 'Pit
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="PitchUp" />
-
-        {/* Open Graph / WhatsApp link preview */}
         <meta property="og:title" content={title} />
         <meta property="og:description" content={description} />
         <meta property="og:image" content={ogImage} />
@@ -48,10 +78,13 @@ export default function Layout({ children, title = 'PitchUp', description = 'Pit
         <meta name="twitter:image" content={ogImage} />
       </Head>
 
+      {/* Frosted glass header */}
       <header style={{
-        background: `linear-gradient(180deg, ${colors.pitchMid} 0%, ${colors.pitch} 100%)`,
-        borderBottom: `2px solid ${colors.accent}`,
-        boxShadow: '0 2px 16px rgba(0,0,0,0.35)',
+        background: 'rgba(6, 13, 24, 0.88)',
+        backdropFilter: 'blur(20px) saturate(160%)',
+        WebkitBackdropFilter: 'blur(20px) saturate(160%)',
+        borderBottom: '1px solid rgba(240, 192, 48, 0.18)',
+        boxShadow: '0 1px 0 rgba(240,192,48,0.06), 0 4px 24px rgba(0,0,0,0.5)',
         padding: '0 20px',
         height: 56,
         display: 'flex',
@@ -62,30 +95,39 @@ export default function Layout({ children, title = 'PitchUp', description = 'Pit
         zIndex: 100,
       }}>
         <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, fontWeight: 800, fontSize: 18, letterSpacing: '-0.5px' }}>
-          <img className="brand-logo" src="/logo.png" alt="PitchUp" style={{ height: 32, width: 32, borderRadius: '50%', boxShadow: `0 0 0 2px ${colors.accent}33` }} />
+          <img
+            className="brand-logo"
+            src="/logo.png"
+            alt="PitchUp"
+            style={{
+              height: 34, width: 34, borderRadius: '50%',
+              boxShadow: `0 0 0 2px ${colors.accent}44, 0 0 14px ${colors.accent}22`,
+            }}
+          />
           <span>Pitch<span style={{ color: colors.accent }}>Up</span></span>
         </Link>
         <Link
           href={isAdmin ? '/' : '/admin'}
           style={{
-            background: isAdmin ? 'transparent' : colors.accent,
+            background: isAdmin ? 'transparent' : `linear-gradient(135deg, ${colors.accent} 0%, #d4960a 100%)`,
             color: isAdmin ? colors.muted : colors.pitch,
-            border: isAdmin ? `1px solid ${colors.grass}44` : 'none',
-            borderRadius: 6,
-            padding: '6px 14px',
-            fontWeight: 600,
+            border: isAdmin ? '1px solid rgba(255,255,255,0.1)' : 'none',
+            borderRadius: 8,
+            padding: '6px 16px',
+            fontWeight: 700,
             fontSize: 13,
-            boxShadow: isAdmin ? 'none' : `0 2px 10px ${colors.accent}33`,
+            boxShadow: isAdmin ? 'none' : `0 2px 12px ${colors.accent}40`,
+            letterSpacing: '0.01em',
           }}
         >
           {isAdmin ? '← Back' : 'Admin'}
         </Link>
       </header>
 
-      <main style={{ maxWidth: 480, margin: '0 auto', padding: '24px 16px 100px', animation: 'fadeInUp 0.3s ease' }}>
+      <main style={{ maxWidth: 480, margin: '0 auto', padding: '24px 16px 100px' }}>
         {children}
-        <div style={{ textAlign: 'center', marginTop: 8 }}>
-          <Link href="/feedback" style={{ color: colors.muted, fontSize: 12, fontWeight: 600 }}>
+        <div style={{ textAlign: 'center', marginTop: 12 }}>
+          <Link href="/feedback" style={{ color: colors.muted, fontSize: 12, fontWeight: 600, letterSpacing: '0.02em' }}>
             💡 Suggest a feature
           </Link>
         </div>
@@ -98,12 +140,14 @@ export default function Layout({ children, title = 'PitchUp', description = 'Pit
         left: 0,
         right: 0,
         zIndex: 100,
-        background: colors.pitchMid,
-        borderTop: `1px solid ${colors.grass}33`,
+        background: 'rgba(10, 20, 42, 0.96)',
+        backdropFilter: 'blur(20px) saturate(160%)',
+        WebkitBackdropFilter: 'blur(20px) saturate(160%)',
+        borderTop: '1px solid rgba(255,255,255,0.06)',
         display: 'flex',
-        boxShadow: '0 -4px 20px rgba(0,0,0,0.3)',
+        boxShadow: '0 -4px 24px rgba(0,0,0,0.45)',
       }}>
-        {NAV_ITEMS.map(({ href, label, icon }) => {
+        {NAV_ITEMS.map(({ href, label, Icon }) => {
           const active = isActive(href)
           return (
             <Link
@@ -115,30 +159,33 @@ export default function Layout({ children, title = 'PitchUp', description = 'Pit
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                padding: '10px 0 12px',
+                padding: '9px 0 11px',
                 textDecoration: 'none',
-                gap: 3,
+                gap: 4,
+                position: 'relative',
               }}
             >
-              <span style={{ fontSize: 22, lineHeight: 1 }}>{icon}</span>
-              <span style={{
-                fontSize: 11,
-                fontWeight: active ? 700 : 500,
-                color: active ? colors.accent : colors.muted,
-                letterSpacing: '0.02em',
-              }}>
-                {label}
-              </span>
               {active && (
                 <div style={{
                   position: 'absolute',
-                  bottom: 0,
-                  width: 32,
-                  height: 2,
-                  background: colors.accent,
-                  borderRadius: 2,
+                  top: 6, bottom: 6, left: '12%', right: '12%',
+                  background: `${colors.accent}14`,
+                  borderRadius: 12,
                 }} />
               )}
+              <span style={{ position: 'relative', zIndex: 1, lineHeight: 1 }}>
+                <Icon active={active} />
+              </span>
+              <span style={{
+                position: 'relative',
+                zIndex: 1,
+                fontSize: 10,
+                fontWeight: active ? 700 : 500,
+                color: active ? colors.accent : colors.muted,
+                letterSpacing: '0.03em',
+              }}>
+                {label}
+              </span>
             </Link>
           )
         })}
