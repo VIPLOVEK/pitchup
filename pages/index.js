@@ -71,7 +71,7 @@ export default function Home({ polls, groups, announcement }) {
           Pickup soccer, organized.
         </p>
         <p style={{ color: colors.muted, fontSize: 13, maxWidth: 380, margin: '0 auto', lineHeight: 1.5 }}>
-          Vote on game times, see who's in, and join us on the pitch — all skill levels welcome.
+          Choose game times, see who's in, and join us on the pitch — all skill levels welcome.
         </p>
       </div>
 

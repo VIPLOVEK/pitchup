@@ -535,7 +535,7 @@ export default function ProfilePage() {
 
         <p style={{ color: colors.muted, fontSize: 12, margin: '0 0 14px' }}>
           {mode === 'create'
-            ? 'Your profile lets you vote without retyping your name, and tracks your preferred position for team balancing.'
+            ? 'Your profile lets you join without retyping your name, and tracks your preferred position for team balancing.'
             : "Log in with the name and PIN you used when creating your profile. If an admin reset your PIN, just enter your name and a new 4-6 digit PIN to set it."}
         </p>
 

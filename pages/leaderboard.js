@@ -46,7 +46,7 @@ export default function Leaderboard({ initialLeaderboard }) {
     <Layout title="Leaderboard — PitchUp">
       <div style={{ textAlign: 'center', padding: '24px 0 16px' }}>
         <h1 style={{ fontSize: 24, fontWeight: 900, letterSpacing: '-0.5px', margin: '0 0 6px' }}>
-          🏆 Leaderboard
+          🏆 Rankings
         </h1>
         <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 16px' }}>
           Win record from scored games. Played/Committed shows all confirmed games.

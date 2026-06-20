@@ -51,7 +51,7 @@ export default function FeedbackPage() {
 
   const load = () => {
     fetch('/api/feature-requests')
-      .then(res => res.json())
+      .then(res => res.ok ? res.json() : Promise.reject())
       .then(setRequests)
       .catch(() => setRequests([]))
   }
