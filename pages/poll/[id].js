@@ -36,7 +36,7 @@ function GameCancelled({ poll }) {
       <div style={{ textAlign: 'center', padding: '12px 0', color: colors.muted }}>
         <div style={{ fontSize: 32, marginBottom: 10 }}>😕</div>
         <p style={{ fontSize: 14 }}>
-          Not enough players joined ({poll.players.length}/{poll.min_players} minimum) — game is off.
+          Not enough players joined ({(poll.players || []).length}/{poll.min_players} minimum) — game is off.
         </p>
       </div>
     </Card>
@@ -393,7 +393,7 @@ function GameConfirmed({ poll, profile }) {
   const nameB = poll.team_b_name || 'Team B'
   const gameTime = formatSlot(poll.game_time)
   const whatsappText = [
-    `⚽ *Game is ON!* ${poll.players.length} players confirmed.`,
+    `⚽ *Game is ON!* ${(poll.players || []).length} players confirmed.`,
     ``,
     `📅 ${gameTime}`,
     `📍 ${poll.location}`,
@@ -417,7 +417,7 @@ function GameConfirmed({ poll, profile }) {
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <Pill color={colors.accent}>📅 {gameTime}</Pill>
-          <Pill color={colors.grassLight}>👥 {poll.players.length} players</Pill>
+          <Pill color={colors.grassLight}>👥 {(poll.players || []).length} players</Pill>
         </div>
         {poll.notes && (
           <div style={{ background: colors.pitchMid, borderRadius: 8, padding: '8px 12px', marginTop: 12, fontSize: 13, color: colors.white }}>
@@ -767,7 +767,7 @@ export default function PollPage({ poll: initialPoll, error }) {
   const waitlist = getWaitlist(poll)
   const totalSpots = getTotalSpots(active)
   const venue = findLocation(poll.location)
-  const myEntry = poll.players.find(p => profile
+  const myEntry = (poll.players || []).find(p => profile
     ? p.playerId === profile.id
     : (name.trim() && p.name.toLowerCase() === name.trim().toLowerCase()))
   const onWaitlist = !!myEntry && waitlist.some(p => p.name.toLowerCase() === myEntry.name.toLowerCase())
@@ -787,7 +787,7 @@ export default function PollPage({ poll: initialPoll, error }) {
 
   if (poll.status === 'cancelled') {
     return (
-      <Layout title={poll.title} description={`Cancelled — not enough players joined (${poll.players.length}/${poll.min_players} minimum).`}>
+      <Layout title={poll.title} description={`Cancelled — not enough players joined (${(poll.players || []).length}/${poll.min_players} minimum).`}>
         <GameCancelled poll={poll} />
       </Layout>
     )
@@ -1103,7 +1103,7 @@ export default function PollPage({ poll: initialPoll, error }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {(() => {
             return poll.slots.map((slot, i) => {
-              const voters = poll.players.filter(p => (p.slots || []).includes(i))
+              const voters = (poll.players || []).filter(p => (p.slots || []).includes(i))
               const shown = voters.slice(0, 5)
               const extra = voters.length - 5
               const selected = selectedSlots.includes(i)
