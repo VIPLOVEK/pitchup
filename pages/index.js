@@ -80,7 +80,7 @@ export default function Home({ polls, groups, announcement }) {
         openPolls.map(poll => (
           <Link key={poll.id} href={`/poll/${poll.id}`} style={{ textDecoration: 'none' }}>
             <Card highlight style={{ cursor: 'pointer', ...groupAccent(poll, groups) }} className="card-link">
-              <Label>Active poll — tap to vote</Label>
+              <Label>Game this week — tap to join</Label>
               <GroupBadges poll={poll} groups={groups} />
               <h2 style={{ fontSize: 20, fontWeight: 800, margin: '0 0 4px', letterSpacing: '-0.3px' }}>
                 {poll.title}
@@ -91,7 +91,7 @@ export default function Home({ polls, groups, announcement }) {
                 <span style={{ color: colors.muted, fontSize: 13 }}>
                   {getActivePlayers(poll).length} / {poll.min_players}+ players
                 </span>
-                <span style={{ color: colors.accent, fontSize: 13, fontWeight: 700 }}>Vote →</span>
+                <span style={{ color: colors.accent, fontSize: 13, fontWeight: 700 }}>Join ⚽</span>
               </div>
             </Card>
           </Link>
@@ -99,9 +99,9 @@ export default function Home({ polls, groups, announcement }) {
       ) : (
         <Card>
           <div style={{ textAlign: 'center', padding: '20px 0', color: colors.muted }}>
-            <div style={{ fontSize: 32, marginBottom: 10 }}>📋</div>
-            <p style={{ fontSize: 14 }}>No active poll right now.</p>
-            <p style={{ fontSize: 13, marginTop: 4 }}>Ask your organizer to create one.</p>
+            <div style={{ fontSize: 32, marginBottom: 10 }}>⚽</div>
+            <p style={{ fontSize: 14 }}>No upcoming game right now.</p>
+            <p style={{ fontSize: 13, marginTop: 4 }}>Ask your organizer to set one up!</p>
           </div>
         </Card>
       )}
@@ -114,7 +114,7 @@ export default function Home({ polls, groups, announcement }) {
               Recent games
             </div>
             <Link href="/leaderboard" style={{ fontSize: 12, fontWeight: 700, color: colors.accent, textDecoration: 'none' }}>
-              🏆 Leaderboard
+              🏆 Rankings
             </Link>
           </div>
           {pastPolls.slice(0, 3).map(poll => (
@@ -158,7 +158,7 @@ export default function Home({ polls, groups, announcement }) {
             fontWeight: 700,
             fontSize: 14,
           }}>
-            Create your first poll →
+            Create your first game →
           </Link>
         </div>
       )}

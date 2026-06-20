@@ -890,8 +890,10 @@ export default function PollPage({ poll: initialPoll, error }) {
             </h2>
             <p style={{ color: colors.muted, fontSize: 13 }}>
               {onWaitlist
-                ? `The first ${poll.max_players} spots are full — you'll be added automatically if someone drops out.`
-                : `Game confirms automatically when all ${poll.max_players} spots fill up, or 1.5 hours before kickoff if there are ${poll.min_players}+ players.`}
+                ? `All ${poll.max_players} spots are taken — you're next in line and will be moved up automatically if someone drops out.`
+                : totalSpots >= poll.min_players
+                  ? `The squad is full! The organiser will lock in the time and you'll get a notification with all the details.`
+                  : `Still filling up. Once ${poll.min_players}+ players join, the organiser gets notified and confirms the time — you'll hear back!`}
             </p>
             <ProgressBar value={totalSpots} max={poll.min_players} />
             <p style={{ color: colors.muted, fontSize: 13, textAlign: 'center', marginBottom: 16 }}>
@@ -913,7 +915,7 @@ export default function PollPage({ poll: initialPoll, error }) {
             )}
             <div style={{ marginTop: 20, borderTop: `1px solid ${colors.grass}22`, paddingTop: 16 }}>
               <p style={{ color: colors.muted, fontSize: 12, marginBottom: 10 }}>
-                Know someone who should join? Send them the link.
+                Know someone who should play? Send them the link!
               </p>
               <button
                 onClick={async () => {
@@ -953,7 +955,7 @@ export default function PollPage({ poll: initialPoll, error }) {
   return (
     <Layout title={poll.title} description={`${poll.location} · ${totalSpots}/${poll.min_players}+ players — tap to vote on a time`} ogImageUrl={ogImageUrl}>
       <Card style={pollGroups.length > 0 ? { borderLeft: `4px solid ${pollGroups[0].color || colors.grassLight}` } : {}}>
-        <Label>Open poll</Label>
+        <Label>Open game — join below</Label>
         {pollGroups.length > 0 && (
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
             {pollGroups.map(g => (
@@ -1026,18 +1028,18 @@ export default function PollPage({ poll: initialPoll, error }) {
 
       {myEntry && (
         <Card>
-          <Label>You're in</Label>
+          <Label>You're in ✅</Label>
           <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 12px' }}>
-            You're already registered for this game as <strong style={{ color: colors.white }}>{myEntry.name}</strong>.
+            You're registered as <strong style={{ color: colors.white }}>{myEntry.name}</strong>. You can update your available times or leave the game below.
           </p>
           <Btn small variant="ghost" onClick={handleRemoveVote} disabled={loading}>
-            Leave game
+            Can't make it anymore
           </Btn>
         </Card>
       )}
 
       <Card>
-        <Label>{myEntry ? 'Change your vote' : 'Join the game'}</Label>
+        <Label>{myEntry ? 'Update your availability' : 'Join the game'}</Label>
         {profile ? (
           <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 10px' }}>
             Voting as <strong style={{ color: colors.white }}>{profile.name}</strong> ({profile.positions?.length ? profile.positions.join(', ') : 'Any'}) ·{' '}
@@ -1045,10 +1047,11 @@ export default function PollPage({ poll: initialPoll, error }) {
           </p>
         ) : (
           <>
+            <p style={{ color: colors.white, fontSize: 13, fontWeight: 600, margin: '0 0 6px' }}>👋 First, who are you?</p>
             <Input
               value={name}
               onChange={e => { setName(e.target.value); setPin('') }}
-              placeholder="Your name (required to send)"
+              placeholder="Type your name..."
               list="player-names"
             />
             <datalist id="player-names">
@@ -1059,21 +1062,21 @@ export default function PollPage({ poll: initialPoll, error }) {
                 <Input
                   value={pin}
                   onChange={e => setPin(e.target.value.replace(/\D/g, ''))}
-                  placeholder={`PIN for ${matchedPlayer.name}`}
+                  placeholder={`Enter your PIN to confirm it's you`}
                   type="password"
                 />
                 <p style={{ color: colors.muted, fontSize: 12, margin: '0 0 10px' }}>
-                  "{matchedPlayer.name}" has a profile — enter their PIN to vote as them.
+                  We recognise "{matchedPlayer.name}" — enter your PIN to join as them.
                 </p>
               </>
             ) : (
               <p style={{ color: colors.muted, fontSize: 12, margin: '0 0 10px' }}>
-                <Link href="/profile" style={{ color: colors.accent, textDecoration: 'underline' }}>Create a profile</Link> to save your name and position for next time.
+                <Link href="/profile" style={{ color: colors.accent, textDecoration: 'underline' }}>Set up a profile</Link> to save your name and get notified about future games.
               </p>
             )}
           </>
         )}
-        <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 6px' }}>Bringing guests?</p>
+        <p style={{ color: colors.white, fontSize: 13, fontWeight: 600, margin: '16px 0 6px' }}>Bringing anyone?</p>
         <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
           {[0, 1, 2].map(n => (
             <button
@@ -1095,7 +1098,8 @@ export default function PollPage({ poll: initialPoll, error }) {
             </button>
           ))}
         </div>
-        <p style={{ color: colors.muted, fontSize: 13, marginBottom: 10 }}>Pick times that work for you:</p>
+        <p style={{ color: colors.white, fontSize: 13, fontWeight: 600, margin: '16px 0 2px' }}>📅 When are you free?</p>
+        <p style={{ color: colors.muted, fontSize: 12, margin: '0 0 10px' }}>Tick all times that work — the most popular slot gets confirmed.</p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {(() => {
             return poll.slots.map((slot, i) => {
@@ -1150,13 +1154,14 @@ export default function PollPage({ poll: initialPoll, error }) {
           placeholder="Note for the group (optional, e.g. 'running 5 min late')"
           style={{ marginTop: 12 }}
         />
-        <div style={{ marginTop: 8 }}>
+        <div style={{ marginTop: 14 }}>
           <Btn
             full
             onClick={handleVote}
             disabled={!name.trim() || selectedSlots.length === 0 || loading || kicking || (matchedPlayer && !/^\d{4,6}$/.test(pin)) || (poll.visibility === 'groups' && hasAccess === false)}
+            style={{ padding: '16px 20px', fontSize: 17, borderRadius: 12 }}
           >
-            {kicking ? <>Joining <span className="kick-ball">⚽</span></> : loading ? 'Joining...' : "I'm in ⚽"}
+            {kicking ? <>Joining <span className="kick-ball">⚽</span></> : loading ? 'Joining...' : "I'm in — count me ⚽"}
           </Btn>
         </div>
         {name.trim() && !myEntry && (() => {

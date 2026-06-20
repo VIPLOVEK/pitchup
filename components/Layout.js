@@ -5,8 +5,8 @@ import { colors } from '../lib/tokens'
 
 const NAV_ITEMS = [
   { href: '/', label: 'Home', icon: '🏠' },
-  { href: '/leaderboard', label: 'Leaderboard', icon: '🏆' },
-  { href: '/profile', label: 'Profile', icon: '👤' },
+  { href: '/leaderboard', label: 'Rankings', icon: '🏆' },
+  { href: '/profile', label: 'My Profile', icon: '👤' },
 ]
 
 export default function Layout({ children, title = 'PitchUp', description = 'PitchUp — pickup soccer organizer', ogImageUrl }) {
