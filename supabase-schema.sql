@@ -247,3 +247,7 @@ create table if not exists announcements (
 alter table announcements enable row level security;
 create policy "Anyone can read announcements"
   on announcements for select using (true);
+
+-- No-show tracking — names of players who were in the confirmed roster but didn't show up.
+-- Set by admin in the "Adjust who played" flow before entering the score.
+alter table polls add column if not exists no_shows jsonb not null default '[]';

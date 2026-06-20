@@ -102,6 +102,18 @@ export default async function handler(req, res) {
         return res.status(200).json(data)
       }
 
+      if (action === 'setTeams') {
+        if (poll.status !== 'confirmed') return res.status(400).json({ error: 'Game must be confirmed first' })
+        const { teamA, teamB, noShows } = req.body
+        if (!Array.isArray(teamA) || !Array.isArray(teamB)) return res.status(400).json({ error: 'teamA and teamB are required' })
+        const { data, error } = await db
+          .from('polls')
+          .update({ teams: { teamA, teamB }, no_shows: noShows || [], version: poll.version + 1 })
+          .eq('id', id).select().single()
+        if (error) throw error
+        return res.status(200).json(data)
+      }
+
       if (action === 'setGoals') {
         const { goals } = req.body
         if (poll.status !== 'confirmed') return res.status(400).json({ error: 'Game must be confirmed first' })

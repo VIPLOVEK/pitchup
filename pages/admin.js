@@ -218,6 +218,10 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
   const [editingAudience, setEditingAudience] = useState(false)
   const [audienceVisibility, setAudienceVisibility] = useState(poll.visibility)
   const [audienceGroupIds, setAudienceGroupIds] = useState(poll.group_ids)
+  const [adjustingTeams, setAdjustingTeams] = useState(false)
+  const [editTeamA, setEditTeamA] = useState([])
+  const [editTeamB, setEditTeamB] = useState([])
+  const [editNoShows, setEditNoShows] = useState([])
   const [editingDetails, setEditingDetails] = useState(false)
   const [detailsError, setDetailsError] = useState('')
   const [editTitle, setEditTitle] = useState(poll.title)
@@ -249,6 +253,31 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
     } finally {
       setLoading(false)
     }
+  }
+
+  const openTeamEditor = () => {
+    setEditTeamA([...(poll.teams?.teamA || [])])
+    setEditTeamB([...(poll.teams?.teamB || [])])
+    setEditNoShows([...(poll.no_shows || [])])
+    setAdjustingTeams(true)
+  }
+  const markNoShow = (player, team) => {
+    if (team === 'A') setEditTeamA(p => p.filter(x => x.name !== player.name))
+    else setEditTeamB(p => p.filter(x => x.name !== player.name))
+    setEditNoShows(p => p.includes(player.name) ? p : [...p, player.name])
+  }
+  const restorePlayer = (name) => {
+    setEditNoShows(p => p.filter(n => n !== name))
+    const orig = [...(poll.teams?.teamA || []), ...(poll.teams?.teamB || [])].find(p => p.name === name)
+    if (orig) setEditTeamA(p => p.some(x => x.name === name) ? p : [...p, orig])
+  }
+  const movePlayer = (player, fromTeam) => {
+    if (fromTeam === 'A') { setEditTeamA(p => p.filter(x => x.name !== player.name)); setEditTeamB(p => [...p, player]) }
+    else { setEditTeamB(p => p.filter(x => x.name !== player.name)); setEditTeamA(p => [...p, player]) }
+  }
+  const addToTeam = (player, team) => {
+    if (team === 'A') setEditTeamA(p => [...p, player])
+    else setEditTeamB(p => [...p, player])
   }
 
   const statusLabel = isConfirmed ? 'Confirmed ✅' : isCancelled ? 'Cancelled ❌' : 'Open 🟢'
@@ -338,6 +367,71 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
                 😕 {name}
               </span>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Team adjuster — lets admin mark no-shows and add walk-ins before entering the score */}
+      {isConfirmed && adjustingTeams && (
+        <div style={{ marginTop: 12, background: colors.pitchMid, borderRadius: 10, padding: '12px 12px 8px' }}>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.muted, marginBottom: 10 }}>
+            Who actually played?
+          </div>
+          <div style={{ display: 'flex', gap: 12, marginBottom: 10 }}>
+            {[
+              { team: 'A', list: editTeamA, color: colors.teamA, label: poll.team_a_name || 'Team A', emoji: '🟦' },
+              { team: 'B', list: editTeamB, color: colors.teamB, label: poll.team_b_name || 'Team B', emoji: '🟥' },
+            ].map(({ team, list, color, label, emoji }) => (
+              <div key={team} style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color, marginBottom: 6 }}>{emoji} {label}</div>
+                {list.filter(p => !p.isGuest).length === 0 && <p style={{ color: colors.muted, fontSize: 12, margin: 0 }}>Empty</p>}
+                {list.filter(p => !p.isGuest).map((p, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 0' }}>
+                    <span style={{ fontSize: 12, color: colors.white, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+                    <button onClick={() => movePlayer(p, team)} title={`Move to Team ${team === 'A' ? 'B' : 'A'}`} style={{ background: 'none', border: `1px solid ${colors.grass}33`, color: colors.muted, cursor: 'pointer', fontSize: 10, borderRadius: 4, padding: '1px 5px', flexShrink: 0 }}>
+                      {team === 'A' ? '→B' : 'A←'}
+                    </button>
+                    <button onClick={() => markNoShow(p, team)} title="Didn't show up" style={{ background: 'none', border: 'none', color: colors.danger, cursor: 'pointer', fontSize: 16, padding: '0 2px', lineHeight: 1, flexShrink: 0 }}>×</button>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+
+          {editNoShows.length > 0 && (
+            <div style={{ marginBottom: 10 }}>
+              <div style={{ fontSize: 11, color: colors.muted, fontWeight: 700, marginBottom: 4 }}>No-shows — tap to restore</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                {editNoShows.map((name, i) => (
+                  <button key={i} onClick={() => restorePlayer(name)} style={{ background: colors.danger + '18', border: `1px solid ${colors.danger}33`, color: colors.muted, borderRadius: 16, padding: '3px 10px', fontSize: 12, cursor: 'pointer' }}>
+                    🚫 {name} ↩
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {(() => {
+            const inTeams = new Set([...editTeamA, ...editTeamB].map(p => p.name.toLowerCase()))
+            const addable = (poll.players || []).filter(p => !inTeams.has(p.name.toLowerCase()) && !editNoShows.some(n => n.toLowerCase() === p.name.toLowerCase()))
+            if (addable.length === 0) return null
+            return (
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 11, color: colors.muted, fontWeight: 700, marginBottom: 6 }}>Add a walk-in</div>
+                {addable.map((p, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '2px 0' }}>
+                    <span style={{ fontSize: 12, color: colors.muted, flex: 1 }}>{p.name}</span>
+                    <button onClick={() => addToTeam(p, 'A')} style={{ fontSize: 11, background: colors.teamA + '22', border: `1px solid ${colors.teamA}44`, color: colors.teamA, borderRadius: 6, padding: '2px 8px', cursor: 'pointer' }}>+🟦 A</button>
+                    <button onClick={() => addToTeam(p, 'B')} style={{ fontSize: 11, background: colors.teamB + '22', border: `1px solid ${colors.teamB}44`, color: colors.teamB, borderRadius: 6, padding: '2px 8px', cursor: 'pointer' }}>+🟥 B</button>
+                  </div>
+                ))}
+              </div>
+            )
+          })()}
+
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Btn small onClick={async () => { await doAction('setTeams', 'PATCH', { teamA: editTeamA, teamB: editTeamB, noShows: editNoShows }); setAdjustingTeams(false) }} disabled={loading}>Save</Btn>
+            <Btn small variant="ghost" onClick={() => setAdjustingTeams(false)} disabled={loading}>Cancel</Btn>
           </div>
         </div>
       )}
@@ -631,6 +725,11 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
             disabled={loading}
           >
             🔒 Edit audience
+          </Btn>
+        )}
+        {isConfirmed && !adjustingTeams && (
+          <Btn small variant="ghost" onClick={openTeamEditor} disabled={loading}>
+            👥 Adjust who played
           </Btn>
         )}
         {isConfirmed && (

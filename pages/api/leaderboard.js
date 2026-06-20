@@ -30,7 +30,7 @@ export default async function handler(req, res) {
 
     let allQuery = db
       .from('polls')
-      .select('teams, game_time')
+      .select('teams, game_time, no_shows')
       .eq('status', 'confirmed')
       .order('game_time', { ascending: false })
     if (sinceDate) allQuery = allQuery.gte('game_time', sinceDate.toISOString())
@@ -84,6 +84,14 @@ export default async function handler(req, res) {
       streaks[key] = streak
     }
 
+    // Tally no-shows per player for reliability calculation
+    const noShowCounts = {}
+    for (const poll of allConfirmed) {
+      ;(poll.no_shows || []).forEach(name => {
+        noShowCounts[name.toLowerCase()] = (noShowCounts[name.toLowerCase()] || 0) + 1
+      })
+    }
+
     // Prefer the profile's current name + avatar (in case a player renamed themselves).
     for (const player of players) {
       const key = `id:${player.id}`
@@ -97,7 +105,9 @@ export default async function handler(req, res) {
       .map(([key, r]) => {
         const gamesPlayed = r.wins + r.losses + r.draws
         const gamesCommitted = committed[key] || gamesPlayed
-        return { ...r, gamesPlayed, gamesCommitted, winPct: gamesPlayed ? r.wins / gamesPlayed : 0, goals: goalCounts[r.name.toLowerCase()] || 0, assists: assistCounts[r.name.toLowerCase()] || 0, streak: streaks[key] || 0 }
+        const noShows = noShowCounts[r.name.toLowerCase()] || 0
+        const reliability = gamesPlayed + noShows > 0 ? Math.round((gamesPlayed / (gamesPlayed + noShows)) * 100) : null
+        return { ...r, gamesPlayed, gamesCommitted, winPct: gamesPlayed ? r.wins / gamesPlayed : 0, goals: goalCounts[r.name.toLowerCase()] || 0, assists: assistCounts[r.name.toLowerCase()] || 0, streak: streaks[key] || 0, noShows, reliability }
       })
       .sort((a, b) => b.winPct - a.winPct || b.wins - a.wins || b.gamesPlayed - a.gamesPlayed)
 
