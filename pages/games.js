@@ -12,7 +12,7 @@ export default function GamesPage({ polls }) {
     <Layout title="All Games — PitchUp" description="Full game history for PitchUp pickup soccer.">
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
         <Link href="/" style={{ color: colors.muted, fontSize: 13, textDecoration: 'none' }}>← Home</Link>
-        <Link href="/leaderboard" style={{ color: colors.accent, fontSize: 13, fontWeight: 700, textDecoration: 'none', marginLeft: 'auto' }}>🏆 Leaderboard</Link>
+        <Link href="/leaderboard" style={{ color: colors.accent, fontSize: 13, fontWeight: 700, textDecoration: 'none', marginLeft: 'auto' }}>🏆 Rankings</Link>
       </div>
 
       <Card>
@@ -34,7 +34,7 @@ export default function GamesPage({ polls }) {
                   {poll.game_time && <span style={{ marginLeft: 6 }}>· {poll.location}</span>}
                 </div>
                 <div style={{ fontSize: 12, color: colors.muted, marginTop: 1 }}>
-                  👥 {poll.players.length} players
+                  👥 {(poll.players || []).length} players
                 </div>
               </div>
               {poll.score_a != null && poll.score_b != null ? (
@@ -60,7 +60,7 @@ export default function GamesPage({ polls }) {
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 14, color: colors.muted }}>{poll.title}</div>
                   <div style={{ fontSize: 12, color: colors.muted, marginTop: 2 }}>
-                    {poll.location} · {poll.players.length}/{poll.min_players} players
+                    {poll.location} · {(poll.players || []).length}/{poll.min_players} players
                   </div>
                 </div>
                 <Pill color={colors.danger}>❌ Cancelled</Pill>
