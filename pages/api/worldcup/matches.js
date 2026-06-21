@@ -63,8 +63,9 @@ async function syncFromApi(db) {
 export default async function handler(req, res) {
   if (!isSupabaseConfigured()) return res.status(503).json({ error: 'DB not configured' })
   const db = supabaseAdmin()
-  const syncError = await syncFromApi(db)
+  // Fire sync in background — don't block the response
+  syncFromApi(db).catch(() => {})
   const { data, error } = await db.from('wc_matches').select('*').order('match_date', { ascending: true })
   if (error) return res.status(500).json({ error: error.message })
-  return res.status(200).json(data || [], syncError ? { syncError } : undefined)
+  return res.status(200).json(data || [])
 }

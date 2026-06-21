@@ -153,10 +153,10 @@ function isToday(iso) {
   return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate()
 }
 
-export default function WorldCupPage() {
-  const [matches, setMatches] = useState(null)
-  const [predictions, setPredictions] = useState(null)
-  const [board, setBoard] = useState(null)
+export default function WorldCupPage({ initialMatches, initialPredictions, initialBoard }) {
+  const [matches] = useState(initialMatches)
+  const [predictions] = useState(initialPredictions)
+  const [board] = useState(initialBoard)
   const [tab, setTab] = useState('matches')
   const [playerName, setPlayerName] = useState('')
   const [showPast, setShowPast] = useState(false)
@@ -164,10 +164,6 @@ export default function WorldCupPage() {
   useEffect(() => {
     const saved = localStorage.getItem('pitchup_player')
     if (saved) { try { setPlayerName(JSON.parse(saved).name || '') } catch {} }
-
-    fetch('/api/worldcup/matches').then(r => r.ok ? r.json() : []).then(setMatches).catch(() => setMatches([]))
-    fetch('/api/worldcup/leaderboard').then(r => r.ok ? r.json() : []).then(setBoard).catch(() => setBoard([]))
-    fetch('/api/worldcup/all-predictions').then(r => r.ok ? r.json() : {}).then(setPredictions).catch(() => setPredictions({}))
   }, [])
 
   const liveMatches     = matches?.filter(m => m.status === 'live') || []
@@ -300,4 +296,24 @@ function SectionHeader({ label, color }) {
       {label}
     </div>
   )
+}
+
+export async function getServerSideProps() {
+  try {
+    const base = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const [mRes, pRes, bRes] = await Promise.all([
+      fetch(`${base}/api/worldcup/matches`),
+      fetch(`${base}/api/worldcup/all-predictions`),
+      fetch(`${base}/api/worldcup/leaderboard`),
+    ])
+    return {
+      props: {
+        initialMatches:     mRes.ok ? await mRes.json() : [],
+        initialPredictions: pRes.ok ? await pRes.json() : {},
+        initialBoard:       bRes.ok ? await bRes.json() : [],
+      },
+    }
+  } catch {
+    return { props: { initialMatches: [], initialPredictions: {}, initialBoard: [] } }
+  }
 }
