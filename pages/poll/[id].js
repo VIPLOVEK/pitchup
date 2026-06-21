@@ -604,12 +604,15 @@ function DraftTeams({ poll, active }) {
 function AdminBar({ poll, onUpdate }) {
   const [loading, setLoading] = useState(false)
   const [pw, setPw] = useState('')
+  const [open, setOpen] = useState(false)
+
   useEffect(() => {
     try {
       const raw = localStorage.getItem('pitchup_admin')
       if (raw) setPw(JSON.parse(raw).password || '')
     } catch {}
   }, [])
+
   if (!pw) return null
 
   async function doAction(action, extra = {}) {
@@ -620,44 +623,123 @@ function AdminBar({ poll, onUpdate }) {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${pw}` },
         body: JSON.stringify({ action, ...extra }),
       })
-      if (res.ok) onUpdate(await res.json())
+      if (res.ok) { onUpdate(await res.json()); setOpen(false) }
     } finally { setLoading(false) }
   }
 
   const isOpen = poll.status === 'open'
   const isConfirmed = poll.status === 'confirmed'
 
+  const actionBtnStyle = {
+    background: 'rgba(255,255,255,0.05)',
+    color: colors.white,
+    border: '1px solid rgba(255,255,255,0.1)',
+    borderRadius: 10,
+    padding: '10px 14px',
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: 'pointer',
+    textAlign: 'left',
+    width: '100%',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    transition: 'background 0.15s',
+  }
+
   return (
-    <div style={{
-      position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 200,
-      background: '#0a1a0c', borderTop: `2px solid ${colors.accent}`,
-      padding: '10px 16px', display: 'flex', alignItems: 'center',
-      gap: 8, flexWrap: 'wrap', boxShadow: '0 -4px 20px rgba(0,0,0,0.5)',
-    }}>
-      <Link href="/admin" style={{ color: colors.accent, fontWeight: 700, fontSize: 13, textDecoration: 'none', marginRight: 4 }}>
-        ⚙️ Admin
-      </Link>
-      <span style={{ color: colors.grass + '66', fontSize: 13 }}>|</span>
-      {isOpen && (
-        <button onClick={() => doAction('close')} disabled={loading}
-          style={{ background: colors.accent, color: colors.pitch, border: 'none', borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
-          ✅ Confirm game
-        </button>
+    <>
+      {/* Backdrop to close on outside tap */}
+      {open && (
+        <div
+          onClick={() => setOpen(false)}
+          style={{ position: 'fixed', inset: 0, zIndex: 298 }}
+        />
       )}
-      {isConfirmed && (
-        <button onClick={() => doAction('shuffle')} disabled={loading}
-          style={{ background: colors.pitchMid, color: colors.white, border: `1px solid ${colors.grass}44`, borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
-          🔀 Reshuffle
-        </button>
+
+      {/* Popup panel — appears above the FAB */}
+      {open && (
+        <div style={{
+          position: 'fixed',
+          bottom: 106,
+          right: 16,
+          zIndex: 299,
+          background: 'rgba(8, 18, 42, 0.97)',
+          backdropFilter: 'blur(24px) saturate(160%)',
+          WebkitBackdropFilter: 'blur(24px) saturate(160%)',
+          border: `1px solid rgba(240,192,48,0.25)`,
+          borderRadius: 18,
+          padding: '14px 14px 10px',
+          minWidth: 200,
+          boxShadow: '0 12px 40px rgba(0,0,0,0.65), 0 0 0 1px rgba(240,192,48,0.08)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 6,
+        }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: colors.accent, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 4, paddingLeft: 2 }}>
+            Admin controls
+          </div>
+
+          {isOpen && (
+            <button onClick={() => doAction('close')} disabled={loading} style={{ ...actionBtnStyle, background: `${colors.accent}18`, color: colors.accent, border: `1px solid ${colors.accent}33` }}>
+              ✅ Confirm game
+            </button>
+          )}
+          {isConfirmed && (
+            <button onClick={() => doAction('shuffle')} disabled={loading} style={actionBtnStyle}>
+              🔀 Reshuffle teams
+            </button>
+          )}
+          <button onClick={() => doAction('randomizeNames')} disabled={loading} style={actionBtnStyle}>
+            🎲 New team names
+          </button>
+
+          <div style={{ height: 1, background: 'rgba(255,255,255,0.07)', margin: '4px 0' }} />
+
+          <Link
+            href="/admin"
+            onClick={() => setOpen(false)}
+            style={{ color: colors.muted, fontSize: 12, fontWeight: 600, padding: '6px 2px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+          >
+            All admin controls
+            <span style={{ opacity: 0.5 }}>→</span>
+          </Link>
+        </div>
       )}
-      <button onClick={() => doAction('randomizeNames')} disabled={loading}
-        style={{ background: colors.pitchMid, color: colors.white, border: `1px solid ${colors.grass}44`, borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
-        🎲 New names
+
+      {/* Floating admin FAB */}
+      <button
+        onClick={() => setOpen(o => !o)}
+        aria-label="Admin controls"
+        style={{
+          position: 'fixed',
+          bottom: 100,
+          right: 16,
+          zIndex: 299,
+          width: 46,
+          height: 46,
+          borderRadius: '50%',
+          background: open
+            ? colors.accent
+            : 'rgba(8, 18, 42, 0.9)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          border: `1.5px solid ${open ? colors.accent : 'rgba(240,192,48,0.4)'}`,
+          color: open ? colors.pitch : colors.accent,
+          fontSize: open ? 16 : 18,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'pointer',
+          boxShadow: open
+            ? `0 4px 20px ${colors.accent}55`
+            : '0 4px 20px rgba(0,0,0,0.5)',
+          transition: 'all 0.2s ease',
+        }}
+      >
+        {open ? '✕' : '⚙'}
       </button>
-      <Link href={`/admin`} style={{ marginLeft: 'auto', color: colors.muted, fontSize: 12, textDecoration: 'none' }}>
-        More controls →
-      </Link>
-    </div>
+    </>
   )
 }
 

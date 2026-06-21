@@ -6,22 +6,27 @@ import { fetchWeatherForLocation, getWeatherForSlot, getCondition } from '../lib
 export function ProgressBar({ value, max }) {
   const pct = Math.min((value / max) * 100, 100)
   const full = pct >= 100
-  const color = full ? colors.accent : pct > 60 ? colors.grassLight : colors.grass
+  const color = full ? colors.accent
+    : pct >= 70 ? colors.grassLight
+    : pct >= 35 ? colors.cardYellow
+    : colors.danger
   return (
-    <div style={{ position: 'relative', background: colors.pitchMid, borderRadius: radius.full, height: 8, margin: '12px 0 6px' }}>
+    <div style={{ position: 'relative', background: `rgba(255,255,255,0.06)`, borderRadius: radius.full, height: 6, margin: '12px 0 6px' }}>
       <div style={{
         height: '100%',
         width: `${pct}%`,
-        background: color,
+        background: full
+          ? `linear-gradient(90deg, ${colors.accent}, #f4d060)`
+          : color,
         borderRadius: radius.full,
-        transition: 'width 0.4s ease',
-        boxShadow: full ? `0 0 12px ${colors.accent}` : 'none',
+        transition: 'width 0.6s cubic-bezier(0.4,0,0.2,1)',
+        boxShadow: full ? `0 0 10px ${colors.accent}88` : `0 0 6px ${color}66`,
       }} />
       {full && (
         <span
           className="progress-ball"
           aria-hidden="true"
-          style={{ position: 'absolute', right: -2, top: -8, fontSize: 14 }}
+          style={{ position: 'absolute', right: -2, top: -9, fontSize: 14 }}
         >
           ⚽
         </span>
@@ -54,26 +59,30 @@ export function Card({ children, highlight, style = {}, className }) {
     <div className={className} style={{
       position: 'relative',
       overflow: 'hidden',
-      background: `linear-gradient(155deg, ${colors.pitchCard} 0%, ${colors.pitchMid} 100%)`,
-      border: `1px solid ${highlight ? colors.accent + '55' : colors.grass + '22'}`,
+      background: highlight
+        ? 'linear-gradient(145deg, rgba(22, 46, 88, 0.95) 0%, rgba(14, 32, 64, 0.98) 100%)'
+        : 'linear-gradient(145deg, rgba(20, 40, 72, 0.88) 0%, rgba(13, 30, 53, 0.92) 100%)',
+      border: highlight
+        ? `1px solid rgba(240, 192, 48, 0.28)`
+        : '1px solid rgba(255, 255, 255, 0.07)',
       borderRadius: radius.lg,
       padding: 20,
       marginBottom: 16,
       boxShadow: highlight
-        ? `0 8px 28px ${colors.accent}1a, 0 2px 10px rgba(0,0,0,0.3)`
-        : '0 2px 10px rgba(0,0,0,0.25)',
+        ? `0 8px 40px rgba(0,0,0,0.45), 0 0 0 1px rgba(240,192,48,0.08), inset 0 1px 0 rgba(255,255,255,0.08)`
+        : `0 4px 24px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05)`,
+      backdropFilter: 'blur(8px)',
+      WebkitBackdropFilter: 'blur(8px)',
       ...style,
     }}>
       {highlight && (
         <div style={{
           position: 'absolute',
-          top: 0,
-          right: 0,
-          width: 0,
-          height: 0,
+          top: 0, right: 0,
+          width: 0, height: 0,
           borderStyle: 'solid',
-          borderWidth: '0 36px 36px 0',
-          borderColor: `transparent ${colors.accent}26 transparent transparent`,
+          borderWidth: '0 40px 40px 0',
+          borderColor: `transparent rgba(240,192,48,0.2) transparent transparent`,
         }} />
       )}
       {children}
@@ -87,10 +96,11 @@ export function Label({ children }) {
     <div style={{
       fontSize: 11,
       fontWeight: 700,
-      letterSpacing: '0.1em',
+      letterSpacing: '0.12em',
       textTransform: 'uppercase',
       color: colors.accent,
       marginBottom: 10,
+      opacity: 0.9,
     }}>
       {children}
     </div>
@@ -98,25 +108,35 @@ export function Label({ children }) {
 }
 
 // ── Button ────────────────────────────────────────────────────────────────────
-export function Btn({ children, onClick, variant = 'primary', small, disabled, full, style = {} }) {
-  const bg = variant === 'primary' ? colors.accent : variant === 'danger' ? colors.danger : colors.pitchMid
-  const col = variant === 'primary' ? colors.pitch : colors.white
-  const border = variant === 'ghost' ? `1px solid ${colors.grass}44` : 'none'
+export function Btn({ children, onClick, variant = 'primary', small, disabled, full, style = {}, className }) {
+  const isPrimary = variant === 'primary'
+  const isDanger = variant === 'danger'
+  const bg = isPrimary
+    ? `linear-gradient(145deg, ${colors.accent} 0%, #d4960a 100%)`
+    : isDanger
+    ? colors.danger
+    : 'rgba(255,255,255,0.05)'
+  const col = isPrimary ? colors.pitch : colors.white
+  const border = (!isPrimary && !isDanger) ? '1px solid rgba(255,255,255,0.1)' : 'none'
   return (
     <button
       onClick={onClick}
       disabled={disabled}
+      className={className}
       style={{
         background: bg,
         color: col,
         border,
         borderRadius: radius.md,
-        padding: small ? '7px 14px' : '11px 20px',
+        padding: small ? '7px 14px' : '12px 20px',
         fontWeight: 700,
         fontSize: small ? 12 : 14,
         width: full ? '100%' : 'auto',
-        transition: 'opacity 0.15s',
         letterSpacing: '0.01em',
+        boxShadow: (!disabled && isPrimary)
+          ? `0 4px 20px rgba(240,192,48,0.35), inset 0 1px 0 rgba(255,255,255,0.12)`
+          : 'none',
+        transition: 'box-shadow 0.2s ease, filter 0.15s ease, transform 0.1s ease',
         ...style,
       }}
     >
@@ -136,12 +156,12 @@ export function Input({ value, onChange, placeholder, type = 'text', style = {},
       {...rest}
       style={{
         width: '100%',
-        background: colors.pitchMid,
-        border: `1px solid ${colors.grass}44`,
+        background: 'rgba(6, 13, 24, 0.6)',
+        border: '1px solid rgba(255, 255, 255, 0.1)',
         borderRadius: radius.md,
         color: colors.white,
-        padding: '10px 12px',
-        fontSize: 14,
+        padding: '11px 14px',
+        fontSize: 15,
         outline: 'none',
         marginBottom: 10,
         ...style,
@@ -158,12 +178,12 @@ export function Select({ value, onChange, children, style = {} }) {
       onChange={onChange}
       style={{
         width: '100%',
-        background: colors.pitchMid,
-        border: `1px solid ${colors.grass}44`,
+        background: 'rgba(6, 13, 24, 0.6)',
+        border: '1px solid rgba(255, 255, 255, 0.1)',
         borderRadius: radius.md,
         color: colors.white,
-        padding: '10px 12px',
-        fontSize: 14,
+        padding: '11px 14px',
+        fontSize: 15,
         outline: 'none',
         marginBottom: 10,
         ...style,
@@ -180,18 +200,19 @@ export function Toast({ msg }) {
   return (
     <div className="toast-pop" style={{
       position: 'fixed',
-      bottom: 24,
+      bottom: 88,
       left: '50%',
       transform: 'translateX(-50%)',
-      background: colors.accent,
+      background: `linear-gradient(135deg, ${colors.accent} 0%, #d4960a 100%)`,
       color: colors.pitch,
       borderRadius: radius.md,
       padding: '12px 24px',
       fontWeight: 700,
       fontSize: 14,
       zIndex: 999,
-      boxShadow: '0 4px 20px #0008',
+      boxShadow: `0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(240,192,48,0.3)`,
       whiteSpace: 'nowrap',
+      letterSpacing: '0.01em',
     }}>
       {msg}
     </div>
