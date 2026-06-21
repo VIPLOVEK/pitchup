@@ -251,3 +251,46 @@ create policy "Anyone can read announcements"
 -- No-show tracking — names of players who were in the confirmed roster but didn't show up.
 -- Set by admin in the "Adjust who played" flow before entering the score.
 alter table polls add column if not exists no_shows jsonb not null default '[]';
+
+-- ============================================================
+--  World Cup 2026 — Prediction Game
+-- ============================================================
+
+-- World Cup 2026 matches
+create table if not exists wc_matches (
+  id uuid primary key default gen_random_uuid(),
+  stage text not null default 'group',  -- group | r32 | r16 | qf | sf | final
+  group_name text,                       -- 'A'-'L' for group stage, null for knockout
+  match_number int,
+  match_date timestamptz not null,
+  team_home text not null,
+  team_away text not null,
+  flag_home text not null default '',
+  flag_away text not null default '',
+  score_home int,
+  score_away int,
+  status text not null default 'upcoming',  -- upcoming | live | finished
+  venue text,
+  created_at timestamptz default now()
+);
+
+-- One prediction per player per match
+create table if not exists wc_predictions (
+  id uuid primary key default gen_random_uuid(),
+  match_id uuid not null references wc_matches(id) on delete cascade,
+  player_name text not null,
+  player_id uuid,
+  prediction text not null check (prediction in ('home','draw','away')),
+  is_correct boolean,
+  created_at timestamptz default now(),
+  unique(match_id, player_name)
+);
+
+-- Per-match chat
+create table if not exists wc_chat (
+  id uuid primary key default gen_random_uuid(),
+  match_id uuid not null references wc_matches(id) on delete cascade,
+  author text not null,
+  message text not null,
+  created_at timestamptz default now()
+);

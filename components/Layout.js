@@ -37,8 +37,20 @@ function PersonIcon({ active }) {
   )
 }
 
+function GlobeIcon({ active }) {
+  const c = active ? colors.accent : colors.muted
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10"/>
+      <line x1="2" y1="12" x2="22" y2="12"/>
+      <path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/>
+    </svg>
+  )
+}
+
 const NAV_ITEMS = [
-  { href: '/', label: 'Home',     Icon: HomeIcon   },
+  { href: '/', label: 'Home',      Icon: HomeIcon   },
+  { href: '/worldcup', label: 'World Cup', Icon: GlobeIcon },
   { href: '/leaderboard', label: 'Rankings', Icon: TrophyIcon },
   { href: '/profile', label: 'Me',       Icon: PersonIcon },
 ]
