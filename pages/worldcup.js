@@ -147,12 +147,19 @@ function Leaderboard({ board }) {
   )
 }
 
+function isToday(iso) {
+  const d = new Date(iso)
+  const now = new Date()
+  return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate()
+}
+
 export default function WorldCupPage() {
   const [matches, setMatches] = useState(null)
   const [predictions, setPredictions] = useState(null)
   const [board, setBoard] = useState(null)
   const [tab, setTab] = useState('matches')
   const [playerName, setPlayerName] = useState('')
+  const [showPast, setShowPast] = useState(false)
 
   useEffect(() => {
     const saved = localStorage.getItem('pitchup_player')
@@ -160,16 +167,23 @@ export default function WorldCupPage() {
 
     fetch('/api/worldcup/matches').then(r => r.ok ? r.json() : []).then(setMatches).catch(() => setMatches([]))
     fetch('/api/worldcup/leaderboard').then(r => r.ok ? r.json() : []).then(setBoard).catch(() => setBoard([]))
-
-    // Load all predictions in one go for the match list view
     fetch('/api/worldcup/all-predictions').then(r => r.ok ? r.json() : {}).then(setPredictions).catch(() => setPredictions({}))
   }, [])
 
-  const grouped = matches ? groupByDate(matches) : {}
+  const liveMatches     = matches?.filter(m => m.status === 'live') || []
+  const todayMatches    = matches?.filter(m => m.status !== 'live' && isToday(m.match_date)) || []
+  const upcomingMatches = matches?.filter(m => m.status === 'upcoming' && !isToday(m.match_date)) || []
+  const pastMatches     = matches?.filter(m => m.status === 'finished' && !isToday(m.match_date)) || []
+  const upcomingGrouped = groupByDate(upcomingMatches)
+
+  function renderCard(m) {
+    const matchPreds = predictions?.[m.id] || []
+    const myPred = playerName ? matchPreds.find(p => p.player_name.toLowerCase() === playerName.toLowerCase()) : null
+    return <MatchCard key={m.id} match={m} myPrediction={myPred} preds={matchPreds} />
+  }
 
   return (
     <Layout title="World Cup 2026 — PitchUp" description="Predict World Cup 2026 matches and chat with your squad.">
-      {/* Hero */}
       <div style={{ textAlign: 'center', padding: '20px 0 16px' }}>
         <div style={{ fontSize: 40, marginBottom: 6 }}>🏆</div>
         <h1 style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-0.5px', margin: '0 0 4px' }}>
@@ -201,22 +215,68 @@ export default function WorldCupPage() {
               <div style={{ textAlign: 'center', padding: '20px 0', color: colors.muted }}>
                 <div style={{ fontSize: 32, marginBottom: 8 }}>🏟️</div>
                 <p style={{ fontSize: 14 }}>No matches yet.</p>
-                {process.env.NEXT_PUBLIC_HAS_FOOTBALL_API && <p style={{ fontSize: 12, marginTop: 4 }}>Matches will sync automatically.</p>}
               </div>
             </Card>
           )}
-          {Object.entries(grouped).map(([day, dayMatches]) => (
-            <div key={day} style={{ marginBottom: 8 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: colors.muted, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8, paddingLeft: 2 }}>
-                {day}
-              </div>
-              {dayMatches.map(m => {
-                const matchPreds = predictions?.[m.id] || []
-                const myPred = playerName ? matchPreds.find(p => p.player_name.toLowerCase() === playerName.toLowerCase()) : null
-                return <MatchCard key={m.id} match={m} myPrediction={myPred} preds={matchPreds} />
-              })}
+
+          {/* Live now */}
+          {liveMatches.length > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              <SectionHeader label="🔴 Live Now" color="#ef4444" />
+              {liveMatches.map(renderCard)}
             </div>
-          ))}
+          )}
+
+          {/* Today */}
+          {(liveMatches.length > 0 || todayMatches.length > 0) && todayMatches.length > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              <SectionHeader label="Today" color={colors.accent} />
+              {todayMatches.map(renderCard)}
+            </div>
+          )}
+
+          {/* No live or today matches — show next upcoming day */}
+          {liveMatches.length === 0 && todayMatches.length === 0 && upcomingMatches.length > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              <SectionHeader label="Next up" color={colors.accent} />
+              {Object.entries(upcomingGrouped).slice(0, 1).flatMap(([, ms]) => ms.map(renderCard))}
+            </div>
+          )}
+
+          {/* Upcoming (rest) */}
+          {upcomingMatches.length > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              {Object.entries(upcomingGrouped).slice(liveMatches.length === 0 && todayMatches.length === 0 ? 1 : 0).map(([day, dayMatches]) => (
+                <div key={day} style={{ marginBottom: 8 }}>
+                  <SectionHeader label={day} />
+                  {dayMatches.map(renderCard)}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Past results — collapsed by default */}
+          {pastMatches.length > 0 && (
+            <div>
+              <button
+                onClick={() => setShowPast(p => !p)}
+                style={{
+                  width: '100%', background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10,
+                  color: colors.muted, padding: '10px 0', fontSize: 13, fontWeight: 700,
+                  cursor: 'pointer', marginBottom: showPast ? 12 : 0,
+                }}
+              >
+                {showPast ? '▲ Hide' : '▼ Past results'} ({pastMatches.length})
+              </button>
+              {showPast && groupByDate([...pastMatches].reverse()) && Object.entries(groupByDate([...pastMatches].reverse())).map(([day, dayMatches]) => (
+                <div key={day} style={{ marginBottom: 8 }}>
+                  <SectionHeader label={day} />
+                  {dayMatches.map(renderCard)}
+                </div>
+              ))}
+            </div>
+          )}
         </>
       )}
 
@@ -227,5 +287,17 @@ export default function WorldCupPage() {
         </>
       )}
     </Layout>
+  )
+}
+
+function SectionHeader({ label, color }) {
+  return (
+    <div style={{
+      fontSize: 11, fontWeight: 700, letterSpacing: '0.1em',
+      textTransform: 'uppercase', color: color || colors.muted,
+      marginBottom: 8, paddingLeft: 2,
+    }}>
+      {label}
+    </div>
   )
 }
