@@ -124,7 +124,7 @@ export default function Layout({ children, title = 'PitchUp', description = 'Pit
         </Link>
       </header>
 
-      <main style={{ maxWidth: 480, margin: '0 auto', padding: '24px 16px 100px' }}>
+      <main style={{ maxWidth: 480, margin: '0 auto', padding: '24px 16px 118px' }}>
         {children}
         <div style={{ textAlign: 'center', marginTop: 12 }}>
           <Link href="/feedback" style={{ color: colors.muted, fontSize: 12, fontWeight: 600, letterSpacing: '0.02em' }}>
@@ -133,19 +133,21 @@ export default function Layout({ children, title = 'PitchUp', description = 'Pit
         </div>
       </main>
 
-      {/* Bottom navigation */}
+      {/* Floating island bottom navigation */}
       <nav style={{
         position: 'fixed',
-        bottom: 0,
-        left: 0,
-        right: 0,
+        bottom: 16,
+        left: 14,
+        right: 14,
         zIndex: 100,
-        background: 'rgba(10, 20, 42, 0.96)',
-        backdropFilter: 'blur(20px) saturate(160%)',
-        WebkitBackdropFilter: 'blur(20px) saturate(160%)',
-        borderTop: '1px solid rgba(255,255,255,0.06)',
+        background: 'rgba(8, 16, 36, 0.94)',
+        backdropFilter: 'blur(28px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(28px) saturate(180%)',
+        border: '1px solid rgba(255,255,255,0.1)',
+        borderRadius: 28,
         display: 'flex',
-        boxShadow: '0 -4px 24px rgba(0,0,0,0.45)',
+        padding: '4px 6px',
+        boxShadow: '0 8px 40px rgba(0,0,0,0.65), 0 0 0 1px rgba(255,255,255,0.04), inset 0 1px 0 rgba(255,255,255,0.06)',
       }}>
         {NAV_ITEMS.map(({ href, label, Icon }) => {
           const active = isActive(href)
@@ -159,18 +161,20 @@ export default function Layout({ children, title = 'PitchUp', description = 'Pit
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                padding: '9px 0 11px',
+                padding: '10px 0',
                 textDecoration: 'none',
                 gap: 4,
                 position: 'relative',
+                borderRadius: 22,
               }}
             >
               {active && (
                 <div style={{
                   position: 'absolute',
-                  top: 6, bottom: 6, left: '12%', right: '12%',
-                  background: `${colors.accent}14`,
-                  borderRadius: 12,
+                  inset: '4px 8px',
+                  background: `linear-gradient(145deg, rgba(240,192,48,0.18) 0%, rgba(240,192,48,0.08) 100%)`,
+                  border: '1px solid rgba(240,192,48,0.22)',
+                  borderRadius: 18,
                 }} />
               )}
               <span style={{ position: 'relative', zIndex: 1, lineHeight: 1 }}>
