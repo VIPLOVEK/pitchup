@@ -65,6 +65,13 @@ export default async function handler(req, res) {
         return res.status(200).json(data)
       }
 
+      if (action === 'reopen') {
+        const { data, error } = await db
+          .from('polls').update({ status: 'open', version: poll.version + 1 }).eq('id', id).select().single()
+        if (error) throw error
+        return res.status(200).json(data)
+      }
+
       if (action === 'shuffle') {
         const teams = generateTeams(await withSkillRatings(db, getActivePlayers(poll)))
         const { teamAName, teamBName } = pickTeamNames()

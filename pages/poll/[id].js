@@ -629,6 +629,7 @@ function AdminBar({ poll, onUpdate }) {
 
   const isOpen = poll.status === 'open'
   const isConfirmed = poll.status === 'confirmed'
+  const isCancelled = poll.status === 'cancelled'
 
   const actionBtnStyle = {
     background: 'rgba(255,255,255,0.05)',
@@ -680,6 +681,11 @@ function AdminBar({ poll, onUpdate }) {
             Admin controls
           </div>
 
+          {isCancelled && (
+            <button onClick={() => doAction('reopen')} disabled={loading} style={{ ...actionBtnStyle, background: `${colors.grassLight}18`, color: colors.grassLight, border: `1px solid ${colors.grassLight}33` }}>
+              🔄 Reopen game
+            </button>
+          )}
           {isOpen && (
             <button onClick={() => doAction('close')} disabled={loading} style={{ ...actionBtnStyle, background: `${colors.accent}18`, color: colors.accent, border: `1px solid ${colors.accent}33` }}>
               ✅ Confirm game
@@ -871,6 +877,8 @@ export default function PollPage({ poll: initialPoll, error }) {
     return (
       <Layout title={poll.title} description={`Cancelled — not enough players joined (${(poll.players || []).length}/${poll.min_players} minimum).`}>
         <GameCancelled poll={poll} />
+        <Toast msg={toast} />
+        {isAdminMode && <AdminBar poll={poll} onUpdate={setPoll} />}
       </Layout>
     )
   }
