@@ -52,13 +52,65 @@ function groupAccent(poll, groups) {
   return first ? { borderLeft: `4px solid ${first.color || colors.grassLight}` } : {}
 }
 
-export default function Home({ polls, groups, announcement }) {
+function TodayWCMatches({ matches }) {
+  if (!matches || matches.length === 0) return null
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: colors.muted }}>
+          🏆 World Cup Today
+        </div>
+        <Link href="/worldcup" style={{ fontSize: 12, fontWeight: 700, color: colors.accent, textDecoration: 'none' }}>
+          All matches →
+        </Link>
+      </div>
+      <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
+        {matches.map(m => {
+          const time = new Date(m.match_date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' })
+          const hasScore = m.score_home != null && m.score_away != null
+          return (
+            <Link key={m.id} href={`/worldcup/${m.id}`} style={{ textDecoration: 'none', flexShrink: 0 }}>
+              <div style={{
+                background: 'linear-gradient(145deg, rgba(20,40,72,0.88) 0%, rgba(13,30,53,0.92) 100%)',
+                border: '1px solid rgba(255,255,255,0.07)',
+                borderRadius: 12,
+                padding: '10px 14px',
+                minWidth: 140,
+                textAlign: 'center',
+              }}>
+                <div style={{ fontSize: 10, color: colors.muted, marginBottom: 6 }}>{time}</div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                  <span style={{ fontSize: 20 }}>{m.flag_home || '🏳️'}</span>
+                  <span style={{ fontSize: 12, fontWeight: 800, color: hasScore ? colors.accent : colors.muted }}>
+                    {hasScore ? `${m.score_home}–${m.score_away}` : 'vs'}
+                  </span>
+                  <span style={{ fontSize: 20 }}>{m.flag_away || '🏳️'}</span>
+                </div>
+                <div style={{ fontSize: 10, color: colors.muted, marginTop: 5, lineHeight: 1.3 }}>
+                  {m.team_home} · {m.team_away}
+                </div>
+                {m.status === 'live' && (
+                  <div style={{ fontSize: 10, color: '#ef4444', fontWeight: 700, marginTop: 4 }}>🔴 Live</div>
+                )}
+              </div>
+            </Link>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+export default function Home({ polls, groups, announcement, todayWcMatches }) {
   const openPolls = polls.filter(p => p.status === 'open')
   const pastPolls = polls.filter(p => p.status !== 'open')
 
   return (
     <Layout title="PitchUp — Pickup Soccer">
       <AnnouncementBanner announcement={announcement} />
+
+      {/* World Cup today's matches */}
+      <TodayWCMatches matches={todayWcMatches} />
 
       {/* Hero */}
       <div style={{ textAlign: 'center', padding: '32px 0 24px' }}>
@@ -169,17 +221,21 @@ export default function Home({ polls, groups, announcement }) {
 export async function getServerSideProps() {
   try {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-    const [pollsRes, groupsRes, announcementRes] = await Promise.all([
+    const [pollsRes, groupsRes, announcementRes, wcRes] = await Promise.all([
       fetch(`${baseUrl}/api/admin/polls`, { headers: { authorization: `Bearer ${process.env.ADMIN_PASSWORD}` } }),
       fetch(`${baseUrl}/api/groups`),
       fetch(`${baseUrl}/api/announcement`),
+      fetch(`${baseUrl}/api/worldcup/matches`).catch(() => null),
     ])
-    if (!pollsRes.ok) return { props: { polls: [], groups: [], announcement: null } }
+    if (!pollsRes.ok) return { props: { polls: [], groups: [], announcement: null, todayWcMatches: [] } }
     const polls = await pollsRes.json()
     const groups = groupsRes.ok ? await groupsRes.json() : []
     const announcement = announcementRes.ok ? await announcementRes.json() : null
-    return { props: { polls, groups, announcement } }
+    const today = new Date().toISOString().split('T')[0]
+    const allWcMatches = wcRes?.ok ? await wcRes.json() : []
+    const todayWcMatches = allWcMatches.filter(m => m.match_date && m.match_date.startsWith(today))
+    return { props: { polls, groups, announcement, todayWcMatches } }
   } catch {
-    return { props: { polls: [], groups: [], announcement: null } }
+    return { props: { polls: [], groups: [], announcement: null, todayWcMatches: [] } }
   }
 }
