@@ -132,7 +132,11 @@ export default function Home({ polls, groups, announcement, todayWcMatches }) {
         openPolls.map(poll => (
           <Link key={poll.id} href={`/poll/${poll.id}`} style={{ textDecoration: 'none' }}>
             <Card highlight style={{ cursor: 'pointer', ...groupAccent(poll, groups) }} className="card-link">
-              <Label>Game this week — tap to join</Label>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                <Label style={{ margin: 0 }}>{poll.game_type === 'practice' ? '🏃 Practice session' : poll.game_type === 'competition' ? '🏆 Competition' : 'Game this week'} — tap to join</Label>
+                {poll.game_type === 'practice' && <span style={{ fontSize: 11, fontWeight: 700, color: '#fb923c', background: 'rgba(251,146,60,0.12)', border: '1px solid rgba(251,146,60,0.25)', borderRadius: 20, padding: '2px 8px' }}>Practice</span>}
+                {poll.game_type === 'competition' && <span style={{ fontSize: 11, fontWeight: 700, color: '#facc15', background: 'rgba(250,204,21,0.12)', border: '1px solid rgba(250,204,21,0.25)', borderRadius: 20, padding: '2px 8px' }}>Competition</span>}
+              </div>
               <GroupBadges poll={poll} groups={groups} />
               <h2 style={{ fontSize: 20, fontWeight: 800, margin: '0 0 4px', letterSpacing: '-0.3px' }}>
                 {poll.title}

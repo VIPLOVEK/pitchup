@@ -42,6 +42,7 @@ function CreatePollForm({ onCreated, groups, prefill }) {
   const [minPlayers, setMinPlayers] = useState(prefill?.min_players || 12)
   const [maxPlayers, setMaxPlayers] = useState(prefill?.max_players || 22)
   const [notes, setNotes] = useState(prefill?.notes || '')
+  const [gameType, setGameType] = useState(prefill?.game_type || 'game')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -87,6 +88,7 @@ function CreatePollForm({ onCreated, groups, prefill }) {
           visibility,
           groupIds: selectedGroupIds,
           notes: notes || undefined,
+          gameType,
         }),
       })
       const data = await res.json()
@@ -112,6 +114,12 @@ function CreatePollForm({ onCreated, groups, prefill }) {
         </div>
       )}
       <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="Game title" />
+
+      <select value={gameType} onChange={e => setGameType(e.target.value)} style={selectStyle}>
+        <option value="game">⚽ Regular game</option>
+        <option value="practice">🏃 Practice session</option>
+        <option value="competition">🏆 Competition</option>
+      </select>
 
       <select value={location} onChange={e => setLocation(e.target.value)} style={selectStyle}>
         {LOCATIONS.map(l => (
@@ -230,6 +238,7 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
   const [editMaxPlayers, setEditMaxPlayers] = useState(poll.max_players)
   const [editSlots, setEditSlots] = useState(poll.slots.map(toLocalInputValue))
   const [editNotes, setEditNotes] = useState(poll.notes || '')
+  const [editGameType, setEditGameType] = useState(poll.game_type || 'game')
   const isOpen = poll.status === 'open'
   const isConfirmed = poll.status === 'confirmed'
   const isCancelled = poll.status === 'cancelled'
@@ -281,6 +290,7 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
   }
 
   const statusLabel = isConfirmed ? 'Confirmed ✅' : isCancelled ? 'Cancelled ❌' : 'Open 🟢'
+  const gameTypeLabel = poll.game_type === 'practice' ? '🏃 Practice' : poll.game_type === 'competition' ? '🏆 Competition' : null
   const statusColor = isConfirmed ? colors.cardGreen : isCancelled ? colors.cardRed : colors.cardYellow
   const pollGroups = poll.visibility === 'groups' ? poll.group_ids.map(id => groups.find(g => g.id === id)).filter(Boolean) : []
 
@@ -290,8 +300,10 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
         <div>
           <Label>{statusLabel}</Label>
           <Link href={`/poll/${poll.id}`} target="_blank" style={{ textDecoration: 'none' }}>
-            <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 2, color: colors.white }}>
-              {poll.title} {(isConfirmed || isCancelled) && <span style={{ color: colors.accent, fontSize: 12, fontWeight: 600 }}>↗ View</span>}
+            <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 2, color: colors.white, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              {poll.title}
+              {gameTypeLabel && <span style={{ fontSize: 11, fontWeight: 700, background: poll.game_type === 'practice' ? 'rgba(251,146,60,0.15)' : 'rgba(250,204,21,0.15)', color: poll.game_type === 'practice' ? '#fb923c' : '#facc15', border: `1px solid ${poll.game_type === 'practice' ? 'rgba(251,146,60,0.3)' : 'rgba(250,204,21,0.3)'}`, borderRadius: 20, padding: '2px 8px' }}>{gameTypeLabel}</span>}
+              {(isConfirmed || isCancelled) && <span style={{ color: colors.accent, fontSize: 12, fontWeight: 600 }}>↗ View</span>}
             </div>
           </Link>
           <div style={{ color: colors.muted, fontSize: 12 }}>{poll.location}</div>
@@ -587,6 +599,11 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
       {isOpen && editingDetails && (
         <div style={{ marginTop: 12, background: colors.pitchMid, borderRadius: 8, padding: 12 }}>
           <Input value={editTitle} onChange={e => setEditTitle(e.target.value)} placeholder="Game title" />
+          <select value={editGameType} onChange={e => setEditGameType(e.target.value)} style={selectStyle}>
+            <option value="game">⚽ Regular game</option>
+            <option value="practice">🏃 Practice session</option>
+            <option value="competition">🏆 Competition</option>
+          </select>
 
           <select value={LOCATIONS.some(l => l.name === editLocation) ? editLocation : 'Other'} onChange={e => setEditLocation(e.target.value === 'Other' ? '' : e.target.value)} style={selectStyle}>
             {LOCATIONS.map(l => (
@@ -673,6 +690,7 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
                   minPlayers: editMinPlayers,
                   maxPlayers: editMaxPlayers,
                   notes: editNotes || undefined,
+                  gameType: editGameType,
                 })
                 setEditingDetails(false)
               }}
@@ -705,6 +723,7 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
               setEditMaxPlayers(poll.max_players)
               setEditSlots(poll.slots.map(toLocalInputValue))
               setEditNotes(poll.notes || '')
+              setEditGameType(poll.game_type || 'game')
               setDetailsError('')
               setEditingDetails(true)
             }}

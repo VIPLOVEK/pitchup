@@ -1056,7 +1056,11 @@ export default function PollPage({ poll: initialPoll, error }) {
             ))}
           </div>
         )}
-        <h1 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 4px', letterSpacing: '-0.5px' }}>{poll.title}</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+          <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0, letterSpacing: '-0.5px' }}>{poll.title}</h1>
+          {poll.game_type === 'practice' && <span style={{ fontSize: 11, fontWeight: 700, color: '#fb923c', background: 'rgba(251,146,60,0.12)', border: '1px solid rgba(251,146,60,0.25)', borderRadius: 20, padding: '2px 8px', flexShrink: 0 }}>🏃 Practice</span>}
+          {poll.game_type === 'competition' && <span style={{ fontSize: 11, fontWeight: 700, color: '#facc15', background: 'rgba(250,204,21,0.12)', border: '1px solid rgba(250,204,21,0.25)', borderRadius: 20, padding: '2px 8px', flexShrink: 0 }}>🏆 Competition</span>}
+        </div>
         <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 4px' }}>{poll.location} · Need {poll.min_players}+ players</p>
         <div style={{ margin: '0 0 12px' }}>
           <VenueInfo location={poll.location} />
