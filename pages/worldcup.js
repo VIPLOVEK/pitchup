@@ -298,7 +298,18 @@ function PredictorList({ board, hasResults }) {
             </span>
             <Avatar name={p.name} size={32} />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 700, fontSize: 14, color: colors.white }}>{p.name}</div>
+              <div style={{ fontWeight: 700, fontSize: 14, color: colors.white, display: 'flex', alignItems: 'center', gap: 6 }}>
+                {p.name}
+                {p.streak >= 2 && (
+                  <span style={{
+                    fontSize: 11, fontWeight: 800, color: '#f97316',
+                    background: 'rgba(249,115,22,0.15)', border: '1px solid rgba(249,115,22,0.3)',
+                    borderRadius: 10, padding: '1px 6px',
+                  }}>
+                    🔥 {p.streak}
+                  </span>
+                )}
+              </div>
               {hasResults ? (
                 <>
                   <div style={{ height: 3, background: 'rgba(255,255,255,0.08)', borderRadius: 2, marginTop: 5, overflow: 'hidden' }}>
@@ -315,6 +326,133 @@ function PredictorList({ board, hasResults }) {
                 <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)' }}>/{p.total} · {pct}%</div>
               </div>
             )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// ── Group Standings ────────────────────────────────────────────────────────────
+function GroupStandings({ matches }) {
+  if (!matches || matches.length === 0) {
+    return (
+      <div style={{ textAlign: 'center', padding: '48px 0', color: 'rgba(255,255,255,0.3)' }}>
+        <div style={{ fontSize: 40, marginBottom: 12 }}>📊</div>
+        <p style={{ fontSize: 14 }}>No group stage data yet.</p>
+      </div>
+    )
+  }
+
+  // Collect all unique group names from group stage matches
+  const groupMatches = matches.filter(m => m.group_name)
+  const groupNames = [...new Set(groupMatches.map(m => m.group_name))].sort()
+
+  if (groupNames.length === 0) {
+    return (
+      <div style={{ textAlign: 'center', padding: '48px 0', color: 'rgba(255,255,255,0.3)' }}>
+        <div style={{ fontSize: 40, marginBottom: 12 }}>📊</div>
+        <p style={{ fontSize: 14 }}>No group stage matches found.</p>
+      </div>
+    )
+  }
+
+  function calcStandings(groupName) {
+    const gMatches = groupMatches.filter(m => m.group_name === groupName)
+    const teams = {}
+
+    for (const m of gMatches) {
+      for (const team of [m.team_home, m.team_away]) {
+        if (!teams[team]) {
+          teams[team] = { team, flag: null, P: 0, W: 0, D: 0, L: 0, GF: 0, GA: 0, GD: 0, Pts: 0 }
+        }
+      }
+      teams[m.team_home].flag = m.flag_home || flag(m.team_home)
+      teams[m.team_away].flag = m.flag_away || flag(m.team_away)
+    }
+
+    for (const m of gMatches) {
+      if (m.status !== 'finished' || m.score_home == null || m.score_away == null) continue
+      const h = teams[m.team_home]
+      const a = teams[m.team_away]
+      h.P++; a.P++
+      h.GF += m.score_home; h.GA += m.score_away
+      a.GF += m.score_away; a.GA += m.score_home
+      h.GD = h.GF - h.GA; a.GD = a.GF - a.GA
+      if (m.score_home > m.score_away) {
+        h.W++; h.Pts += 3; a.L++
+      } else if (m.score_home < m.score_away) {
+        a.W++; a.Pts += 3; h.L++
+      } else {
+        h.D++; h.Pts += 1; a.D++; a.Pts += 1
+      }
+    }
+
+    return Object.values(teams).sort((a, b) =>
+      b.Pts - a.Pts || b.GD - a.GD || b.GF - a.GF || a.team.localeCompare(b.team)
+    )
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {groupNames.map(groupName => {
+        const rows = calcStandings(groupName)
+        return (
+          <div key={groupName} style={{
+            background: 'linear-gradient(145deg, rgba(0,32,91,0.3), rgba(6,13,24,0.95))',
+            border: '1px solid rgba(255,255,255,0.07)',
+            borderRadius: 14, overflow: 'hidden',
+          }}>
+            <div style={{
+              padding: '10px 14px',
+              background: 'rgba(0,32,91,0.5)',
+              borderBottom: '1px solid rgba(255,255,255,0.07)',
+              fontSize: 11, fontWeight: 800, letterSpacing: '0.12em',
+              textTransform: 'uppercase', color: FIFA_GOLD,
+            }}>
+              Group {groupName}
+            </div>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 28px 28px 28px 28px 28px 28px 32px',
+              gap: 2, padding: '6px 14px',
+              fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.3)',
+              letterSpacing: '0.06em', textTransform: 'uppercase',
+              borderBottom: '1px solid rgba(255,255,255,0.05)',
+            }}>
+              <span>Team</span>
+              <span style={{ textAlign: 'center' }}>P</span>
+              <span style={{ textAlign: 'center' }}>W</span>
+              <span style={{ textAlign: 'center' }}>D</span>
+              <span style={{ textAlign: 'center' }}>L</span>
+              <span style={{ textAlign: 'center' }}>GD</span>
+              <span style={{ textAlign: 'center' }}>GF</span>
+              <span style={{ textAlign: 'right' }}>Pts</span>
+            </div>
+            {rows.map((row, idx) => (
+              <div key={row.team} style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 28px 28px 28px 28px 28px 28px 32px',
+                gap: 2, padding: '8px 14px',
+                borderBottom: idx < rows.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
+                background: idx < 2 ? 'rgba(240,192,48,0.04)' : 'transparent',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden' }}>
+                  <span style={{ fontSize: 10, color: idx < 2 ? FIFA_GOLD : 'rgba(255,255,255,0.25)', fontWeight: 700, width: 14, flexShrink: 0 }}>{idx + 1}</span>
+                  <span style={{ fontSize: 16 }}>{row.flag}</span>
+                  <span style={{ fontSize: 12, fontWeight: idx < 2 ? 700 : 500, color: idx < 2 ? colors.white : 'rgba(255,255,255,0.7)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.team}</span>
+                </div>
+                <span style={{ textAlign: 'center', fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>{row.P}</span>
+                <span style={{ textAlign: 'center', fontSize: 12, color: row.W > 0 ? '#22c55e' : 'rgba(255,255,255,0.4)' }}>{row.W}</span>
+                <span style={{ textAlign: 'center', fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>{row.D}</span>
+                <span style={{ textAlign: 'center', fontSize: 12, color: row.L > 0 ? '#f87171' : 'rgba(255,255,255,0.4)' }}>{row.L}</span>
+                <span style={{ textAlign: 'center', fontSize: 12, color: row.GD > 0 ? '#22c55e' : row.GD < 0 ? '#f87171' : 'rgba(255,255,255,0.4)' }}>
+                  {row.GD > 0 ? `+${row.GD}` : row.GD}
+                </span>
+                <span style={{ textAlign: 'center', fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>{row.GF}</span>
+                <span style={{ textAlign: 'right', fontSize: 13, fontWeight: 800, color: idx < 2 ? FIFA_GOLD : colors.white }}>{row.Pts}</span>
+              </div>
+            ))}
           </div>
         )
       })}
@@ -359,7 +497,7 @@ export default function WorldCupPage({ initialMatches, initialPredictions, initi
         borderRadius: 12, padding: 4, marginBottom: 20,
         border: '1px solid rgba(255,255,255,0.06)',
       }}>
-        {[['matches', '⚽ Matches'], ['predictions', '🏅 Leaderboard']].map(([t, label]) => (
+        {[['matches', '⚽ Matches'], ['predictions', '🏅 Leaderboard'], ['groups', '📊 Groups']].map(([t, label]) => (
           <button key={t} onClick={() => setTab(t)} style={{
             flex: 1,
             background: tab === t
@@ -386,7 +524,6 @@ export default function WorldCupPage({ initialMatches, initialPredictions, initi
             </div>
           )}
 
-          {/* Live now */}
           {liveMatches.length > 0 && (
             <div style={{ marginBottom: 20 }}>
               <SectionHeader label="🔴 Live Now" color={FIFA_RED} accent />
@@ -394,7 +531,6 @@ export default function WorldCupPage({ initialMatches, initialPredictions, initi
             </div>
           )}
 
-          {/* Today */}
           {todayMatches.length > 0 && (
             <div style={{ marginBottom: 20 }}>
               <SectionHeader label="Today" color={FIFA_GOLD} accent />
@@ -402,7 +538,6 @@ export default function WorldCupPage({ initialMatches, initialPredictions, initi
             </div>
           )}
 
-          {/* Next up when no today/live */}
           {liveMatches.length === 0 && todayMatches.length === 0 && upcomingMatches.length > 0 && (
             <div style={{ marginBottom: 20 }}>
               <SectionHeader label="Next up" color={FIFA_GOLD} accent />
@@ -410,7 +545,6 @@ export default function WorldCupPage({ initialMatches, initialPredictions, initi
             </div>
           )}
 
-          {/* Upcoming */}
           {Object.entries(upcomingGrouped).slice(liveMatches.length === 0 && todayMatches.length === 0 ? 1 : 0).map(([day, dayMatches]) => (
             <div key={day} style={{ marginBottom: 16 }}>
               <SectionHeader label={day} />
@@ -418,7 +552,6 @@ export default function WorldCupPage({ initialMatches, initialPredictions, initi
             </div>
           ))}
 
-          {/* Past results */}
           {pastMatches.length > 0 && (
             <div style={{ marginTop: 8 }}>
               <button
@@ -444,6 +577,7 @@ export default function WorldCupPage({ initialMatches, initialPredictions, initi
       )}
 
       {tab === 'predictions' && <Leaderboard board={board} />}
+      {tab === 'groups' && <GroupStandings matches={matches} />}
     </Layout>
   )
 }

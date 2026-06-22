@@ -17,6 +17,8 @@ function getResult(match) {
   return 'draw'
 }
 
+const REACTION_EMOJIS = ['🔥', '😱', '👏', '😂']
+
 export default function MatchPage() {
   const router = useRouter()
   const { id } = router.query
@@ -30,6 +32,11 @@ export default function MatchPage() {
   const [chatMsg, setChatMsg] = useState('')
   const [sendingChat, setSendingChat] = useState(false)
   const [toast, setToast] = useState('')
+  const [adminPw, setAdminPw] = useState(null)
+  const [adminScoreHome, setAdminScoreHome] = useState('')
+  const [adminScoreAway, setAdminScoreAway] = useState('')
+  const [adminStatus, setAdminStatus] = useState('upcoming')
+  const [adminSubmitting, setAdminSubmitting] = useState(false)
   const chatEndRef = useRef(null)
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3000) }
@@ -37,7 +44,20 @@ export default function MatchPage() {
   useEffect(() => {
     const saved = localStorage.getItem('pitchup_player')
     if (saved) { try { setPlayerName(JSON.parse(saved).name || '') } catch {} }
+    const admin = localStorage.getItem('pitchup_admin')
+    if (admin) { try { const a = JSON.parse(admin); if (a.password) setAdminPw(a.password) } catch {} }
   }, [])
+
+  async function loadMatch() {
+    if (!id) return
+    const res = await fetch(`/api/worldcup/${id}`)
+    if (res.ok) {
+      const data = await res.json()
+      setMatch(data.match)
+      setPreds(data.predictions)
+      setChat(data.chat)
+    }
+  }
 
   useEffect(() => {
     if (!id) return
@@ -50,9 +70,25 @@ export default function MatchPage() {
       .catch(() => setLoading(false))
   }, [id])
 
+  // Feature 1: Live auto-refresh
+  useEffect(() => {
+    if (!match || match.status !== 'live') return
+    const interval = setInterval(loadMatch, 60000)
+    return () => clearInterval(interval)
+  }, [match?.status, id])
+
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [chat])
+
+  // Sync admin form when match loads
+  useEffect(() => {
+    if (match) {
+      setAdminScoreHome(match.score_home != null ? String(match.score_home) : '')
+      setAdminScoreAway(match.score_away != null ? String(match.score_away) : '')
+      setAdminStatus(match.status || 'upcoming')
+    }
+  }, [match?.id])
 
   if (loading) return <Layout title="Match — World Cup 2026"><Card><Spinner label="Loading match..." /></Card></Layout>
   if (!match) return <Layout title="Not found"><Card><p style={{ color: colors.muted }}>Match not found.</p></Card></Layout>
@@ -97,6 +133,57 @@ export default function MatchPage() {
     } finally { setSendingChat(false) }
   }
 
+  // Feature 3: React to a chat message with optimistic update
+  async function toggleReaction(chatId, emoji) {
+    if (!playerName.trim()) { showToast('Enter your name first'); return }
+    // Optimistic update
+    setChat(prev => prev.map(msg => {
+      if (msg.id !== chatId) return msg
+      const reactions = { ...(msg.reactions || {}) }
+      const arr = reactions[emoji] || []
+      if (arr.includes(playerName)) {
+        const next = arr.filter(n => n !== playerName)
+        if (next.length === 0) delete reactions[emoji]
+        else reactions[emoji] = next
+      } else {
+        reactions[emoji] = [...arr, playerName]
+      }
+      return { ...msg, reactions }
+    }))
+    // Persist
+    try {
+      await fetch('/api/worldcup/react', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chatId, matchId: id, emoji, playerName: playerName.trim() }),
+      })
+    } catch {}
+  }
+
+  // Feature 2: Admin score update
+  async function submitAdminUpdate() {
+    if (!adminPw) return
+    setAdminSubmitting(true)
+    try {
+      const body = { status: adminStatus }
+      if (adminScoreHome !== '') body.scoreHome = Number(adminScoreHome)
+      if (adminScoreAway !== '') body.scoreAway = Number(adminScoreAway)
+      const res = await fetch(`/api/worldcup/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminPw}` },
+        body: JSON.stringify(body),
+      })
+      if (res.ok) {
+        const updated = await res.json()
+        setMatch(updated)
+        showToast('Match updated!')
+      } else {
+        const d = await res.json()
+        showToast(d.error || 'Update failed')
+      }
+    } finally { setAdminSubmitting(false) }
+  }
+
   return (
     <Layout
       title={`${match.team_home} vs ${match.team_away} — World Cup 2026`}
@@ -127,6 +214,7 @@ export default function MatchPage() {
                 {match.status === 'live' && <Pill color="#ef4444">🔴 Live</Pill>}
               </>
             )}
+            {match.status === 'live' && hasScore && <Pill color="#ef4444">🔴 Live</Pill>}
             {match.status === 'finished' && <Pill color={colors.muted}>Final</Pill>}
           </div>
           <div style={{ flex: 1, textAlign: 'center' }}>
@@ -222,18 +310,47 @@ export default function MatchPage() {
           {chat.length === 0 && (
             <p style={{ color: colors.muted, fontSize: 13, textAlign: 'center', padding: '12px 0' }}>No messages yet — start the chat!</p>
           )}
-          {chat.map(msg => (
-            <div key={msg.id} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-              <Avatar name={msg.author} size={26} />
-              <div style={{ flex: 1 }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: colors.accent }}>{msg.author}</span>
-                <span style={{ fontSize: 11, color: colors.muted, marginLeft: 6 }}>
-                  {new Date(msg.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-                </span>
-                <p style={{ fontSize: 13, color: colors.white, margin: '2px 0 0', lineHeight: 1.4 }}>{msg.message}</p>
+          {chat.map(msg => {
+            const reactions = msg.reactions || {}
+            return (
+              <div key={msg.id} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                <Avatar name={msg.author} size={26} />
+                <div style={{ flex: 1 }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: colors.accent }}>{msg.author}</span>
+                  <span style={{ fontSize: 11, color: colors.muted, marginLeft: 6 }}>
+                    {new Date(msg.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                  </span>
+                  <p style={{ fontSize: 13, color: colors.white, margin: '2px 0 4px', lineHeight: 1.4 }}>{msg.message}</p>
+                  {/* Reaction pills */}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                    {REACTION_EMOJIS.map(emoji => {
+                      const reactors = reactions[emoji] || []
+                      const reacted = playerName ? reactors.includes(playerName) : false
+                      return (
+                        <button
+                          key={emoji}
+                          onClick={() => toggleReaction(msg.id, emoji)}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: 3,
+                            background: reacted ? `${colors.accent}22` : 'rgba(255,255,255,0.05)',
+                            border: `1px solid ${reacted ? colors.accent : 'rgba(255,255,255,0.1)'}`,
+                            borderRadius: 12, padding: '2px 7px',
+                            cursor: 'pointer', fontSize: 13, color: reacted ? colors.accent : colors.muted,
+                            fontWeight: 600, transition: 'all 0.12s',
+                          }}
+                        >
+                          <span>{emoji}</span>
+                          {reactors.length > 0 && (
+                            <span style={{ fontSize: 11 }}>{reactors.length}</span>
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
           <div ref={chatEndRef} />
         </div>
         {!playerName.trim() && (
@@ -253,6 +370,62 @@ export default function MatchPage() {
           <Btn onClick={sendChat} disabled={sendingChat || !chatMsg.trim() || !playerName.trim()}>Send</Btn>
         </div>
       </Card>
+
+      {/* Feature 2: Admin Panel */}
+      {adminPw && (
+        <Card>
+          <Label>🔧 Admin — Update Match</Label>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center' }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 11, color: colors.muted, marginBottom: 4 }}>{match.team_home} score</div>
+              <input
+                type="number"
+                min="0"
+                value={adminScoreHome}
+                onChange={e => setAdminScoreHome(e.target.value)}
+                style={{
+                  width: '100%', background: 'rgba(6,13,24,0.6)', border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: radius.md, color: colors.white, padding: '10px 12px', fontSize: 16,
+                  outline: 'none', textAlign: 'center', fontWeight: 700,
+                }}
+              />
+            </div>
+            <div style={{ fontSize: 16, color: colors.muted, paddingTop: 20 }}>–</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 11, color: colors.muted, marginBottom: 4 }}>{match.team_away} score</div>
+              <input
+                type="number"
+                min="0"
+                value={adminScoreAway}
+                onChange={e => setAdminScoreAway(e.target.value)}
+                style={{
+                  width: '100%', background: 'rgba(6,13,24,0.6)', border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: radius.md, color: colors.white, padding: '10px 12px', fontSize: 16,
+                  outline: 'none', textAlign: 'center', fontWeight: 700,
+                }}
+              />
+            </div>
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 11, color: colors.muted, marginBottom: 4 }}>Status</div>
+            <select
+              value={adminStatus}
+              onChange={e => setAdminStatus(e.target.value)}
+              style={{
+                width: '100%', background: 'rgba(6,13,24,0.8)', border: '1px solid rgba(255,255,255,0.1)',
+                borderRadius: radius.md, color: colors.white, padding: '10px 12px', fontSize: 14, outline: 'none',
+              }}
+            >
+              <option value="upcoming">Upcoming</option>
+              <option value="live">Live</option>
+              <option value="finished">Finished</option>
+            </select>
+          </div>
+          <Btn onClick={submitAdminUpdate} disabled={adminSubmitting} style={{ width: '100%' }}>
+            {adminSubmitting ? 'Saving...' : 'Save Changes'}
+          </Btn>
+        </Card>
+      )}
 
       <Toast msg={toast} />
     </Layout>
