@@ -462,9 +462,9 @@ function GroupStandings({ matches }) {
 
 // ── Main page ──────────────────────────────────────────────────────────────────
 export default function WorldCupPage({ initialMatches, initialPredictions, initialBoard }) {
-  const [matches] = useState(initialMatches)
-  const [predictions] = useState(initialPredictions)
-  const [board] = useState(initialBoard)
+  const [matches, setMatches] = useState(initialMatches)
+  const [predictions, setPredictions] = useState(initialPredictions)
+  const [board, setBoard] = useState(initialBoard)
   const [tab, setTab] = useState('matches')
   const [playerName, setPlayerName] = useState('')
   const [showPast, setShowPast] = useState(false)
@@ -472,6 +472,19 @@ export default function WorldCupPage({ initialMatches, initialPredictions, initi
   useEffect(() => {
     const saved = localStorage.getItem('pitchup_player')
     if (saved) { try { setPlayerName(JSON.parse(saved).name || '') } catch {} }
+  }, [])
+
+  // Trigger sync in background after initial render so page loads fast from cache
+  useEffect(() => {
+    Promise.all([
+      fetch('/api/worldcup/matches').then(r => r.ok ? r.json() : null),
+      fetch('/api/worldcup/all-predictions').then(r => r.ok ? r.json() : null),
+      fetch('/api/worldcup/leaderboard').then(r => r.ok ? r.json() : null),
+    ]).then(([m, p, b]) => {
+      if (m) setMatches(m)
+      if (p) setPredictions(p)
+      if (b) setBoard(b)
+    }).catch(() => {})
   }, [])
 
   const liveMatches     = matches?.filter(m => m.status === 'live') || []
@@ -586,7 +599,7 @@ export async function getServerSideProps() {
   try {
     const base = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
     const [mRes, pRes, bRes] = await Promise.all([
-      fetch(`${base}/api/worldcup/matches`),
+      fetch(`${base}/api/worldcup/matches?noSync=1`),
       fetch(`${base}/api/worldcup/all-predictions`),
       fetch(`${base}/api/worldcup/leaderboard`),
     ])
