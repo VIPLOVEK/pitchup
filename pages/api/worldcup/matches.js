@@ -63,8 +63,19 @@ async function syncFromApi(db) {
 export default async function handler(req, res) {
   if (!isSupabaseConfigured()) return res.status(503).json({ error: 'DB not configured' })
   const db = supabaseAdmin()
-  // Fire sync in background — don't block the response
-  syncFromApi(db).catch(() => {})
+
+  // Force sync if requested by admin
+  if (req.method === 'POST') {
+    const pw = (req.headers.authorization || '').replace('Bearer ', '')
+    if (pw !== process.env.ADMIN_PASSWORD) return res.status(403).json({ error: 'Forbidden' })
+    lastSync = 0 // reset throttle
+    await syncFromApi(db)
+    const { data } = await db.from('wc_matches').select('*').order('match_date', { ascending: true })
+    return res.status(200).json(data || [])
+  }
+
+  // Blocking sync on GET — keeps data fresh, adds ~1s on cold sync
+  await syncFromApi(db)
   const { data, error } = await db.from('wc_matches').select('*').order('match_date', { ascending: true })
   if (error) return res.status(500).json({ error: error.message })
   return res.status(200).json(data || [])
