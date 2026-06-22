@@ -141,6 +141,9 @@ export default function Home({ polls, groups, announcement, todayWcMatches }) {
               <h2 style={{ fontSize: 20, fontWeight: 800, margin: '0 0 4px', letterSpacing: '-0.3px' }}>
                 {poll.title}
               </h2>
+              {poll.opponent && (
+                <p style={{ fontSize: 13, fontWeight: 700, margin: '0 0 4px', color: poll.game_type === 'competition' ? '#facc15' : '#fb923c' }}>vs {poll.opponent}</p>
+              )}
               <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 12px' }}>{poll.location}</p>
               <ProgressBar value={getActivePlayers(poll).length} max={poll.min_players} />
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>

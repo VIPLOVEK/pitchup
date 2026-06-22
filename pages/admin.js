@@ -43,6 +43,7 @@ function CreatePollForm({ onCreated, groups, prefill }) {
   const [maxPlayers, setMaxPlayers] = useState(prefill?.max_players || 22)
   const [notes, setNotes] = useState(prefill?.notes || '')
   const [gameType, setGameType] = useState(prefill?.game_type || 'game')
+  const [opponent, setOpponent] = useState(prefill?.opponent || '')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -89,6 +90,7 @@ function CreatePollForm({ onCreated, groups, prefill }) {
           groupIds: selectedGroupIds,
           notes: notes || undefined,
           gameType,
+          opponent: opponent || undefined,
         }),
       })
       const data = await res.json()
@@ -120,6 +122,9 @@ function CreatePollForm({ onCreated, groups, prefill }) {
         <option value="practice">🏃 Practice session</option>
         <option value="competition">🏆 Competition</option>
       </select>
+      {gameType !== 'game' && (
+        <Input value={opponent} onChange={e => setOpponent(e.target.value)} placeholder="Opponent team name (optional) — e.g. Yankee FC" />
+      )}
 
       <select value={location} onChange={e => setLocation(e.target.value)} style={selectStyle}>
         {LOCATIONS.map(l => (
@@ -239,6 +244,7 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
   const [editSlots, setEditSlots] = useState(poll.slots.map(toLocalInputValue))
   const [editNotes, setEditNotes] = useState(poll.notes || '')
   const [editGameType, setEditGameType] = useState(poll.game_type || 'game')
+  const [editOpponent, setEditOpponent] = useState(poll.opponent || '')
   const isOpen = poll.status === 'open'
   const isConfirmed = poll.status === 'confirmed'
   const isCancelled = poll.status === 'cancelled'
@@ -604,6 +610,9 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
             <option value="practice">🏃 Practice session</option>
             <option value="competition">🏆 Competition</option>
           </select>
+          {editGameType !== 'game' && (
+            <Input value={editOpponent} onChange={e => setEditOpponent(e.target.value)} placeholder="Opponent team name (optional)" />
+          )}
 
           <select value={LOCATIONS.some(l => l.name === editLocation) ? editLocation : 'Other'} onChange={e => setEditLocation(e.target.value === 'Other' ? '' : e.target.value)} style={selectStyle}>
             {LOCATIONS.map(l => (
@@ -691,6 +700,7 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
                   maxPlayers: editMaxPlayers,
                   notes: editNotes || undefined,
                   gameType: editGameType,
+                  opponent: editOpponent || undefined,
                 })
                 setEditingDetails(false)
               }}
@@ -724,6 +734,7 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
               setEditSlots(poll.slots.map(toLocalInputValue))
               setEditNotes(poll.notes || '')
               setEditGameType(poll.game_type || 'game')
+              setEditOpponent(poll.opponent || '')
               setDetailsError('')
               setEditingDetails(true)
             }}
