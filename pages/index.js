@@ -225,7 +225,7 @@ export async function getServerSideProps() {
       fetch(`${baseUrl}/api/admin/polls`, { headers: { authorization: `Bearer ${process.env.ADMIN_PASSWORD}` } }),
       fetch(`${baseUrl}/api/groups`),
       fetch(`${baseUrl}/api/announcement`),
-      fetch(`${baseUrl}/api/worldcup/matches`).catch(() => null),
+      fetch(`${baseUrl}/api/worldcup/matches?noSync=1`).catch(() => null),
     ])
     if (!pollsRes.ok) return { props: { polls: [], groups: [], announcement: null, todayWcMatches: [] } }
     const polls = await pollsRes.json()
