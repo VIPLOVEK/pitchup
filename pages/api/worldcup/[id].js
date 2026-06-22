@@ -27,8 +27,10 @@ export default async function handler(req, res) {
     if (match.status !== 'upcoming' || new Date(match.match_date) <= new Date())
       return res.status(400).json({ error: 'Predictions are locked for this match' })
 
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    const safePlayerId = playerId && UUID_RE.test(playerId) ? playerId : null
     const { error } = await db.from('wc_predictions').upsert(
-      { match_id: id, player_name: playerName, player_id: playerId || null, prediction },
+      { match_id: id, player_name: playerName, player_id: safePlayerId, prediction },
       { onConflict: 'match_id,player_name' }
     )
     if (error) return res.status(500).json({ error: error.message })
