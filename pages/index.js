@@ -232,7 +232,10 @@ export default function Home({ polls, groups, announcement, todayWcMatches }) {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
                     <div style={{ fontWeight: 700, fontSize: 15 }}>{poll.title}</div>
-                    <div style={{ color: colors.muted, fontSize: 12, marginTop: 2 }}>{poll.location}</div>
+                    <div style={{ color: colors.muted, fontSize: 12, marginTop: 2 }}>
+                      {poll.location}
+                      {poll.game_time && ` · ${new Date(poll.game_time).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`}
+                    </div>
                   </div>
                   {poll.status === 'confirmed' ? (
                     poll.score_a != null && poll.score_b != null ? (
