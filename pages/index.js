@@ -224,15 +224,36 @@ export default function Home({ polls, groups, announcement, todayWcMatches }) {
   const now = new Date()
   const today = now.toDateString()
 
-  // Confirmed games that haven't kicked off yet stay at the top
-  const openPolls = polls.filter(p => p.status === 'open')
-  const confirmedUpcoming = polls.filter(p =>
-    p.status === 'confirmed' && p.game_time && new Date(p.game_time) > now
-  )
-  const activePolls = [...confirmedUpcoming, ...openPolls]
+  // Effective date for sorting: game_time for confirmed, earliest slot for open
+  function effectiveDate(poll) {
+    if (poll.game_time) return new Date(poll.game_time)
+    if (poll.slots?.length) return new Date(Math.min(...poll.slots.map(s => new Date(s))))
+    return new Date(8640000000000000) // far future
+  }
+
+  function daysUntil(date) {
+    return Math.ceil((date - now) / (1000 * 60 * 60 * 24))
+  }
+
+  function urgencyLabel(poll) {
+    if (poll.game_type === 'practice') return '🏃 Practice'
+    if (poll.game_type === 'competition') return '🏆 Competition'
+    if (poll.status === 'confirmed') return '✅ Game is ON!'
+    const d = effectiveDate(poll)
+    const days = daysUntil(d)
+    if (days <= 0) return 'Today'
+    if (days === 1) return 'Tomorrow'
+    if (days <= 7) return `This ${d.toLocaleDateString('en-US', { weekday: 'long' })}`
+    return 'Coming up'
+  }
+
+  const activePolls = polls
+    .filter(p => p.status === 'open' || (p.status === 'confirmed' && (!p.game_time || new Date(p.game_time) > now)))
+    .sort((a, b) => effectiveDate(a) - effectiveDate(b))
+
   const pastPolls = polls.filter(p =>
     p.status === 'cancelled' || p.status === 'finished' ||
-    (p.status === 'confirmed' && (!p.game_time || new Date(p.game_time) <= now))
+    (p.status === 'confirmed' && p.game_time && new Date(p.game_time) <= now)
   )
 
   function isToday(poll) {
@@ -279,18 +300,11 @@ export default function Home({ polls, groups, announcement, todayWcMatches }) {
           const todayGame = isToday(poll)
           const gameDate = poll.game_time ? new Date(poll.game_time) : null
           const gameTime = gameDate ? gameDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : null
-          // For open polls without a confirmed game_time, use the earliest slot date
-          const slotDate = !gameDate && poll.slots?.length
-            ? new Date(Math.min(...poll.slots.map(s => new Date(s))))
-            : null
-          const gameDateLabel = gameDate
-            ? todayGame
-              ? `Today · ${gameTime}`
-              : `${gameDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} · ${gameTime}`
-            : slotDate
-              ? `${slotDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}${poll.slots.length > 1 ? ' (vote open)' : ''}`
-              : null
-          const typeLabel = poll.game_type === 'practice' ? '🏃 Practice' : poll.game_type === 'competition' ? '🏆 Competition' : confirmed ? '✅ Game is ON!' : 'Game this week'
+          const displayDate = gameDate || effectiveDate(poll)
+          const gameDateLabel = todayGame
+            ? `Today · ${gameTime}`
+            : `${displayDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}${gameTime ? ` · ${gameTime}` : ''}`
+          const typeLabel = urgencyLabel(poll)
           return (
             <Link key={poll.id} href={`/poll/${poll.id}`} style={{ textDecoration: 'none' }}>
               <Card highlight style={{
@@ -299,7 +313,7 @@ export default function Home({ polls, groups, announcement, todayWcMatches }) {
                 ...(confirmed ? { border: '1.5px solid rgba(34,197,94,0.4)', boxShadow: '0 4px 24px rgba(34,197,94,0.1)' } : {}),
               }} className="card-link">
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <Label style={{ margin: 0, color: confirmed ? '#22c55e' : undefined }}>{typeLabel}{!confirmed ? ' — tap to join' : ''}</Label>
+                  <Label style={{ margin: 0, color: confirmed ? '#22c55e' : undefined }}>{typeLabel}{!confirmed && poll.game_type === 'game' ? ' — tap to join' : ''}</Label>
                   <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                     {todayGame && <span style={{ fontSize: 11, fontWeight: 800, color: '#fff', background: '#22c55e', borderRadius: 20, padding: '2px 8px' }}>TODAY</span>}
                     {poll.game_type === 'practice' && <span style={{ fontSize: 11, fontWeight: 700, color: '#fb923c', background: 'rgba(251,146,60,0.12)', border: '1px solid rgba(251,146,60,0.25)', borderRadius: 20, padding: '2px 8px' }}>Practice</span>}
