@@ -221,14 +221,18 @@ function TodayWCMatches({ matches }) {
 
 export default function Home({ polls, groups, announcement, todayWcMatches }) {
   const [showRequest, setShowRequest] = useState(false)
+  const [myName, setMyName] = useState('')
   const now = new Date()
   const today = now.toDateString()
 
-  // Effective date for sorting: game_time for confirmed, earliest slot for open
+  useEffect(() => {
+    try { setMyName(JSON.parse(localStorage.getItem('pitchup_player') || '{}').name || '') } catch {}
+  }, [])
+
   function effectiveDate(poll) {
     if (poll.game_time) return new Date(poll.game_time)
     if (poll.slots?.length) return new Date(Math.min(...poll.slots.map(s => new Date(s))))
-    return new Date(8640000000000000) // far future
+    return new Date(8640000000000000)
   }
 
   function daysUntil(date) {
@@ -247,6 +251,16 @@ export default function Home({ polls, groups, announcement, todayWcMatches }) {
     return 'Coming up'
   }
 
+  function countdown(gameDate) {
+    const diffMs = gameDate - now
+    if (diffMs <= 0) return null
+    const hours = Math.floor(diffMs / (1000 * 60 * 60))
+    const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60))
+    if (hours >= 24) return null
+    if (hours > 0) return `Kickoff in ${hours}h ${mins}m`
+    return `Kickoff in ${mins}m`
+  }
+
   const activePolls = polls
     .filter(p => p.status === 'open' || (p.status === 'confirmed' && (!p.game_time || new Date(p.game_time) > now)))
     .sort((a, b) => effectiveDate(a) - effectiveDate(b))
@@ -260,6 +274,8 @@ export default function Home({ polls, groups, announcement, todayWcMatches }) {
     return poll.game_time && new Date(poll.game_time).toDateString() === today
   }
 
+  const hasPolls = activePolls.length > 0
+
   return (
     <Layout title="PitchUp — Pickup Soccer">
       {showRequest && <RequestGameModal onClose={() => setShowRequest(false)} />}
@@ -268,32 +284,44 @@ export default function Home({ polls, groups, announcement, todayWcMatches }) {
       {/* World Cup today's matches */}
       <TodayWCMatches matches={todayWcMatches} />
 
-      {/* Hero */}
-      <div style={{ textAlign: 'center', padding: '32px 0 24px' }}>
-        <img className="brand-logo" src="/logo.png" alt="PitchUp" style={{ width: 72, height: 72, borderRadius: '50%', marginBottom: 12 }} />
-        <h1 style={{ fontSize: 28, fontWeight: 900, letterSpacing: '-1px', margin: '0 0 8px' }}>
-          Pitch<span style={{ color: colors.accent }}>Up</span>{' '}
-          <span className="floating-ball" aria-hidden="true">⚽</span>
-        </h1>
-        <p style={{ color: colors.muted, fontSize: 14, margin: '0 0 8px' }}>
-          Pickup soccer, organized.
-        </p>
-        <p style={{ color: colors.muted, fontSize: 13, maxWidth: 380, margin: '0 auto 16px', lineHeight: 1.5 }}>
-          Choose game times, see who's in, and join us on the pitch — all skill levels welcome.
-        </p>
-        <button
-          onClick={() => setShowRequest(true)}
-          style={{
-            background: 'transparent', border: `1.5px solid ${colors.grass}55`,
-            color: colors.muted, borderRadius: 20, padding: '7px 18px',
-            fontSize: 13, fontWeight: 600, cursor: 'pointer',
-          }}
-        >
-          + Request a game
-        </button>
-      </div>
+      {/* Hero — compact when polls exist, full when empty */}
+      {hasPolls ? (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0 18px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <img className="brand-logo" src="/logo.png" alt="PitchUp" style={{ width: 38, height: 38, borderRadius: '50%' }} />
+            <span style={{ fontSize: 20, fontWeight: 900, letterSpacing: '-0.5px' }}>
+              Pitch<span style={{ color: colors.accent }}>Up</span>{' '}
+              <span className="floating-ball" aria-hidden="true" style={{ fontSize: 16 }}>⚽</span>
+            </span>
+          </div>
+          <button
+            onClick={() => setShowRequest(true)}
+            style={{ background: 'transparent', border: `1.5px solid ${colors.grass}55`, color: colors.muted, borderRadius: 20, padding: '6px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
+          >
+            + Request
+          </button>
+        </div>
+      ) : (
+        <div style={{ textAlign: 'center', padding: '32px 0 24px' }}>
+          <img className="brand-logo" src="/logo.png" alt="PitchUp" style={{ width: 72, height: 72, borderRadius: '50%', marginBottom: 12 }} />
+          <h1 style={{ fontSize: 28, fontWeight: 900, letterSpacing: '-1px', margin: '0 0 8px' }}>
+            Pitch<span style={{ color: colors.accent }}>Up</span>{' '}
+            <span className="floating-ball" aria-hidden="true">⚽</span>
+          </h1>
+          <p style={{ color: colors.muted, fontSize: 14, margin: '0 0 8px' }}>Pickup soccer, organized.</p>
+          <p style={{ color: colors.muted, fontSize: 13, maxWidth: 380, margin: '0 auto 16px', lineHeight: 1.5 }}>
+            Choose game times, see who's in, and join us on the pitch — all skill levels welcome.
+          </p>
+          <button
+            onClick={() => setShowRequest(true)}
+            style={{ background: 'transparent', border: `1.5px solid ${colors.grass}55`, color: colors.muted, borderRadius: 20, padding: '7px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+          >
+            + Request a game
+          </button>
+        </div>
+      )}
 
-      {/* Active polls: confirmed-but-upcoming first, then open */}
+      {/* Active polls */}
       {activePolls.length > 0 ? (
         activePolls.map(poll => {
           const confirmed = poll.status === 'confirmed'
@@ -305,42 +333,69 @@ export default function Home({ polls, groups, announcement, todayWcMatches }) {
             ? `Today · ${gameTime}`
             : `${displayDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}${gameTime ? ` · ${gameTime}` : ''}`
           const typeLabel = urgencyLabel(poll)
+          const activePlayers = getActivePlayers(poll)
+          const amIn = myName && activePlayers.some(p => p.name?.toLowerCase() === myName.toLowerCase())
+          const spotsNeeded = poll.min_players - activePlayers.length
+          const countdownText = todayGame && gameDate ? countdown(gameDate) : null
+          const previewNames = activePlayers.slice(0, 3).map(p => p.name?.split(' ')[0]).filter(Boolean)
+          const extraCount = activePlayers.length - previewNames.length
+
           return (
             <Link key={poll.id} href={`/poll/${poll.id}`} style={{ textDecoration: 'none' }}>
               <Card highlight style={{
                 cursor: 'pointer',
                 ...groupAccent(poll, groups),
                 ...(confirmed ? { border: '1.5px solid rgba(34,197,94,0.4)', boxShadow: '0 4px 24px rgba(34,197,94,0.1)' } : {}),
+                ...(amIn ? { border: '1.5px solid rgba(99,179,237,0.4)' } : {}),
               }} className="card-link">
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
                   <Label style={{ margin: 0, color: confirmed ? '#22c55e' : undefined }}>{typeLabel}{!confirmed && poll.game_type === 'game' ? ' — tap to join' : ''}</Label>
                   <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                    {todayGame && <span style={{ fontSize: 11, fontWeight: 800, color: '#fff', background: '#22c55e', borderRadius: 20, padding: '2px 8px' }}>TODAY</span>}
+                    {amIn && <span style={{ fontSize: 11, fontWeight: 800, color: '#63b3ed', background: 'rgba(99,179,237,0.12)', border: '1px solid rgba(99,179,237,0.3)', borderRadius: 20, padding: '2px 8px' }}>✓ You're in</span>}
+                    {todayGame && !amIn && <span style={{ fontSize: 11, fontWeight: 800, color: '#fff', background: '#22c55e', borderRadius: 20, padding: '2px 8px' }}>TODAY</span>}
                     {poll.game_type === 'practice' && <span style={{ fontSize: 11, fontWeight: 700, color: '#fb923c', background: 'rgba(251,146,60,0.12)', border: '1px solid rgba(251,146,60,0.25)', borderRadius: 20, padding: '2px 8px' }}>Practice</span>}
                     {poll.game_type === 'competition' && <span style={{ fontSize: 11, fontWeight: 700, color: '#facc15', background: 'rgba(250,204,21,0.12)', border: '1px solid rgba(250,204,21,0.25)', borderRadius: 20, padding: '2px 8px' }}>Competition</span>}
                   </div>
                 </div>
                 <GroupBadges poll={poll} groups={groups} />
-                <h2 style={{ fontSize: 20, fontWeight: 800, margin: '0 0 4px', letterSpacing: '-0.3px' }}>
-                  {poll.title}
-                </h2>
+                <h2 style={{ fontSize: 20, fontWeight: 800, margin: '0 0 4px', letterSpacing: '-0.3px' }}>{poll.title}</h2>
                 {poll.opponent && (
                   <p style={{ fontSize: 13, fontWeight: 700, margin: '0 0 4px', color: poll.game_type === 'competition' ? '#facc15' : '#fb923c' }}>vs {poll.opponent}</p>
                 )}
                 <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 8px' }}>{poll.location}{gameDateLabel ? ` · ${gameDateLabel}` : ''}</p>
+
+                {/* Countdown for today's games */}
+                {countdownText && (
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#f97316', marginBottom: 8 }}>⏱ {countdownText}</div>
+                )}
+
                 {confirmed ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: '#22c55e' }}>⚽ {getActivePlayers(poll).length} players confirmed</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#22c55e' }}>⚽ {activePlayers.length} players confirmed</span>
                     <span style={{ fontSize: 12, color: colors.muted }}>Tap for teams →</span>
                   </div>
                 ) : (
                   <>
-                    <ProgressBar value={getActivePlayers(poll).length} max={poll.min_players} />
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
-                      <span style={{ color: colors.muted, fontSize: 13 }}>
-                        {getActivePlayers(poll).length} / {poll.min_players}+ players
+                    {/* Urgency nudge when close to minimum */}
+                    {spotsNeeded > 0 && spotsNeeded <= 3 ? (
+                      <div style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.25)', borderRadius: 8, padding: '7px 12px', marginBottom: 6, textAlign: 'center' }}>
+                        <span style={{ color: '#fbbf24', fontWeight: 700, fontSize: 13 }}>
+                          🔥 Just {spotsNeeded} more player{spotsNeeded > 1 ? 's' : ''} needed to confirm!
+                        </span>
+                      </div>
+                    ) : (
+                      <ProgressBar value={activePlayers.length} max={poll.min_players} />
+                    )}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: spotsNeeded > 0 && spotsNeeded <= 3 ? 0 : 4 }}>
+                      <span style={{ color: colors.muted, fontSize: 12 }}>
+                        {previewNames.length > 0
+                          ? <>{previewNames.join(', ')}{extraCount > 0 ? ` +${extraCount} more` : ''}</>
+                          : `${activePlayers.length} / ${poll.min_players}+ players`
+                        }
                       </span>
-                      <span style={{ color: colors.accent, fontSize: 13, fontWeight: 700 }}>Join ⚽</span>
+                      <span style={{ color: amIn ? '#63b3ed' : colors.accent, fontSize: 13, fontWeight: 700 }}>
+                        {amIn ? '✓ Joined' : 'Join ⚽'}
+                      </span>
                     </div>
                   </>
                 )}
