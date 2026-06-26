@@ -1,6 +1,6 @@
 import { colors, radius } from '../lib/tokens'
 import { useState, useEffect } from 'react'
-import { fetchWeatherForLocation, getWeatherForSlot, getCondition } from '../lib/weather'
+import { fetchWeatherForLocation, getWeatherForSlot, getWeatherTimeline, getCondition } from '../lib/weather'
 
 // ── ProgressBar ───────────────────────────────────────────────────────────────
 export function ProgressBar({ value, max }) {
@@ -336,39 +336,78 @@ const SEVERITY_COLOR = {
 
 export function WeatherBadge({ lat, lon, datetime }) {
   const [weather, setWeather] = useState(null)
+  const [timeline, setTimeline] = useState([])
+
   useEffect(() => {
     if (!lat || !lon || !datetime) return
     let cancelled = false
     fetchWeatherForLocation(lat, lon)
-      .then(data => { if (!cancelled) setWeather(getWeatherForSlot(data, datetime)) })
+      .then(data => {
+        if (cancelled) return
+        setWeather(getWeatherForSlot(data, datetime))
+        setTimeline(getWeatherTimeline(data, datetime))
+      })
       .catch(() => {})
     return () => { cancelled = true }
   }, [lat, lon, datetime])
+
   if (!weather) return null
 
   const condition = getCondition(weather)
   const labelColor = SEVERITY_COLOR[condition.severity]
   const feelsDiff = Math.abs(weather.apparent - weather.temp) >= 5
+  const showTimeline = timeline.length > 0 && !weather.isCurrent
 
   return (
     <span style={{
       display: 'block', marginTop: 4,
       background: labelColor + '18',
       border: `1px solid ${labelColor}33`,
-      borderRadius: 6,
-      padding: '3px 8px',
+      borderRadius: 8,
+      padding: '6px 8px',
       fontSize: 11,
     }}>
-      <span style={{ fontWeight: 700, color: labelColor }}>
-        {condition.emoji} {condition.label}
-      </span>
-      <span style={{ color: '#94a3b8', marginLeft: 6 }}>
-        {weather.isCurrent ? 'Now · ' : ''}{weather.temp}°F{feelsDiff ? ` · feels ${weather.apparent}°F` : ''}
-        {weather.wind >= 10 ? ` · ${weather.wind} mph wind` : ''}
+      {/* Main condition line */}
+      <span style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+        <span style={{ fontWeight: 700, color: labelColor }}>
+          {condition.emoji} {condition.label}
+        </span>
+        <span style={{ color: '#94a3b8' }}>
+          {weather.isCurrent ? 'Now · ' : ''}{weather.temp}°F{feelsDiff ? ` · feels ${weather.apparent}°F` : ''}
+          {weather.wind >= 10 ? ` · ${weather.wind} mph wind` : ''}
+        </span>
       </span>
       {condition.tip && (
         <span style={{ display: 'block', color: labelColor, opacity: 0.85, marginTop: 1 }}>
           ↳ {condition.tip}
+        </span>
+      )}
+
+      {/* Hourly timeline strip around kickoff */}
+      {showTimeline && (
+        <span style={{
+          display: 'flex', gap: 4, marginTop: 8,
+          borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 7,
+        }}>
+          {timeline.map((h, i) => (
+            <span key={i} style={{
+              flex: 1, textAlign: 'center',
+              background: h.isKickoff ? 'rgba(240,192,48,0.1)' : 'rgba(255,255,255,0.03)',
+              border: h.isKickoff ? '1px solid rgba(240,192,48,0.25)' : '1px solid rgba(255,255,255,0.06)',
+              borderRadius: 6, padding: '4px 2px',
+            }}>
+              <span style={{ display: 'block', fontSize: 9, color: h.isKickoff ? '#f0c030' : 'rgba(255,255,255,0.3)', fontWeight: h.isKickoff ? 800 : 600, marginBottom: 2 }}>
+                {h.isKickoff ? '⚽' : h.timeLabel}
+              </span>
+              <span style={{ display: 'block', fontSize: 14, lineHeight: 1, marginBottom: 3 }}>{h.emoji}</span>
+              <span style={{ display: 'block', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.8)' }}>{h.temp}°</span>
+              {h.precip > 0 && (
+                <span style={{ display: 'block', fontSize: 9, color: h.precip >= 50 ? '#60a5fa' : 'rgba(255,255,255,0.35)', marginTop: 2 }}>
+                  {h.precip}%
+                </span>
+              )}
+            </span>
+          ))}
         </span>
       )}
     </span>
