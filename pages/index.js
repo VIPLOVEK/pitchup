@@ -102,8 +102,23 @@ function TodayWCMatches({ matches }) {
 }
 
 export default function Home({ polls, groups, announcement, todayWcMatches }) {
+  const now = new Date()
+  const today = now.toDateString()
+
+  // Confirmed games that haven't kicked off yet stay at the top
   const openPolls = polls.filter(p => p.status === 'open')
-  const pastPolls = polls.filter(p => p.status !== 'open')
+  const confirmedUpcoming = polls.filter(p =>
+    p.status === 'confirmed' && p.game_time && new Date(p.game_time) > now
+  )
+  const activePolls = [...confirmedUpcoming, ...openPolls]
+  const pastPolls = polls.filter(p =>
+    p.status === 'cancelled' || p.status === 'finished' ||
+    (p.status === 'confirmed' && (!p.game_time || new Date(p.game_time) <= now))
+  )
+
+  function isToday(poll) {
+    return poll.game_time && new Date(poll.game_time).toDateString() === today
+  }
 
   return (
     <Layout title="PitchUp — Pickup Soccer">
@@ -127,34 +142,56 @@ export default function Home({ polls, groups, announcement, todayWcMatches }) {
         </p>
       </div>
 
-      {/* All open polls */}
-      {openPolls.length > 0 ? (
-        openPolls.map(poll => (
-          <Link key={poll.id} href={`/poll/${poll.id}`} style={{ textDecoration: 'none' }}>
-            <Card highlight style={{ cursor: 'pointer', ...groupAccent(poll, groups) }} className="card-link">
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                <Label style={{ margin: 0 }}>{poll.game_type === 'practice' ? '🏃 Practice session' : poll.game_type === 'competition' ? '🏆 Competition' : 'Game this week'} — tap to join</Label>
-                {poll.game_type === 'practice' && <span style={{ fontSize: 11, fontWeight: 700, color: '#fb923c', background: 'rgba(251,146,60,0.12)', border: '1px solid rgba(251,146,60,0.25)', borderRadius: 20, padding: '2px 8px' }}>Practice</span>}
-                {poll.game_type === 'competition' && <span style={{ fontSize: 11, fontWeight: 700, color: '#facc15', background: 'rgba(250,204,21,0.12)', border: '1px solid rgba(250,204,21,0.25)', borderRadius: 20, padding: '2px 8px' }}>Competition</span>}
-              </div>
-              <GroupBadges poll={poll} groups={groups} />
-              <h2 style={{ fontSize: 20, fontWeight: 800, margin: '0 0 4px', letterSpacing: '-0.3px' }}>
-                {poll.title}
-              </h2>
-              {poll.opponent && (
-                <p style={{ fontSize: 13, fontWeight: 700, margin: '0 0 4px', color: poll.game_type === 'competition' ? '#facc15' : '#fb923c' }}>vs {poll.opponent}</p>
-              )}
-              <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 12px' }}>{poll.location}</p>
-              <ProgressBar value={getActivePlayers(poll).length} max={poll.min_players} />
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
-                <span style={{ color: colors.muted, fontSize: 13 }}>
-                  {getActivePlayers(poll).length} / {poll.min_players}+ players
-                </span>
-                <span style={{ color: colors.accent, fontSize: 13, fontWeight: 700 }}>Join ⚽</span>
-              </div>
-            </Card>
-          </Link>
-        ))
+      {/* Active polls: confirmed-but-upcoming first, then open */}
+      {activePolls.length > 0 ? (
+        activePolls.map(poll => {
+          const confirmed = poll.status === 'confirmed'
+          const todayGame = isToday(poll)
+          const gameTime = poll.game_time ? new Date(poll.game_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : null
+          const typeLabel = poll.game_type === 'practice' ? '🏃 Practice' : poll.game_type === 'competition' ? '🏆 Competition' : confirmed ? '✅ Game is ON!' : 'Game this week'
+          return (
+            <Link key={poll.id} href={`/poll/${poll.id}`} style={{ textDecoration: 'none' }}>
+              <Card highlight style={{
+                cursor: 'pointer',
+                ...groupAccent(poll, groups),
+                ...(confirmed ? { border: '1.5px solid rgba(34,197,94,0.4)', boxShadow: '0 4px 24px rgba(34,197,94,0.1)' } : {}),
+              }} className="card-link">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <Label style={{ margin: 0, color: confirmed ? '#22c55e' : undefined }}>{typeLabel}{!confirmed ? ' — tap to join' : ''}</Label>
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    {todayGame && <span style={{ fontSize: 11, fontWeight: 800, color: '#fff', background: '#22c55e', borderRadius: 20, padding: '2px 8px' }}>TODAY</span>}
+                    {poll.game_type === 'practice' && <span style={{ fontSize: 11, fontWeight: 700, color: '#fb923c', background: 'rgba(251,146,60,0.12)', border: '1px solid rgba(251,146,60,0.25)', borderRadius: 20, padding: '2px 8px' }}>Practice</span>}
+                    {poll.game_type === 'competition' && <span style={{ fontSize: 11, fontWeight: 700, color: '#facc15', background: 'rgba(250,204,21,0.12)', border: '1px solid rgba(250,204,21,0.25)', borderRadius: 20, padding: '2px 8px' }}>Competition</span>}
+                  </div>
+                </div>
+                <GroupBadges poll={poll} groups={groups} />
+                <h2 style={{ fontSize: 20, fontWeight: 800, margin: '0 0 4px', letterSpacing: '-0.3px' }}>
+                  {poll.title}
+                </h2>
+                {poll.opponent && (
+                  <p style={{ fontSize: 13, fontWeight: 700, margin: '0 0 4px', color: poll.game_type === 'competition' ? '#facc15' : '#fb923c' }}>vs {poll.opponent}</p>
+                )}
+                <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 8px' }}>{poll.location}{gameTime ? ` · ${gameTime}` : ''}</p>
+                {confirmed ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#22c55e' }}>⚽ {getActivePlayers(poll).length} players confirmed</span>
+                    <span style={{ fontSize: 12, color: colors.muted }}>Tap for teams →</span>
+                  </div>
+                ) : (
+                  <>
+                    <ProgressBar value={getActivePlayers(poll).length} max={poll.min_players} />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                      <span style={{ color: colors.muted, fontSize: 13 }}>
+                        {getActivePlayers(poll).length} / {poll.min_players}+ players
+                      </span>
+                      <span style={{ color: colors.accent, fontSize: 13, fontWeight: 700 }}>Join ⚽</span>
+                    </div>
+                  </>
+                )}
+              </Card>
+            </Link>
+          )
+        })
       ) : (
         <Card>
           <div style={{ textAlign: 'center', padding: '20px 0', color: colors.muted }}>
