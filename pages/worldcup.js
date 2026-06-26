@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import Layout from '../components/Layout'
 import { Card, Spinner, Avatar } from '../components/UI'
@@ -460,6 +460,182 @@ function GroupStandings({ matches }) {
   )
 }
 
+// ── Quick Pick swipe mode ──────────────────────────────────────────────────────
+function QuickPickMode({ unpicked, playerName, playerId, onClose, onPredicted }) {
+  const [index, setIndex] = useState(0)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState('')
+  const [swipeX, setSwipeX] = useState(0)
+  const [leaving, setLeaving] = useState(null) // 'home' | 'away' | 'draw'
+  const touchStartX = useRef(null)
+  const dragging = useRef(false)
+
+  const match = unpicked[index]
+  const done = index >= unpicked.length
+
+  async function pick(prediction) {
+    if (submitting || leaving) return
+    if (!playerName) { setError('Set your name in the Me tab first'); return }
+
+    const dir = prediction === 'home' ? 1 : prediction === 'away' ? -1 : 0
+    setLeaving(prediction)
+    setSwipeX(dir * 500)
+    setSubmitting(true)
+    setError('')
+
+    try {
+      const res = await fetch(`/api/worldcup/${match.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ playerName, playerId, prediction }),
+      })
+      const preds = await res.json()
+      if (!res.ok) throw new Error(preds.error)
+      onPredicted(match.id, preds)
+    } catch (e) {
+      setError(e.message)
+      setSwipeX(0)
+      setLeaving(null)
+      setSubmitting(false)
+      return
+    }
+
+    setTimeout(() => {
+      setIndex(i => i + 1)
+      setSwipeX(0)
+      setLeaving(null)
+      setSubmitting(false)
+    }, 280)
+  }
+
+  function onTouchStart(e) { touchStartX.current = e.touches[0].clientX; dragging.current = true }
+  function onTouchMove(e) {
+    if (!dragging.current || touchStartX.current === null) return
+    const delta = e.touches[0].clientX - touchStartX.current
+    setSwipeX(Math.max(-160, Math.min(160, delta)))
+  }
+  function onTouchEnd() {
+    if (!dragging.current) return
+    dragging.current = false
+    if (swipeX > 90) pick('home')
+    else if (swipeX < -90) pick('away')
+    else setSwipeX(0)
+    touchStartX.current = null
+  }
+
+  const swipeHint = swipeX > 45 ? 'home' : swipeX < -45 ? 'away' : null
+  const pct = Math.round((index / unpicked.length) * 100)
+
+  if (done) return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,8,20,0.97)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <div style={{ fontSize: 64, marginBottom: 16 }}>🎉</div>
+      <h2 style={{ fontSize: 22, fontWeight: 900, margin: '0 0 8px' }}>All caught up!</h2>
+      <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, marginBottom: 28, textAlign: 'center' }}>
+        You've predicted all {unpicked.length} match{unpicked.length !== 1 ? 'es' : ''}. Good luck!
+      </p>
+      <button onClick={onClose} style={{ background: FIFA_GOLD, color: FIFA_NAVY, border: 'none', borderRadius: 12, padding: '13px 32px', fontWeight: 800, fontSize: 15, cursor: 'pointer' }}>
+        See leaderboard →
+      </button>
+    </div>
+  )
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,8,20,0.97)', display: 'flex', flexDirection: 'column', padding: '20px 16px 28px' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', fontWeight: 600 }}>
+          {index + 1} / {unpicked.length}
+        </div>
+        <div style={{ fontSize: 14, fontWeight: 800, color: FIFA_GOLD, letterSpacing: '0.08em' }}>⚡ QUICK PICK</div>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 20, cursor: 'pointer', lineHeight: 1 }}>✕</button>
+      </div>
+
+      {/* Progress */}
+      <div style={{ height: 3, background: 'rgba(255,255,255,0.08)', borderRadius: 2, marginBottom: 20, overflow: 'hidden' }}>
+        <div style={{ height: '100%', width: `${pct}%`, background: `linear-gradient(90deg, ${FIFA_GOLD}, #d4960a)`, borderRadius: 2, transition: 'width 0.4s ease' }} />
+      </div>
+
+      {/* Swipeable card */}
+      <div
+        style={{
+          flex: 1,
+          transform: `translateX(${swipeX}px) rotate(${swipeX * 0.04}deg)`,
+          transition: leaving ? 'transform 0.28s ease' : dragging.current ? 'none' : 'transform 0.18s ease',
+          position: 'relative',
+          background: 'linear-gradient(145deg, rgba(0,32,91,0.6) 0%, rgba(4,10,22,0.98) 100%)',
+          border: `1px solid ${swipeHint === 'home' ? 'rgba(34,197,94,0.5)' : swipeHint === 'away' ? 'rgba(96,165,250,0.5)' : 'rgba(255,255,255,0.1)'}`,
+          borderRadius: 22,
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          padding: '28px 20px', overflow: 'hidden', cursor: 'grab',
+          userSelect: 'none',
+        }}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+      >
+        {/* Swipe hint overlays */}
+        {swipeHint === 'home' && (
+          <div style={{ position: 'absolute', inset: 0, background: 'rgba(34,197,94,0.1)', borderRadius: 22, display: 'flex', alignItems: 'center', paddingLeft: 24, pointerEvents: 'none' }}>
+            <span style={{ fontSize: 20, fontWeight: 900, color: '#22c55e', opacity: Math.min(1, (swipeX - 45) / 60) }}>✓ {match.team_home}</span>
+          </div>
+        )}
+        {swipeHint === 'away' && (
+          <div style={{ position: 'absolute', inset: 0, background: 'rgba(96,165,250,0.1)', borderRadius: 22, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: 24, pointerEvents: 'none' }}>
+            <span style={{ fontSize: 20, fontWeight: 900, color: '#60a5fa', opacity: Math.min(1, (-swipeX - 45) / 60) }}>{match.team_away} ✓</span>
+          </div>
+        )}
+
+        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)', letterSpacing: '0.1em', marginBottom: 24, textTransform: 'uppercase' }}>
+          {match.group_name ? `Group ${match.group_name}` : STAGE_LABELS[match.stage] || match.stage} · {formatTime(match.match_date)}
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', width: '100%', gap: 8 }}>
+          <div style={{ flex: 1, textAlign: 'center' }}>
+            <div style={{ fontSize: 60, lineHeight: 1, marginBottom: 12 }}>{match.flag_home || flag(match.team_home)}</div>
+            <div style={{ fontWeight: 800, fontSize: 15, lineHeight: 1.2 }}>{match.team_home}</div>
+          </div>
+          <div style={{ color: 'rgba(255,255,255,0.2)', fontWeight: 900, fontSize: 20, flexShrink: 0 }}>VS</div>
+          <div style={{ flex: 1, textAlign: 'center' }}>
+            <div style={{ fontSize: 60, lineHeight: 1, marginBottom: 12 }}>{match.flag_away || flag(match.team_away)}</div>
+            <div style={{ fontWeight: 800, fontSize: 15, lineHeight: 1.2 }}>{match.team_away}</div>
+          </div>
+        </div>
+
+        <div style={{ marginTop: 28, fontSize: 11, color: 'rgba(255,255,255,0.2)', textAlign: 'center' }}>
+          Swipe ← → or tap below
+        </div>
+      </div>
+
+      {/* Vote buttons */}
+      <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+        <button onClick={() => pick('home')} disabled={!!submitting} style={{
+          flex: 1, background: 'rgba(34,197,94,0.1)', border: '1.5px solid rgba(34,197,94,0.35)',
+          borderRadius: 14, padding: '14px 6px', color: '#22c55e', fontWeight: 800,
+          fontSize: 13, cursor: 'pointer', lineHeight: 1.3, opacity: submitting ? 0.6 : 1,
+        }}>
+          {match.flag_home || flag(match.team_home)}<br />{match.team_home}
+        </button>
+        <button onClick={() => pick('draw')} disabled={!!submitting} style={{
+          width: 68, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.12)',
+          borderRadius: 14, padding: '14px 0', color: 'rgba(255,255,255,0.45)', fontWeight: 700,
+          fontSize: 12, cursor: 'pointer', opacity: submitting ? 0.6 : 1, flexShrink: 0,
+        }}>
+          Draw<br />=
+        </button>
+        <button onClick={() => pick('away')} disabled={!!submitting} style={{
+          flex: 1, background: 'rgba(96,165,250,0.1)', border: '1.5px solid rgba(96,165,250,0.35)',
+          borderRadius: 14, padding: '14px 6px', color: '#60a5fa', fontWeight: 800,
+          fontSize: 13, cursor: 'pointer', lineHeight: 1.3, opacity: submitting ? 0.6 : 1,
+        }}>
+          {match.flag_away || flag(match.team_away)}<br />{match.team_away}
+        </button>
+      </div>
+
+      {error && <p style={{ color: '#f87171', fontSize: 12, textAlign: 'center', marginTop: 8, margin: '8px 0 0' }}>{error}</p>}
+    </div>
+  )
+}
+
 // ── Main page ──────────────────────────────────────────────────────────────────
 export default function WorldCupPage({ initialMatches, initialPredictions, initialBoard }) {
   const [matches, setMatches] = useState(initialMatches)
@@ -467,11 +643,19 @@ export default function WorldCupPage({ initialMatches, initialPredictions, initi
   const [board, setBoard] = useState(initialBoard)
   const [tab, setTab] = useState('matches')
   const [playerName, setPlayerName] = useState('')
+  const [playerId, setPlayerId] = useState('')
   const [showPast, setShowPast] = useState(false)
+  const [quickPick, setQuickPick] = useState(false)
 
   useEffect(() => {
     const saved = localStorage.getItem('pitchup_player')
-    if (saved) { try { setPlayerName(JSON.parse(saved).name || '') } catch {} }
+    if (saved) {
+      try {
+        const p = JSON.parse(saved)
+        setPlayerName(p.name || '')
+        setPlayerId(p.id || '')
+      } catch {}
+    }
   }, [])
 
   // Trigger sync in background after initial render so page loads fast from cache
@@ -499,8 +683,28 @@ export default function WorldCupPage({ initialMatches, initialPredictions, initi
     return <MatchCard key={m.id} match={m} myPrediction={myPred} preds={matchPreds} />
   }
 
+  const unpicked = (matches || []).filter(m => {
+    const locked = m.status !== 'upcoming' || new Date(m.match_date) <= new Date()
+    if (locked) return false
+    const myPred = playerName ? (predictions?.[m.id] || []).find(p => p.player_name?.toLowerCase() === playerName.toLowerCase()) : null
+    return !myPred
+  })
+
+  function handlePredicted(matchId, preds) {
+    setPredictions(prev => ({ ...prev, [matchId]: preds }))
+  }
+
   return (
     <Layout title="FIFA World Cup 2026 — PitchUp" description="Predict FIFA World Cup 2026 matches and chat with your squad.">
+      {quickPick && (
+        <QuickPickMode
+          unpicked={unpicked}
+          playerName={playerName}
+          playerId={playerId}
+          onClose={() => { setQuickPick(false); setTab('predictions') }}
+          onPredicted={handlePredicted}
+        />
+      )}
       <WCHero />
 
       {/* Tabs */}
@@ -530,6 +734,28 @@ export default function WorldCupPage({ initialMatches, initialPredictions, initi
 
       {tab === 'matches' && (
         <>
+          {/* Quick Pick entry banner */}
+          {unpicked.length > 0 && (
+            <button
+              onClick={() => setQuickPick(true)}
+              style={{
+                width: '100%', marginBottom: 16,
+                background: `linear-gradient(135deg, rgba(240,192,48,0.12) 0%, rgba(228,0,43,0.08) 100%)`,
+                border: `1px solid rgba(240,192,48,0.3)`,
+                borderRadius: 14, padding: '13px 16px', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              }}
+            >
+              <div style={{ textAlign: 'left' }}>
+                <div style={{ fontSize: 13, fontWeight: 800, color: FIFA_GOLD }}>⚡ Quick Pick</div>
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', marginTop: 2 }}>
+                  {unpicked.length} match{unpicked.length !== 1 ? 'es' : ''} left to predict
+                </div>
+              </div>
+              <div style={{ fontSize: 22 }}>→</div>
+            </button>
+          )}
+
           {matches?.length === 0 && (
             <div style={{ textAlign: 'center', padding: '48px 0', color: 'rgba(255,255,255,0.3)' }}>
               <div style={{ fontSize: 40, marginBottom: 12 }}>🏟️</div>
