@@ -147,7 +147,13 @@ export default function Home({ polls, groups, announcement, todayWcMatches }) {
         activePolls.map(poll => {
           const confirmed = poll.status === 'confirmed'
           const todayGame = isToday(poll)
-          const gameTime = poll.game_time ? new Date(poll.game_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : null
+          const gameDate = poll.game_time ? new Date(poll.game_time) : null
+          const gameTime = gameDate ? gameDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : null
+          const gameDateLabel = gameDate
+            ? todayGame
+              ? `Today · ${gameTime}`
+              : `${gameDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}${gameTime ? ` · ${gameTime}` : ''}`
+            : null
           const typeLabel = poll.game_type === 'practice' ? '🏃 Practice' : poll.game_type === 'competition' ? '🏆 Competition' : confirmed ? '✅ Game is ON!' : 'Game this week'
           return (
             <Link key={poll.id} href={`/poll/${poll.id}`} style={{ textDecoration: 'none' }}>
@@ -171,7 +177,7 @@ export default function Home({ polls, groups, announcement, todayWcMatches }) {
                 {poll.opponent && (
                   <p style={{ fontSize: 13, fontWeight: 700, margin: '0 0 4px', color: poll.game_type === 'competition' ? '#facc15' : '#fb923c' }}>vs {poll.opponent}</p>
                 )}
-                <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 8px' }}>{poll.location}{gameTime ? ` · ${gameTime}` : ''}</p>
+                <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 8px' }}>{poll.location}{gameDateLabel ? ` · ${gameDateLabel}` : ''}</p>
                 {confirmed ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ fontSize: 13, fontWeight: 700, color: '#22c55e' }}>⚽ {getActivePlayers(poll).length} players confirmed</span>
