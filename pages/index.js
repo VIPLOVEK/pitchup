@@ -149,11 +149,17 @@ export default function Home({ polls, groups, announcement, todayWcMatches }) {
           const todayGame = isToday(poll)
           const gameDate = poll.game_time ? new Date(poll.game_time) : null
           const gameTime = gameDate ? gameDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : null
+          // For open polls without a confirmed game_time, use the earliest slot date
+          const slotDate = !gameDate && poll.slots?.length
+            ? new Date(Math.min(...poll.slots.map(s => new Date(s))))
+            : null
           const gameDateLabel = gameDate
             ? todayGame
               ? `Today · ${gameTime}`
-              : `${gameDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}${gameTime ? ` · ${gameTime}` : ''}`
-            : null
+              : `${gameDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} · ${gameTime}`
+            : slotDate
+              ? `${slotDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}${poll.slots.length > 1 ? ' (vote open)' : ''}`
+              : null
           const typeLabel = poll.game_type === 'practice' ? '🏃 Practice' : poll.game_type === 'competition' ? '🏆 Competition' : confirmed ? '✅ Game is ON!' : 'Game this week'
           return (
             <Link key={poll.id} href={`/poll/${poll.id}`} style={{ textDecoration: 'none' }}>
