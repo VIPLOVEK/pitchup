@@ -72,6 +72,27 @@ export default async function handler(req, res) {
         return res.status(200).json(data)
       }
 
+      if (action === 'approve') {
+        if (poll.status !== 'pending') return res.status(400).json({ error: 'Poll is not pending' })
+        const { data, error } = await db
+          .from('polls').update({ status: 'open', version: poll.version + 1 }).eq('id', id).select().single()
+        if (error) throw error
+        try {
+          await sendPushToAll({
+            title: '⚽ New game poll',
+            body: `${data.title} — vote on your preferred time now!`,
+            url: `/poll/${data.id}`,
+          })
+        } catch (e) { console.error('Push failed:', e.message) }
+        return res.status(200).json(data)
+      }
+
+      if (action === 'reject') {
+        const { error } = await db.from('polls').delete().eq('id', id)
+        if (error) throw error
+        return res.status(200).json({ deleted: true })
+      }
+
       if (action === 'shuffle') {
         const teams = generateTeams(await withSkillRatings(db, getActivePlayers(poll)))
         const { teamAName, teamBName } = pickTeamNames()

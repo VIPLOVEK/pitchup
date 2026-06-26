@@ -1,9 +1,127 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Layout from '../components/Layout'
 import { Card, Label, ProgressBar, Pill } from '../components/UI'
 import { colors, radius } from '../lib/tokens'
 import { getActivePlayers } from '../lib/teams'
+import { LOCATIONS } from '../lib/locations'
+
+function RequestGameModal({ onClose }) {
+  const [name, setName] = useState(() => {
+    if (typeof window === 'undefined') return ''
+    try { return JSON.parse(localStorage.getItem('pitchup_player') || '{}').name || '' } catch { return '' }
+  })
+  const [gameType, setGameType] = useState('game')
+  const [opponent, setOpponent] = useState('')
+  const [location, setLocation] = useState(LOCATIONS[0].name)
+  const [customLocation, setCustomLocation] = useState('')
+  const [slot, setSlot] = useState('')
+  const [notes, setNotes] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [done, setDone] = useState(false)
+
+  const selectStyle = {
+    width: '100%', background: colors.pitchMid, border: `1px solid ${colors.grass}44`,
+    borderRadius: 8, color: colors.white, padding: '10px 12px', fontSize: 14,
+    outline: 'none', marginBottom: 10,
+  }
+  const inputStyle = {
+    width: '100%', background: colors.pitchMid, border: `1px solid ${colors.grass}44`,
+    borderRadius: 8, color: colors.white, padding: '10px 12px', fontSize: 14,
+    outline: 'none', marginBottom: 10, boxSizing: 'border-box',
+  }
+
+  const handleSubmit = async () => {
+    const finalLocation = location === 'Other' ? customLocation.trim() : location
+    if (!name.trim() || !finalLocation || !slot) {
+      setError('Please fill in your name, location and a preferred time.')
+      return
+    }
+    setLoading(true)
+    setError('')
+    try {
+      const res = await fetch('/api/request-game', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requesterName: name.trim(),
+          title: gameType === 'practice' ? 'Practice Session ⚽' : gameType === 'competition' ? 'Competition ⚽' : 'Pickup Game ⚽',
+          location: finalLocation,
+          slot,
+          notes: notes.trim() || undefined,
+          gameType,
+          opponent: opponent.trim() || undefined,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setDone(true)
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 1000,
+      background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'flex-end',
+    }} onClick={e => e.target === e.currentTarget && onClose()}>
+      <div style={{
+        background: colors.pitch, borderRadius: '18px 18px 0 0', width: '100%',
+        maxHeight: '90vh', overflowY: 'auto', padding: '24px 20px 32px',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800 }}>Request a game</h2>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: colors.muted, fontSize: 22, cursor: 'pointer', lineHeight: 1 }}>×</button>
+        </div>
+
+        {done ? (
+          <div style={{ textAlign: 'center', padding: '20px 0' }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
+            <p style={{ fontWeight: 700, fontSize: 16, margin: '0 0 8px' }}>Request sent!</p>
+            <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 20px' }}>The organizer will review and approve it. You'll see it appear on the home screen.</p>
+            <button onClick={onClose} style={{ background: colors.accent, color: colors.pitch, border: 'none', borderRadius: 8, padding: '10px 24px', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>Done</button>
+          </div>
+        ) : (
+          <>
+            <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 16px' }}>
+              The organizer will review your request and publish it for the group to vote on.
+            </p>
+            <input style={inputStyle} placeholder="Your name" value={name} onChange={e => setName(e.target.value)} />
+            <select value={gameType} onChange={e => setGameType(e.target.value)} style={selectStyle}>
+              <option value="game">⚽ Regular game</option>
+              <option value="practice">🏃 Practice session</option>
+              <option value="competition">🏆 Competition</option>
+            </select>
+            {gameType !== 'game' && (
+              <input style={inputStyle} placeholder="Opponent team name (optional)" value={opponent} onChange={e => setOpponent(e.target.value)} />
+            )}
+            <select value={location} onChange={e => setLocation(e.target.value)} style={selectStyle}>
+              {LOCATIONS.map(l => <option key={l.name} value={l.name}>{l.name}</option>)}
+              <option value="Other">Other...</option>
+            </select>
+            {location === 'Other' && (
+              <input style={inputStyle} placeholder="Field / location name" value={customLocation} onChange={e => setCustomLocation(e.target.value)} />
+            )}
+            <p style={{ color: colors.muted, fontSize: 12, margin: '0 0 6px' }}>Preferred date &amp; time</p>
+            <input type="datetime-local" style={inputStyle} value={slot} onChange={e => setSlot(e.target.value)} />
+            <input style={inputStyle} placeholder="Any notes for the organizer? (optional)" value={notes} onChange={e => setNotes(e.target.value)} />
+            {error && <p style={{ color: colors.danger, fontSize: 13, marginBottom: 10 }}>{error}</p>}
+            <button
+              onClick={handleSubmit} disabled={loading}
+              style={{ width: '100%', background: colors.accent, color: colors.pitch, border: 'none', borderRadius: 8, padding: '13px', fontWeight: 800, fontSize: 15, cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.7 : 1 }}
+            >
+              {loading ? 'Sending...' : 'Send request'}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
 
 function AnnouncementBanner({ announcement }) {
   const [dismissed, setDismissed] = useState(false)
@@ -102,6 +220,7 @@ function TodayWCMatches({ matches }) {
 }
 
 export default function Home({ polls, groups, announcement, todayWcMatches }) {
+  const [showRequest, setShowRequest] = useState(false)
   const now = new Date()
   const today = now.toDateString()
 
@@ -122,6 +241,7 @@ export default function Home({ polls, groups, announcement, todayWcMatches }) {
 
   return (
     <Layout title="PitchUp — Pickup Soccer">
+      {showRequest && <RequestGameModal onClose={() => setShowRequest(false)} />}
       <AnnouncementBanner announcement={announcement} />
 
       {/* World Cup today's matches */}
@@ -137,9 +257,19 @@ export default function Home({ polls, groups, announcement, todayWcMatches }) {
         <p style={{ color: colors.muted, fontSize: 14, margin: '0 0 8px' }}>
           Pickup soccer, organized.
         </p>
-        <p style={{ color: colors.muted, fontSize: 13, maxWidth: 380, margin: '0 auto', lineHeight: 1.5 }}>
+        <p style={{ color: colors.muted, fontSize: 13, maxWidth: 380, margin: '0 auto 16px', lineHeight: 1.5 }}>
           Choose game times, see who's in, and join us on the pitch — all skill levels welcome.
         </p>
+        <button
+          onClick={() => setShowRequest(true)}
+          style={{
+            background: 'transparent', border: `1.5px solid ${colors.grass}55`,
+            color: colors.muted, borderRadius: 20, padding: '7px 18px',
+            fontSize: 13, fontWeight: 600, cursor: 'pointer',
+          }}
+        >
+          + Request a game
+        </button>
       </div>
 
       {/* Active polls: confirmed-but-upcoming first, then open */}

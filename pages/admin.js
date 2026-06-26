@@ -221,6 +221,71 @@ function CreatePollForm({ onCreated, groups, prefill }) {
   )
 }
 
+function PendingPollCard({ poll, password, onAction }) {
+  const [loading, setLoading] = useState(null) // 'approve' | 'reject'
+
+  const doAction = async (action) => {
+    setLoading(action)
+    try {
+      const res = await fetch(`/api/admin/${poll.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', authorization: `Bearer ${password}` },
+        body: JSON.stringify({ action }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      onAction(poll.id, action === 'reject' ? null : data)
+    } catch (e) {
+      alert(e.message)
+    } finally {
+      setLoading(null)
+    }
+  }
+
+  const slotDate = poll.slots?.[0] ? new Date(poll.slots[0]) : null
+  const slotLabel = slotDate
+    ? slotDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) +
+      ' · ' + slotDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+    : null
+
+  const requesterLine = poll.notes?.split('\n').find(l => l.startsWith('Requested by'))
+
+  return (
+    <Card style={{ border: '1.5px solid rgba(251,191,36,0.5)', boxShadow: '0 4px 20px rgba(251,191,36,0.08)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+        <span style={{ fontSize: 11, fontWeight: 800, color: '#fbbf24', background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.3)', borderRadius: 20, padding: '2px 10px', letterSpacing: '0.05em' }}>
+          PENDING REQUEST
+        </span>
+      </div>
+      <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 2 }}>{poll.title}</div>
+      {poll.opponent && <div style={{ fontSize: 13, color: '#fb923c', fontWeight: 700, marginBottom: 2 }}>vs {poll.opponent}</div>}
+      <div style={{ color: colors.muted, fontSize: 13, marginBottom: 2 }}>{poll.location}{slotLabel ? ` · ${slotLabel}` : ''}</div>
+      {requesterLine && <div style={{ color: colors.muted, fontSize: 12, marginBottom: 8 }}>👤 {requesterLine}</div>}
+      {poll.notes && poll.notes.replace(requesterLine || '', '').trim() && (
+        <div style={{ fontSize: 12, color: colors.muted, background: 'rgba(255,255,255,0.04)', borderRadius: 6, padding: '6px 10px', marginBottom: 10 }}>
+          {poll.notes.replace(requesterLine || '', '').trim()}
+        </div>
+      )}
+      <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+        <button
+          onClick={() => doAction('approve')}
+          disabled={!!loading}
+          style={{ flex: 1, background: '#22c55e', color: '#fff', border: 'none', borderRadius: 8, padding: '10px', fontWeight: 700, fontSize: 14, cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.7 : 1 }}
+        >
+          {loading === 'approve' ? 'Approving...' : '✅ Approve'}
+        </button>
+        <button
+          onClick={() => doAction('reject')}
+          disabled={!!loading}
+          style={{ flex: 1, background: 'rgba(239,68,68,0.12)', color: colors.danger, border: `1px solid ${colors.danger}44`, borderRadius: 8, padding: '10px', fontWeight: 700, fontSize: 14, cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.7 : 1 }}
+        >
+          {loading === 'reject' ? 'Rejecting...' : '✕ Reject'}
+        </button>
+      </div>
+    </Card>
+  )
+}
+
 function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
   const [loading, setLoading] = useState(false)
   const [scoreA, setScoreA] = useState(poll.score_a ?? '')
@@ -1785,7 +1850,9 @@ export default function AdminPage() {
               cursor: 'pointer',
             }}
           >
-            {t === 'create' ? '➕ New Poll' : t === 'manage' ? `📋 Manage (${polls.length})` : t === 'recurring' ? '🔁 Recurring' : t === 'roster' ? '👥 Roster' : t === 'groups' ? '🏷️ Groups' : t === 'broadcast' ? '📣 Broadcast' : '💡 Feedback'}
+            {t === 'create' ? '➕ New Poll' : t === 'manage' ? (
+              <>📋 Manage ({polls.filter(p => p.status !== 'pending').length}){polls.filter(p => p.status === 'pending').length > 0 && <span style={{ marginLeft: 6, background: '#fbbf24', color: '#000', borderRadius: 10, padding: '1px 6px', fontSize: 11, fontWeight: 800 }}>{polls.filter(p => p.status === 'pending').length}</span>}</>
+            ) : t === 'recurring' ? '🔁 Recurring' : t === 'roster' ? '👥 Roster' : t === 'groups' ? '🏷️ Groups' : t === 'broadcast' ? '📣 Broadcast' : '💡 Feedback'}
           </button>
         ))}
       </div>
@@ -1804,14 +1871,18 @@ export default function AdminPage() {
 
       {tab === 'manage' && (
         <div>
-          {polls.length === 0 && (
+          {/* Pending game requests — shown prominently at the top */}
+          {polls.filter(p => p.status === 'pending').map(poll => (
+            <PendingPollCard key={poll.id} poll={poll} password={password} onAction={handleAction} />
+          ))}
+          {polls.filter(p => p.status !== 'pending').length === 0 && polls.filter(p => p.status === 'pending').length === 0 && (
             <Card>
               <div style={{ textAlign: 'center', color: colors.muted, padding: '20px 0', fontSize: 14 }}>
                 No polls yet. Create one first!
               </div>
             </Card>
           )}
-          {polls.map(poll => (
+          {polls.filter(p => p.status !== 'pending').map(poll => (
             <PollCard
               key={poll.id}
               poll={poll}
