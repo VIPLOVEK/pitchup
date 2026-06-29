@@ -273,6 +273,8 @@ function WaitlistCard({ poll, waitlist, myEntry, onWaitlist, name, setName, prof
 }
 
 // ── Match comments ────────────────────────────────────────────────────────────
+const REACTIONS = ['⚽', '🔥', '👏', '😂', '💪']
+
 function renderMentions(text) {
   const parts = text.split(/(@\w+)/g)
   return parts.map((part, i) =>
@@ -335,6 +337,34 @@ function Comments({ poll, profileName }) {
     }
   }
 
+  async function react(commentIndex, emoji) {
+    if (!name.trim()) return
+    // Optimistic update
+    setComments(prev => {
+      const next = [...prev]
+      const c = { ...next[commentIndex] }
+      const reactions = { ...(c.reactions || {}) }
+      const reactors = reactions[emoji] || []
+      const nameLc = name.trim().toLowerCase()
+      const already = reactors.some(r => r.toLowerCase() === nameLc)
+      reactions[emoji] = already
+        ? reactors.filter(r => r.toLowerCase() !== nameLc)
+        : [...reactors, name.trim()]
+      if (reactions[emoji].length === 0) delete reactions[emoji]
+      c.reactions = reactions
+      next[commentIndex] = c
+      return next
+    })
+    try {
+      const res = await fetch(`/api/poll/${poll.id}/react`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.trim(), commentIndex, emoji }),
+      })
+      if (res.ok) setComments(await res.json())
+    } catch {}
+  }
+
   function formatTs(ts) {
     const d = new Date(ts)
     return d.toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
@@ -346,22 +376,61 @@ function Comments({ poll, profileName }) {
       {comments.length === 0 && (
         <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 12px' }}>No messages yet — be the first!</p>
       )}
-      {comments.map((c, i) => (
-        <div key={i} style={{ marginBottom: 10, paddingBottom: 10, borderBottom: i < comments.length - 1 ? `1px solid ${colors.grass}22` : 'none' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
-            <span style={{ fontWeight: 700, fontSize: 13, color: colors.accent }}>{c.name}</span>
-            <span style={{ fontSize: 11, color: colors.muted }}>{formatTs(c.ts)}</span>
+      {comments.map((c, i) => {
+        const hasAnyReaction = c.reactions && Object.values(c.reactions).some(r => r.length > 0)
+        return (
+          <div key={i} style={{ marginBottom: 10, paddingBottom: 10, borderBottom: i < comments.length - 1 ? `1px solid ${colors.grass}22` : 'none' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
+              <span style={{ fontWeight: 700, fontSize: 13, color: colors.accent }}>{c.name}</span>
+              <span style={{ fontSize: 11, color: colors.muted }}>{formatTs(c.ts)}</span>
+            </div>
+            <div style={{ fontSize: 13, color: colors.white, lineHeight: 1.5 }}>{renderMentions(c.text)}</div>
+            {/* Reaction strip */}
+            <div style={{ display: 'flex', gap: 4, marginTop: 6, flexWrap: 'wrap' }}>
+              {REACTIONS.map(emoji => {
+                const reactors = c.reactions?.[emoji] || []
+                const reacted = name.trim() && reactors.some(r => r.toLowerCase() === name.trim().toLowerCase())
+                const hasCount = reactors.length > 0
+                if (!hasAnyReaction && !name.trim()) return null
+                return (
+                  <button
+                    key={emoji}
+                    onClick={() => react(i, emoji)}
+                    title={reactors.length ? reactors.join(', ') : undefined}
+                    style={{
+                      background: reacted ? `${colors.accent}22` : 'rgba(255,255,255,0.04)',
+                      border: `1px solid ${reacted ? colors.accent + '44' : 'rgba(255,255,255,0.1)'}`,
+                      borderRadius: 20,
+                      padding: '2px 7px',
+                      fontSize: 14,
+                      lineHeight: 1.4,
+                      cursor: name.trim() ? 'pointer' : 'default',
+                      color: reacted ? colors.accent : colors.muted,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 3,
+                      opacity: hasCount ? 1 : 0.35,
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    {emoji}
+                    {hasCount && (
+                      <span style={{ fontSize: 11, fontWeight: 700 }}>{reactors.length}</span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
           </div>
-          <div style={{ fontSize: 13, color: colors.white, lineHeight: 1.5 }}>{renderMentions(c.text)}</div>
-        </div>
-      ))}
+        )
+      })}
       <div ref={bottomRef} />
       <form onSubmit={submit} style={{ marginTop: 8 }}>
         {!name.trim() && (
           <input
             value={name}
             onChange={e => setName(e.target.value)}
-            placeholder="Your name (required to send)"
+            placeholder="Your name (required to send or react)"
             style={{ width: '100%', background: colors.pitchMid, border: `1px solid ${colors.grass}33`, color: colors.white, borderRadius: 8, padding: '8px 12px', fontSize: 13, marginBottom: 8, boxSizing: 'border-box' }}
           />
         )}
