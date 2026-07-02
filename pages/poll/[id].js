@@ -455,6 +455,91 @@ function Comments({ poll, profileName }) {
   )
 }
 
+// ── Confirmed game opt-out (name-only voters who have no saved profile) ──────
+function ConfirmedOptOut({ poll, loading, setLoading, setToast, setPoll }) {
+  const [open, setOpen] = useState(false)
+  const [inputName, setInputName] = useState('')
+
+  const active = getActivePlayers(poll)
+  const match = inputName.trim()
+    ? active.find(p => p.name.toLowerCase() === inputName.trim().toLowerCase())
+    : null
+  const notFound = inputName.trim().length > 1 && !match
+
+  const leave = async () => {
+    if (!match) return
+    if (!window.confirm(`Remove ${match.name} from the squad? If there's a waitlist, the next player will be promoted automatically.`)) return
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/poll/${poll.id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: match.name }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setPoll(data)
+      setToast("You've left the game — sorry to miss you 👋")
+      setTimeout(() => setToast(''), 3500)
+      setOpen(false)
+    } catch (e) {
+      setToast(e.message || 'Something went wrong')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (!open) {
+    return (
+      <div style={{ textAlign: 'center', margin: '-4px 0 16px' }}>
+        <button
+          onClick={() => setOpen(true)}
+          style={{ background: 'none', border: 'none', color: colors.muted, fontSize: 13, cursor: 'pointer', textDecoration: 'underline' }}
+        >
+          Can't make it anymore?
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <Card style={{ borderColor: 'rgba(239,68,68,0.2)' }}>
+      <Label>Can't make it?</Label>
+      <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 10px' }}>
+        Enter the name you signed up with to remove yourself from the squad.
+        {active.length > 0 && ' The next player on the waitlist will be promoted automatically.'}
+      </p>
+      <Input
+        value={inputName}
+        onChange={e => setInputName(e.target.value)}
+        placeholder="Your name..."
+        autoFocus
+      />
+      {notFound && (
+        <p style={{ color: colors.muted, fontSize: 12, margin: '-4px 0 8px' }}>
+          "{inputName}" isn't in the active squad.
+        </p>
+      )}
+      {match && (
+        <>
+          <p style={{ color: colors.grassLight, fontSize: 13, margin: '0 0 12px' }}>
+            ✓ Found you — {match.name}
+          </p>
+          <Btn variant="danger" full onClick={leave} disabled={loading}>
+            {loading ? 'Removing...' : "I can't make it — remove me from the squad"}
+          </Btn>
+        </>
+      )}
+      <button
+        onClick={() => { setOpen(false); setInputName('') }}
+        style={{ background: 'none', border: 'none', color: colors.muted, fontSize: 12, cursor: 'pointer', marginTop: 10, display: 'block' }}
+      >
+        Cancel
+      </button>
+    </Card>
+  )
+}
+
 // ── Confirmed game view ───────────────────────────────────────────────────────
 function GameConfirmed({ poll, profile }) {
   const { teamA = [], teamB = [] } = poll.teams || {}
@@ -933,9 +1018,15 @@ export default function PollPage({ poll: initialPoll, error }) {
     return (
       <Layout title={poll.title} description={`Game is on at ${poll.location} — ${formatSlot(poll.game_time)}.`} ogImageUrl={ogImageUrl}>
         <GameConfirmed poll={poll} profile={profile} />
-        <WaitlistCard poll={poll} waitlist={waitlist} myEntry={myEntry} onWaitlist={onWaitlist}
-          name={name} setName={setName} profile={profile}
-          loading={loading} setLoading={setLoading} setToast={setToast} setPoll={setPoll} />
+        {/* Profile users: WaitlistCard shows their status + leave button via myEntry */}
+        {(profile || myEntry) ? (
+          <WaitlistCard poll={poll} waitlist={waitlist} myEntry={myEntry} onWaitlist={onWaitlist}
+            name={name} setName={setName} profile={profile}
+            loading={loading} setLoading={setLoading} setToast={setToast} setPoll={setPoll} />
+        ) : (
+          /* Name-only voters: self-contained opt-out with name identification */
+          <ConfirmedOptOut poll={poll} loading={loading} setLoading={setLoading} setToast={setToast} setPoll={setPoll} />
+        )}
         <Toast msg={toast} />
         {isAdminMode && <AdminBar poll={poll} onUpdate={setPoll} />}
       </Layout>
