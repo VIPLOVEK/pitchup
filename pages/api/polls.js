@@ -51,7 +51,7 @@ export default async function handler(req, res) {
         visibility: pollVisibility,
         group_ids: pollVisibility === 'groups' ? groupIds : [],
         notes: notes || null,
-        game_type: ['practice', 'competition'].includes(gameType) ? gameType : 'game',
+        game_type: ['practice', 'competition', 'watch_party'].includes(gameType) ? gameType : 'game',
         opponent: opponent?.trim() || null,
         team_a_name: teamAName,
         team_b_name: teamBName,

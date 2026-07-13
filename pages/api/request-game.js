@@ -31,7 +31,7 @@ export default async function handler(req, res) {
         visibility: 'all',
         group_ids: [],
         notes: [notes?.trim(), `Requested by ${requesterName.trim()}`].filter(Boolean).join('\n'),
-        game_type: ['practice', 'competition'].includes(gameType) ? gameType : 'game',
+        game_type: ['practice', 'competition', 'watch_party'].includes(gameType) ? gameType : 'game',
         opponent: opponent?.trim().slice(0, 60) || null,
       })
       .select()

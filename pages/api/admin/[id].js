@@ -193,7 +193,7 @@ export default async function handler(req, res) {
 
         const { data, error } = await db
           .from('polls')
-          .update({ title, location, slots, min_players: minPlayers, max_players: maxPlayers, players: updatedPlayers, notes: notes !== undefined ? notes : poll.notes, game_type: ['practice', 'competition'].includes(gameType) ? gameType : (gameType === 'game' ? 'game' : poll.game_type ?? 'game'), opponent: opponent !== undefined ? (opponent?.trim() || null) : poll.opponent ?? null, version: poll.version + 1 })
+          .update({ title, location, slots, min_players: minPlayers, max_players: maxPlayers, players: updatedPlayers, notes: notes !== undefined ? notes : poll.notes, game_type: ['practice', 'competition', 'watch_party'].includes(gameType) ? gameType : (gameType === 'game' ? 'game' : poll.game_type ?? 'game'), opponent: opponent !== undefined ? (opponent?.trim() || null) : poll.opponent ?? null, version: poll.version + 1 })
           .eq('id', id)
           .select()
           .single()

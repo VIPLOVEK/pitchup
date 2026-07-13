@@ -121,8 +121,9 @@ function CreatePollForm({ onCreated, groups, prefill }) {
         <option value="game">⚽ Regular game</option>
         <option value="practice">🏃 Practice session</option>
         <option value="competition">🏆 Competition</option>
+        <option value="watch_party">📺 Watch Party</option>
       </select>
-      {gameType !== 'game' && (
+      {gameType !== 'game' && gameType !== 'watch_party' && (
         <Input value={opponent} onChange={e => setOpponent(e.target.value)} placeholder="Opponent team name (optional) — e.g. Yankee FC" />
       )}
 
@@ -361,7 +362,7 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
   }
 
   const statusLabel = isConfirmed ? 'Confirmed ✅' : isCancelled ? 'Cancelled ❌' : 'Open 🟢'
-  const gameTypeLabel = poll.game_type === 'practice' ? '🏃 Practice' : poll.game_type === 'competition' ? '🏆 Competition' : null
+  const gameTypeLabel = poll.game_type === 'practice' ? '🏃 Practice' : poll.game_type === 'competition' ? '🏆 Competition' : poll.game_type === 'watch_party' ? '📺 Watch Party' : null
   const statusColor = isConfirmed ? colors.cardGreen : isCancelled ? colors.cardRed : colors.cardYellow
   const pollGroups = poll.visibility === 'groups' ? poll.group_ids.map(id => groups.find(g => g.id === id)).filter(Boolean) : []
 
@@ -373,7 +374,7 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
           <Link href={`/poll/${poll.id}`} target="_blank" style={{ textDecoration: 'none' }}>
             <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 2, color: colors.white, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               {poll.title}
-              {gameTypeLabel && <span style={{ fontSize: 11, fontWeight: 700, background: poll.game_type === 'practice' ? 'rgba(251,146,60,0.15)' : 'rgba(250,204,21,0.15)', color: poll.game_type === 'practice' ? '#fb923c' : '#facc15', border: `1px solid ${poll.game_type === 'practice' ? 'rgba(251,146,60,0.3)' : 'rgba(250,204,21,0.3)'}`, borderRadius: 20, padding: '2px 8px' }}>{gameTypeLabel}</span>}
+              {gameTypeLabel && <span style={{ fontSize: 11, fontWeight: 700, background: poll.game_type === 'practice' ? 'rgba(251,146,60,0.15)' : poll.game_type === 'watch_party' ? 'rgba(96,165,250,0.15)' : 'rgba(250,204,21,0.15)', color: poll.game_type === 'practice' ? '#fb923c' : poll.game_type === 'watch_party' ? '#60a5fa' : '#facc15', border: `1px solid ${poll.game_type === 'practice' ? 'rgba(251,146,60,0.3)' : poll.game_type === 'watch_party' ? 'rgba(96,165,250,0.3)' : 'rgba(250,204,21,0.3)'}`, borderRadius: 20, padding: '2px 8px' }}>{gameTypeLabel}</span>}
               {(isConfirmed || isCancelled) && <span style={{ color: colors.accent, fontSize: 12, fontWeight: 600 }}>↗ View</span>}
             </div>
           </Link>
@@ -674,8 +675,9 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
             <option value="game">⚽ Regular game</option>
             <option value="practice">🏃 Practice session</option>
             <option value="competition">🏆 Competition</option>
+            <option value="watch_party">📺 Watch Party</option>
           </select>
-          {editGameType !== 'game' && (
+          {editGameType !== 'game' && editGameType !== 'watch_party' && (
             <Input value={editOpponent} onChange={e => setEditOpponent(e.target.value)} placeholder="Opponent team name (optional)" />
           )}
 

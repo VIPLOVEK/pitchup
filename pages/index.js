@@ -242,6 +242,7 @@ export default function Home({ polls, groups, announcement, todayWcMatches }) {
   function urgencyLabel(poll) {
     if (poll.game_type === 'practice') return '🏃 Practice'
     if (poll.game_type === 'competition') return '🏆 Competition'
+    if (poll.game_type === 'watch_party') return '📺 Watch Party'
     if (poll.status === 'confirmed') return '✅ Game is ON!'
     const d = effectiveDate(poll)
     const days = daysUntil(d)
@@ -355,6 +356,7 @@ export default function Home({ polls, groups, announcement, todayWcMatches }) {
                     {todayGame && !amIn && <span style={{ fontSize: 11, fontWeight: 800, color: '#fff', background: '#22c55e', borderRadius: 20, padding: '2px 8px' }}>TODAY</span>}
                     {poll.game_type === 'practice' && <span style={{ fontSize: 11, fontWeight: 700, color: '#fb923c', background: 'rgba(251,146,60,0.12)', border: '1px solid rgba(251,146,60,0.25)', borderRadius: 20, padding: '2px 8px' }}>Practice</span>}
                     {poll.game_type === 'competition' && <span style={{ fontSize: 11, fontWeight: 700, color: '#facc15', background: 'rgba(250,204,21,0.12)', border: '1px solid rgba(250,204,21,0.25)', borderRadius: 20, padding: '2px 8px' }}>Competition</span>}
+                    {poll.game_type === 'watch_party' && <span style={{ fontSize: 11, fontWeight: 700, color: '#60a5fa', background: 'rgba(96,165,250,0.12)', border: '1px solid rgba(96,165,250,0.25)', borderRadius: 20, padding: '2px 8px' }}>Watch Party</span>}
                   </div>
                 </div>
                 <GroupBadges poll={poll} groups={groups} />

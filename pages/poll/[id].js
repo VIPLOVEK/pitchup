@@ -1205,7 +1205,7 @@ export default function PollPage({ poll: initialPoll, error }) {
   return (
     <Layout title={poll.title} description={`${poll.location} · ${totalSpots}/${poll.min_players}+ players — tap to vote on a time`} ogImageUrl={ogImageUrl}>
       <Card style={pollGroups.length > 0 ? { borderLeft: `4px solid ${pollGroups[0].color || colors.grassLight}` } : {}}>
-        <Label>Open game — join below</Label>
+        <Label>{poll.game_type === 'watch_party' ? 'Watch Party — RSVP below' : 'Open game — join below'}</Label>
         {pollGroups.length > 0 && (
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
             {pollGroups.map(g => (
@@ -1220,11 +1220,12 @@ export default function PollPage({ poll: initialPoll, error }) {
           <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0, letterSpacing: '-0.5px' }}>{poll.title}</h1>
           {poll.game_type === 'practice' && <span style={{ fontSize: 11, fontWeight: 700, color: '#fb923c', background: 'rgba(251,146,60,0.12)', border: '1px solid rgba(251,146,60,0.25)', borderRadius: 20, padding: '2px 8px', flexShrink: 0 }}>🏃 Practice</span>}
           {poll.game_type === 'competition' && <span style={{ fontSize: 11, fontWeight: 700, color: '#facc15', background: 'rgba(250,204,21,0.12)', border: '1px solid rgba(250,204,21,0.25)', borderRadius: 20, padding: '2px 8px', flexShrink: 0 }}>🏆 Competition</span>}
+          {poll.game_type === 'watch_party' && <span style={{ fontSize: 11, fontWeight: 700, color: '#60a5fa', background: 'rgba(96,165,250,0.12)', border: '1px solid rgba(96,165,250,0.25)', borderRadius: 20, padding: '2px 8px', flexShrink: 0 }}>📺 Watch Party</span>}
         </div>
         {poll.opponent && (
           <p style={{ fontSize: 13, fontWeight: 700, margin: '0 0 4px', color: poll.game_type === 'competition' ? '#facc15' : '#fb923c' }}>vs {poll.opponent}</p>
         )}
-        <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 4px' }}>{poll.location} · Need {poll.min_players}+ players</p>
+        <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 4px' }}>{poll.location} · {poll.game_type === 'watch_party' ? `Max ${poll.max_players} spots` : `Need ${poll.min_players}+ players`}</p>
         <div style={{ margin: '0 0 12px' }}>
           <VenueInfo location={poll.location} />
         </div>
@@ -1296,7 +1297,7 @@ export default function PollPage({ poll: initialPoll, error }) {
       )}
 
       <Card>
-        <Label>{myEntry ? 'Update your availability' : 'Join the game'}</Label>
+        <Label>{myEntry ? 'Update your availability' : poll.game_type === 'watch_party' ? 'RSVP for the watch party' : 'Join the game'}</Label>
         {profile ? (
           <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 10px' }}>
             Voting as <strong style={{ color: colors.white }}>{profile.name}</strong> ({profile.positions?.length ? profile.positions.join(', ') : 'Any'}) ·{' '}
@@ -1418,7 +1419,7 @@ export default function PollPage({ poll: initialPoll, error }) {
             disabled={!name.trim() || selectedSlots.length === 0 || loading || kicking || (matchedPlayer && !/^\d{4,6}$/.test(pin)) || (poll.visibility === 'groups' && hasAccess === false)}
             style={{ padding: '16px 20px', fontSize: 17, borderRadius: 12 }}
           >
-            {kicking ? <>Joining <span className="kick-ball">⚽</span></> : loading ? 'Joining...' : "I'm in — count me ⚽"}
+            {kicking ? <>Joining <span className="kick-ball">{poll.game_type === 'watch_party' ? '📺' : '⚽'}</span></> : loading ? 'Joining...' : poll.game_type === 'watch_party' ? "I'm in — count me 📺" : "I'm in — count me ⚽"}
           </Btn>
         </div>
         {name.trim() && !myEntry && (() => {
