@@ -236,7 +236,9 @@ export default function Home({ polls, groups, announcement, todayWcMatches }) {
   }
 
   function daysUntil(date) {
-    return Math.ceil((date - now) / (1000 * 60 * 60 * 24))
+    const d1 = new Date(date); d1.setHours(0, 0, 0, 0)
+    const d2 = new Date(now); d2.setHours(0, 0, 0, 0)
+    return Math.round((d1 - d2) / (1000 * 60 * 60 * 24))
   }
 
   function urgencyLabel(poll) {
