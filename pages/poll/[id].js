@@ -259,12 +259,11 @@ function WaitlistCard({ poll, waitlist, myEntry, onWaitlist, name, setName, prof
                 border: `1px solid ${myTeam === 'A' ? 'rgba(96,165,250,0.3)' : 'rgba(248,113,113,0.3)'}`,
                 borderRadius: 20, padding: '5px 12px', marginTop: 4,
               }}>
-                <span style={{ fontSize: 13 }}>{myTeam === 'A' ? '🟦' : '🟥'}</span>
+                <span style={{ fontSize: 13 }}>{myTeam === 'A' ? '⚪' : '🎨'}</span>
                 <span style={{ fontSize: 13, fontWeight: 700, color: myTeam === 'A' ? colors.teamA : colors.teamB }}>
                   {myTeam === 'A' ? nameA : nameB}
                 </span>
                 <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>·</span>
-                <span style={{ fontSize: 13 }}>{myTeam === 'A' ? '⚪' : '🎨'}</span>
                 <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', fontWeight: 600 }}>
                   {myTeam === 'A' ? 'White' : 'Colors'}
                 </span>
@@ -577,8 +576,8 @@ function GameConfirmed({ poll, profile }) {
     `📅 ${gameTime}`,
     `📍 ${poll.location}`,
     ``,
-    `🟦 *${nameA}* (⚪ white): ${teamA.map(p => p.name).join(', ')}`,
-    `🟥 *${nameB}* (🎨 colors): ${teamB.map(p => p.name).join(', ')}`,
+    `⚪ *${nameA}*: ${teamA.map(p => p.name).join(', ')}`,
+    `🎨 *${nameB}*: ${teamB.map(p => p.name).join(', ')}`,
     ``,
     `See you on the pitch! 🏃`,
   ].join('\n')
@@ -617,7 +616,7 @@ function GameConfirmed({ poll, profile }) {
               <span style={{ fontSize: 32, fontWeight: 900, color: poll.score_b > poll.score_a ? colors.teamB : colors.muted }}>{poll.score_b}</span>
             </div>
             <div style={{ fontSize: 12, color: colors.muted, marginTop: 4 }}>
-              {poll.score_a === poll.score_b ? 'Draw' : poll.score_a > poll.score_b ? `🟦 ${nameA} wins` : `🟥 ${nameB} wins`}
+              {poll.score_a === poll.score_b ? 'Draw' : poll.score_a > poll.score_b ? `⚪ ${nameA} wins` : `🎨 ${nameB} wins`}
             </div>
           </div>
         ) : (
@@ -636,7 +635,7 @@ function GameConfirmed({ poll, profile }) {
               return (
                 <div key={team} style={{ fontSize: 13, marginBottom: 4 }}>
                   <span style={{ color: team === 'A' ? colors.teamA : colors.teamB, fontWeight: 700, marginRight: 6 }}>
-                    {team === 'A' ? '🟦' : '🟥'}
+                    {team === 'A' ? '⚪' : '🎨'}
                   </span>
                   {teamGoals.map((g, i) => (
                     <span key={i}>
@@ -653,7 +652,7 @@ function GameConfirmed({ poll, profile }) {
         <div style={{ display: 'flex', gap: 16 }}>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.teamA, marginBottom: 2 }}>
-              🟦 {nameA}
+              {nameA}
             </div>
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginBottom: 8 }}>⚪ White</div>
             <PositionSummary players={teamA} />
@@ -665,7 +664,7 @@ function GameConfirmed({ poll, profile }) {
           </div>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.teamB, marginBottom: 2 }}>
-              🟥 {nameB}
+              {nameB}
             </div>
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginBottom: 8 }}>🎨 Colors</div>
             <PositionSummary players={teamB} />
@@ -756,7 +755,7 @@ function DraftTeams({ poll, active }) {
       <div style={{ display: 'flex', gap: 16 }}>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.teamA, marginBottom: 8 }}>
-            🟦 {nameA}
+            {nameA}
           </div>
           <PositionSummary players={teamA} />
           {teamA.map((p, i) => (
@@ -767,7 +766,7 @@ function DraftTeams({ poll, active }) {
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.teamB, marginBottom: 8 }}>
-            🟥 {nameB}
+            {nameB}
           </div>
           <PositionSummary players={teamB} />
           {teamB.map((p, i) => (
