@@ -264,9 +264,9 @@ function WaitlistCard({ poll, waitlist, myEntry, onWaitlist, name, setName, prof
                   {myTeam === 'A' ? nameA : nameB}
                 </span>
                 <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>·</span>
-                <span style={{ fontSize: 13 }}>{myTeam === 'A' ? '⚪' : '⚫'}</span>
+                <span style={{ fontSize: 13 }}>{myTeam === 'A' ? '⚪' : '🎨'}</span>
                 <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', fontWeight: 600 }}>
-                  {myTeam === 'A' ? 'White jersey' : 'Dark jersey'}
+                  {myTeam === 'A' ? 'White' : 'Colors'}
                 </span>
               </div>
             )}
@@ -577,8 +577,8 @@ function GameConfirmed({ poll, profile }) {
     `📅 ${gameTime}`,
     `📍 ${poll.location}`,
     ``,
-    `🟦 *${nameA}* (⚪ white jersey): ${teamA.map(p => p.name).join(', ')}`,
-    `🟥 *${nameB}* (⚫ dark jersey): ${teamB.map(p => p.name).join(', ')}`,
+    `🟦 *${nameA}* (⚪ white): ${teamA.map(p => p.name).join(', ')}`,
+    `🟥 *${nameB}* (🎨 colors): ${teamB.map(p => p.name).join(', ')}`,
     ``,
     `See you on the pitch! 🏃`,
   ].join('\n')
@@ -655,7 +655,7 @@ function GameConfirmed({ poll, profile }) {
             <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.teamA, marginBottom: 2 }}>
               🟦 {nameA}
             </div>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginBottom: 8 }}>⚪ White jersey</div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginBottom: 8 }}>⚪ White</div>
             <PositionSummary players={teamA} />
             {teamA.map((p, i) => (
               <div key={i} style={{ display: 'flex', marginBottom: 4 }}>
@@ -667,7 +667,7 @@ function GameConfirmed({ poll, profile }) {
             <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.teamB, marginBottom: 2 }}>
               🟥 {nameB}
             </div>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginBottom: 8 }}>⚫ Dark jersey</div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginBottom: 8 }}>🎨 Colors</div>
             <PositionSummary players={teamB} />
             {teamB.map((p, i) => (
               <div key={i} style={{ display: 'flex', marginBottom: 4 }}>
