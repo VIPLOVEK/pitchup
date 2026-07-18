@@ -11,5 +11,12 @@ jobs:
     steps:
       - name: Call reminders endpoint
         run: |
-          curl -sf -X GET "${{ vars.APP_URL }}/api/cron/reminders" \
-            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X GET "${{ vars.APP_URL }}/api/cron/reminders" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}")
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | head -n -1)
+          echo "HTTP status: $HTTP_CODE"
+          echo "Response: $BODY"
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::warning::Reminders endpoint returned $HTTP_CODE — check that CRON_SECRET in GitHub secrets matches the CRON_SECRET in Vercel environment variables"
+          fi
