@@ -50,7 +50,6 @@ function GlobeIcon({ active }) {
 
 const NAV_ITEMS = [
   { href: '/', label: 'Home',      Icon: HomeIcon   },
-  { href: '/worldcup', label: 'World Cup', Icon: GlobeIcon },
   { href: '/leaderboard', label: 'Rankings', Icon: TrophyIcon },
   { href: '/profile', label: 'Me',       Icon: PersonIcon },
 ]
