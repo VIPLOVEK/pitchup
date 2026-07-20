@@ -41,7 +41,9 @@ export default async function handler(req, res) {
       if (action === 'close') {
         const activePlayers = await withSkillRatings(db, getActivePlayers(poll))
         const expanded = expandWithGuests(activePlayers)
-        const teams = generateTeams(expanded)
+        const teams = poll.no_team_split
+          ? { teamA: expanded, teamB: [] }
+          : generateTeams(expanded)
         const gameTime = pickBestSlot(activePlayers, poll.slots)
         const { data, error } = await db
           .from('polls').update({ status: 'confirmed', teams, game_time: gameTime, version: poll.version + 1 }).eq('id', id).select().single()
@@ -94,6 +96,7 @@ export default async function handler(req, res) {
       }
 
       if (action === 'shuffle') {
+        if (poll.no_team_split) return res.status(400).json({ error: 'Cannot reshuffle a no-split game' })
         const teams = generateTeams(await withSkillRatings(db, getActivePlayers(poll)))
         const { teamAName, teamBName } = pickTeamNames()
         const { data, error } = await db
@@ -120,7 +123,10 @@ export default async function handler(req, res) {
           .from('polls').update({ score_a: scoreA, score_b: scoreB, version: poll.version + 1 }).eq('id', id).select().single()
         if (error) throw error
         try {
-          const result = scoreA === scoreB ? 'Draw' : scoreA > scoreB ? '🟦 Team A win' : '🟥 Team B win'
+          const result = scoreA === scoreB ? 'Draw'
+            : poll.no_team_split
+              ? (scoreA > scoreB ? 'Win!' : 'Loss')
+              : (scoreA > scoreB ? '⚪ White wins' : '🎨 Colors wins')
           await sendPushToAll({
             title: `⚽ Final score: ${scoreA} – ${scoreB}`,
             body: `${data.title}: ${result}. Check it out!`,
@@ -176,7 +182,7 @@ export default async function handler(req, res) {
       }
 
       if (action === 'updateDetails') {
-        const { title, location, slots, minPlayers, maxPlayers, notes, gameType, opponent } = req.body
+        const { title, location, slots, minPlayers, maxPlayers, notes, gameType, opponent, noTeamSplit } = req.body
         if (poll.status !== 'open') return res.status(400).json({ error: 'Poll is no longer open' })
         if (!title || !location) return res.status(400).json({ error: 'Title and location are required' })
         if (!Array.isArray(slots) || slots.length === 0) return res.status(400).json({ error: 'At least one time slot is required' })
@@ -193,7 +199,7 @@ export default async function handler(req, res) {
 
         const { data, error } = await db
           .from('polls')
-          .update({ title, location, slots, min_players: minPlayers, max_players: maxPlayers, players: updatedPlayers, notes: notes !== undefined ? notes : poll.notes, game_type: ['practice', 'competition', 'watch_party'].includes(gameType) ? gameType : (gameType === 'game' ? 'game' : poll.game_type ?? 'game'), opponent: opponent !== undefined ? (opponent?.trim() || null) : poll.opponent ?? null, version: poll.version + 1 })
+          .update({ title, location, slots, min_players: minPlayers, max_players: maxPlayers, players: updatedPlayers, notes: notes !== undefined ? notes : poll.notes, game_type: ['practice', 'competition', 'watch_party'].includes(gameType) ? gameType : (gameType === 'game' ? 'game' : poll.game_type ?? 'game'), opponent: opponent !== undefined ? (opponent?.trim() || null) : poll.opponent ?? null, no_team_split: noTeamSplit !== undefined ? noTeamSplit === true : poll.no_team_split ?? false, version: poll.version + 1 })
           .eq('id', id)
           .select()
           .single()
@@ -242,7 +248,10 @@ export default async function handler(req, res) {
         if (poll.status === 'confirmed' && getActivePlayers(poll).some(p => p.name === name)) {
           try {
             const nowActive = getActivePlayers(updatedPoll)
-            const newTeams = generateTeams(expandWithGuests(nowActive))
+            const expanded = expandWithGuests(nowActive)
+            const newTeams = poll.no_team_split
+              ? { teamA: expanded, teamB: [] }
+              : generateTeams(expanded)
             const { data: reteamed, error: teamErr } = await db
               .from('polls').update({ teams: newTeams, version: updatedPoll.version + 1 }).eq('id', id).select().single()
             if (!teamErr && reteamed) return res.status(200).json(reteamed)

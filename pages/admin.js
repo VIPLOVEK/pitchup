@@ -44,6 +44,7 @@ function CreatePollForm({ onCreated, groups, prefill }) {
   const [notes, setNotes] = useState(prefill?.notes || '')
   const [gameType, setGameType] = useState(prefill?.game_type || 'game')
   const [opponent, setOpponent] = useState(prefill?.opponent || '')
+  const [noTeamSplit, setNoTeamSplit] = useState(prefill?.no_team_split || false)
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -91,6 +92,7 @@ function CreatePollForm({ onCreated, groups, prefill }) {
           notes: notes || undefined,
           gameType,
           opponent: opponent || undefined,
+          noTeamSplit,
         }),
       })
       const data = await res.json()
@@ -125,6 +127,16 @@ function CreatePollForm({ onCreated, groups, prefill }) {
       </select>
       {gameType !== 'game' && gameType !== 'watch_party' && (
         <Input value={opponent} onChange={e => setOpponent(e.target.value)} placeholder="Opponent team name (optional) — e.g. Yankee FC" />
+      )}
+
+      {gameType !== 'watch_party' && (
+        <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: colors.white, padding: '6px 0 10px', cursor: 'pointer' }}>
+          <input type="checkbox" checked={noTeamSplit} onChange={e => setNoTeamSplit(e.target.checked)} />
+          <span>
+            <strong>No team split</strong>
+            <span style={{ color: colors.muted, marginLeft: 6 }}>— whole squad plays together (e.g. vs external team)</span>
+          </span>
+        </label>
       )}
 
       <select value={location} onChange={e => setLocation(e.target.value)} style={selectStyle}>
@@ -311,6 +323,8 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
   const [editNotes, setEditNotes] = useState(poll.notes || '')
   const [editGameType, setEditGameType] = useState(poll.game_type || 'game')
   const [editOpponent, setEditOpponent] = useState(poll.opponent || '')
+  const [editNoTeamSplit, setEditNoTeamSplit] = useState(poll.no_team_split || false)
+  const noTeamSplit = poll.no_team_split || false
   const isOpen = poll.status === 'open'
   const isConfirmed = poll.status === 'confirmed'
   const isCancelled = poll.status === 'cancelled'
@@ -461,10 +475,22 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.muted, marginBottom: 10 }}>
             Who actually played?
           </div>
+          {noTeamSplit ? (
+            <div style={{ marginBottom: 10 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: colors.grassLight, marginBottom: 6 }}>👥 Squad</div>
+              {editTeamA.filter(p => !p.isGuest).length === 0 && <p style={{ color: colors.muted, fontSize: 12, margin: 0 }}>Empty</p>}
+              {editTeamA.filter(p => !p.isGuest).map((p, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 0' }}>
+                  <span style={{ fontSize: 12, color: colors.white, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+                  <button onClick={() => markNoShow(p, 'A')} title="Didn't show up" style={{ background: 'none', border: 'none', color: colors.danger, cursor: 'pointer', fontSize: 16, padding: '0 2px', lineHeight: 1, flexShrink: 0 }}>×</button>
+                </div>
+              ))}
+            </div>
+          ) : (
           <div style={{ display: 'flex', gap: 12, marginBottom: 10 }}>
             {[
-              { team: 'A', list: editTeamA, color: colors.teamA, label: poll.team_a_name || 'Team A', emoji: '🟦' },
-              { team: 'B', list: editTeamB, color: colors.teamB, label: poll.team_b_name || 'Team B', emoji: '🟥' },
+              { team: 'A', list: editTeamA, color: colors.teamA, label: poll.team_a_name || 'Team A', emoji: '⚪' },
+              { team: 'B', list: editTeamB, color: colors.teamB, label: poll.team_b_name || 'Team B', emoji: '🎨' },
             ].map(({ team, list, color, label, emoji }) => (
               <div key={team} style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 12, fontWeight: 700, color, marginBottom: 6 }}>{emoji} {label}</div>
@@ -481,6 +507,7 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
               </div>
             ))}
           </div>
+          )}
 
           {editNoShows.length > 0 && (
             <div style={{ marginBottom: 10 }}>
@@ -505,8 +532,14 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
                 {addable.map((p, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '2px 0' }}>
                     <span style={{ fontSize: 12, color: colors.muted, flex: 1 }}>{p.name}</span>
-                    <button onClick={() => addToTeam(p, 'A')} style={{ fontSize: 11, background: colors.teamA + '22', border: `1px solid ${colors.teamA}44`, color: colors.teamA, borderRadius: 6, padding: '2px 8px', cursor: 'pointer' }}>+🟦 A</button>
-                    <button onClick={() => addToTeam(p, 'B')} style={{ fontSize: 11, background: colors.teamB + '22', border: `1px solid ${colors.teamB}44`, color: colors.teamB, borderRadius: 6, padding: '2px 8px', cursor: 'pointer' }}>+🟥 B</button>
+                    {noTeamSplit ? (
+                      <button onClick={() => addToTeam(p, 'A')} style={{ fontSize: 11, background: colors.grassLight + '22', border: `1px solid ${colors.grassLight}44`, color: colors.grassLight, borderRadius: 6, padding: '2px 8px', cursor: 'pointer' }}>+ Add to squad</button>
+                    ) : (
+                      <>
+                        <button onClick={() => addToTeam(p, 'A')} style={{ fontSize: 11, background: colors.teamA + '22', border: `1px solid ${colors.teamA}44`, color: colors.teamA, borderRadius: 6, padding: '2px 8px', cursor: 'pointer' }}>+⚪ A</button>
+                        <button onClick={() => addToTeam(p, 'B')} style={{ fontSize: 11, background: colors.teamB + '22', border: `1px solid ${colors.teamB}44`, color: colors.teamB, borderRadius: 6, padding: '2px 8px', cursor: 'pointer' }}>+🎨 B</button>
+                      </>
+                    )}
                   </div>
                 ))}
               </div>
@@ -531,15 +564,15 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
               type="number"
               value={scoreA}
               onChange={e => setScoreA(e.target.value)}
-              placeholder="A"
+              placeholder={noTeamSplit ? 'Us' : 'A'}
               style={{ width: 60, textAlign: 'center', marginBottom: 0 }}
             />
-            <span style={{ color: colors.muted, fontSize: 13 }}>🟦 vs 🟥</span>
+            <span style={{ color: colors.muted, fontSize: 13 }}>{noTeamSplit ? '👥 vs 🆚' : '⚪ vs 🎨'}</span>
             <Input
               type="number"
               value={scoreB}
               onChange={e => setScoreB(e.target.value)}
-              placeholder="B"
+              placeholder={noTeamSplit ? 'Them' : 'B'}
               style={{ width: 60, textAlign: 'center', marginBottom: 0 }}
             />
             <Btn
@@ -593,18 +626,20 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
                 <option key={i} value={p.name}>{p.name}</option>
               ))}
             </select>
-            <select
-              value={goalTeam}
-              onChange={e => setGoalTeam(e.target.value)}
-              style={{ background: colors.pitchMid, border: `1px solid ${colors.grass}33`, color: colors.white, borderRadius: 6, padding: '6px 8px', fontSize: 12 }}
-            >
-              <option value="A">🟦 {poll.team_a_name || 'Team A'}</option>
-              <option value="B">🟥 {poll.team_b_name || 'Team B'}</option>
-            </select>
+            {!noTeamSplit && (
+              <select
+                value={goalTeam}
+                onChange={e => setGoalTeam(e.target.value)}
+                style={{ background: colors.pitchMid, border: `1px solid ${colors.grass}33`, color: colors.white, borderRadius: 6, padding: '6px 8px', fontSize: 12 }}
+              >
+                <option value="A">⚪ {poll.team_a_name || 'Team A'}</option>
+                <option value="B">🎨 {poll.team_b_name || 'Team B'}</option>
+              </select>
+            )}
             <button
               onClick={() => {
                 if (!goalPlayer) return
-                const entry = { name: goalPlayer, team: goalTeam }
+                const entry = { name: goalPlayer, team: noTeamSplit ? 'A' : goalTeam }
                 if (assistPlayer) entry.assist = assistPlayer
                 doAction('setGoals', 'PATCH', { goals: [...(poll.goals || []), entry] })
                 setGoalPlayer('')
@@ -679,6 +714,16 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
           </select>
           {editGameType !== 'game' && editGameType !== 'watch_party' && (
             <Input value={editOpponent} onChange={e => setEditOpponent(e.target.value)} placeholder="Opponent team name (optional)" />
+          )}
+
+          {editGameType !== 'watch_party' && (
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: colors.white, padding: '4px 0 10px', cursor: 'pointer' }}>
+              <input type="checkbox" checked={editNoTeamSplit} onChange={e => setEditNoTeamSplit(e.target.checked)} />
+              <span>
+                <strong>No team split</strong>
+                <span style={{ color: colors.muted, marginLeft: 6 }}>— whole squad plays together</span>
+              </span>
+            </label>
           )}
 
           <select value={LOCATIONS.some(l => l.name === editLocation) ? editLocation : 'Other'} onChange={e => setEditLocation(e.target.value === 'Other' ? '' : e.target.value)} style={selectStyle}>
@@ -768,6 +813,7 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
                   notes: editNotes || undefined,
                   gameType: editGameType,
                   opponent: editOpponent || undefined,
+                  noTeamSplit: editNoTeamSplit,
                 })
                 setEditingDetails(false)
               }}
@@ -802,6 +848,7 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
               setEditNotes(poll.notes || '')
               setEditGameType(poll.game_type || 'game')
               setEditOpponent(poll.opponent || '')
+              setEditNoTeamSplit(poll.no_team_split || false)
               setDetailsError('')
               setEditingDetails(true)
             }}
@@ -829,14 +876,16 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
             👥 Adjust who played
           </Btn>
         )}
-        {isConfirmed && (
+        {isConfirmed && !noTeamSplit && (
           <Btn small variant="ghost" onClick={() => doAction('shuffle')} disabled={loading}>
             🔀 Reshuffle teams
           </Btn>
         )}
-        <Btn small variant="ghost" onClick={() => doAction('randomizeNames')} disabled={loading}>
-          🎲 New team names
-        </Btn>
+        {!noTeamSplit && (
+          <Btn small variant="ghost" onClick={() => doAction('randomizeNames')} disabled={loading}>
+            🎲 New team names
+          </Btn>
+        )}
         <Btn small variant="ghost" onClick={() => onDuplicate(poll)} disabled={loading}>
           📋 Duplicate
         </Btn>

@@ -173,7 +173,8 @@ function MvpVoting({ poll }) {
 function WaitlistCard({ poll, waitlist, myEntry, onWaitlist, name, setName, profile, loading, setLoading, setToast, setPoll }) {
   const { teamA = [], teamB = [] } = poll.teams || {}
   const myName = myEntry?.name || profile?.name || name
-  const myTeam = poll.status === 'confirmed' && myName
+  const noSplit = poll.no_team_split || false
+  const myTeam = !noSplit && poll.status === 'confirmed' && myName
     ? teamA.some(p => p.name === myName) ? 'A' : teamB.some(p => p.name === myName) ? 'B' : null
     : null
   const nameA = poll.team_a_name || 'Team A'
@@ -566,11 +567,23 @@ function ConfirmedOptOut({ poll, loading, setLoading, setToast, setPoll }) {
 
 // ── Confirmed game view ───────────────────────────────────────────────────────
 function GameConfirmed({ poll, profile }) {
+  const noSplit = poll.no_team_split || false
   const { teamA = [], teamB = [] } = poll.teams || {}
+  const squad = noSplit ? teamA : []
   const nameA = poll.team_a_name || 'Team A'
   const nameB = poll.team_b_name || 'Team B'
   const gameTime = formatSlot(poll.game_time)
-  const whatsappText = [
+  const whatsappText = noSplit ? [
+    `⚽ *Game is ON!* ${(poll.players || []).length} players confirmed.`,
+    ``,
+    `📅 ${gameTime}`,
+    `📍 ${poll.location}`,
+    poll.opponent ? `🆚 vs ${poll.opponent}` : '',
+    ``,
+    `👥 *Squad*: ${squad.map(p => p.name).join(', ')}`,
+    ``,
+    `See you on the pitch! 🏃`,
+  ].filter(l => l !== undefined).join('\n') : [
     `⚽ *Game is ON!* ${(poll.players || []).length} players confirmed.`,
     ``,
     `📅 ${gameTime}`,
@@ -611,17 +624,25 @@ function GameConfirmed({ poll, profile }) {
               Final score
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
-              <span style={{ fontSize: 32, fontWeight: 900, color: poll.score_a > poll.score_b ? colors.teamA : colors.muted }}>{poll.score_a}</span>
+              <div style={{ textAlign: 'center' }}>
+                <span style={{ fontSize: 32, fontWeight: 900, color: poll.score_a > poll.score_b ? colors.grassLight : colors.muted }}>{poll.score_a}</span>
+                {noSplit && <div style={{ fontSize: 10, color: colors.muted, marginTop: 2 }}>Us</div>}
+              </div>
               <span style={{ fontSize: 16, fontWeight: 700, color: colors.muted }}>—</span>
-              <span style={{ fontSize: 32, fontWeight: 900, color: poll.score_b > poll.score_a ? colors.teamB : colors.muted }}>{poll.score_b}</span>
+              <div style={{ textAlign: 'center' }}>
+                <span style={{ fontSize: 32, fontWeight: 900, color: poll.score_b > poll.score_a ? colors.teamB : colors.muted }}>{poll.score_b}</span>
+                {noSplit && <div style={{ fontSize: 10, color: colors.muted, marginTop: 2 }}>{poll.opponent || 'Them'}</div>}
+              </div>
             </div>
             <div style={{ fontSize: 12, color: colors.muted, marginTop: 4 }}>
-              {poll.score_a === poll.score_b ? 'Draw' : poll.score_a > poll.score_b ? `⚪ ${nameA} wins` : `🎨 ${nameB} wins`}
+              {noSplit
+                ? poll.score_a === poll.score_b ? 'Draw' : poll.score_a > poll.score_b ? '🏆 Win!' : '💪 Good effort'
+                : poll.score_a === poll.score_b ? 'Draw' : poll.score_a > poll.score_b ? `⚪ ${nameA} wins` : `🎨 ${nameB} wins`}
             </div>
           </div>
         ) : (
           <div style={{ textAlign: 'center', fontWeight: 900, fontSize: 28, color: colors.accent, letterSpacing: '0.1em', margin: '0 0 20px', textShadow: `0 0 20px ${colors.accent}66` }}>
-            VS
+            {noSplit && poll.opponent ? `vs ${poll.opponent}` : 'VS'}
           </div>
         )}
         {(poll.goals || []).length > 0 && (
@@ -629,26 +650,53 @@ function GameConfirmed({ poll, profile }) {
             <div style={{ fontSize: 11, color: colors.muted, fontWeight: 600, letterSpacing: '0.08em', marginBottom: 8 }}>
               ⚽ GOAL SCORERS
             </div>
-            {['A', 'B'].map(team => {
-              const teamGoals = (poll.goals || []).filter(g => g.team === team)
-              if (!teamGoals.length) return null
-              return (
-                <div key={team} style={{ fontSize: 13, marginBottom: 4 }}>
-                  <span style={{ color: team === 'A' ? colors.teamA : colors.teamB, fontWeight: 700, marginRight: 6 }}>
-                    {team === 'A' ? '⚪' : '🎨'}
+            {noSplit ? (
+              <div style={{ fontSize: 13 }}>
+                {(poll.goals || []).map((g, i) => (
+                  <span key={i}>
+                    {i > 0 && ', '}
+                    {g.name}
+                    {g.assist && <span style={{ color: colors.muted, fontWeight: 400 }}> (↗ {g.assist})</span>}
                   </span>
-                  {teamGoals.map((g, i) => (
-                    <span key={i}>
-                      {i > 0 && ', '}
-                      {g.name}
-                      {g.assist && <span style={{ color: colors.muted, fontWeight: 400 }}> (↗ {g.assist})</span>}
+                ))}
+              </div>
+            ) : (
+              ['A', 'B'].map(team => {
+                const teamGoals = (poll.goals || []).filter(g => g.team === team)
+                if (!teamGoals.length) return null
+                return (
+                  <div key={team} style={{ fontSize: 13, marginBottom: 4 }}>
+                    <span style={{ color: team === 'A' ? colors.teamA : colors.teamB, fontWeight: 700, marginRight: 6 }}>
+                      {team === 'A' ? '⚪' : '🎨'}
                     </span>
-                  ))}
-                </div>
-              )
-            })}
+                    {teamGoals.map((g, i) => (
+                      <span key={i}>
+                        {i > 0 && ', '}
+                        {g.name}
+                        {g.assist && <span style={{ color: colors.muted, fontWeight: 400 }}> (↗ {g.assist})</span>}
+                      </span>
+                    ))}
+                  </div>
+                )
+              })
+            )}
           </div>
         )}
+        {noSplit ? (
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.grassLight, marginBottom: 8 }}>
+              👥 Squad
+            </div>
+            <PositionSummary players={squad} />
+            <div style={{ display: 'flex', flexWrap: 'wrap' }}>
+              {squad.map((p, i) => (
+                <div key={i} style={{ marginBottom: 4, marginRight: 4 }}>
+                  <PlayerChip name={p.name} color={colors.grassLight} avatar={p.avatar_url} />
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
         <div style={{ display: 'flex', gap: 16 }}>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.teamA, marginBottom: 2 }}>
@@ -675,6 +723,7 @@ function GameConfirmed({ poll, profile }) {
             ))}
           </div>
         </div>
+        )}
 
         {/* WhatsApp copy block */}
         <div style={{ marginTop: 20, background: colors.pitchMid, borderRadius: 8, padding: '12px 14px' }}>
@@ -738,12 +787,36 @@ function getDraftTeams(activePlayers) {
 }
 
 function DraftTeams({ poll, active }) {
+  const noSplit = poll.no_team_split || false
   const expanded = expandWithGuests(active)
   const teams = poll.teams || getDraftTeams(expanded)
   const { teamA = [], teamB = [] } = teams
   const nameA = poll.team_a_name || 'Team A'
   const nameB = poll.team_b_name || 'Team B'
   const isConfirmed = poll.status === 'confirmed'
+
+  if (noSplit) {
+    const squad = isConfirmed ? teamA : expanded
+    return (
+      <Card>
+        <Label>Squad</Label>
+        {!isConfirmed && (
+          <p style={{ color: colors.muted, fontSize: 12, margin: '0 0 14px' }}>
+            No team split — everyone plays together as one squad.
+          </p>
+        )}
+        <PositionSummary players={squad} />
+        <div style={{ display: 'flex', flexWrap: 'wrap' }}>
+          {squad.map((p, i) => (
+            <div key={i} style={{ marginBottom: 4, marginRight: 4 }}>
+              <PlayerChip name={p.name} color={colors.grassLight} avatar={p.avatar_url} />
+            </div>
+          ))}
+        </div>
+      </Card>
+    )
+  }
+
   return (
     <Card>
       <Label>{isConfirmed ? 'Teams' : 'Draft teams — updates as players join'}</Label>
@@ -810,6 +883,7 @@ function AdminBar({ poll, onUpdate }) {
   const isOpen = poll.status === 'open'
   const isConfirmed = poll.status === 'confirmed'
   const isCancelled = poll.status === 'cancelled'
+  const noSplit = poll.no_team_split || false
 
   const actionBtnStyle = {
     background: 'rgba(255,255,255,0.05)',
@@ -871,14 +945,16 @@ function AdminBar({ poll, onUpdate }) {
               ✅ Confirm game
             </button>
           )}
-          {isConfirmed && (
+          {isConfirmed && !noSplit && (
             <button onClick={() => doAction('shuffle')} disabled={loading} style={actionBtnStyle}>
               🔀 Reshuffle teams
             </button>
           )}
-          <button onClick={() => doAction('randomizeNames')} disabled={loading} style={actionBtnStyle}>
-            🎲 New team names
-          </button>
+          {!noSplit && (
+            <button onClick={() => doAction('randomizeNames')} disabled={loading} style={actionBtnStyle}>
+              🎲 New team names
+            </button>
+          )}
 
           <div style={{ height: 1, background: 'rgba(255,255,255,0.07)', margin: '4px 0' }} />
 

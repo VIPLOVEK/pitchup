@@ -15,7 +15,7 @@ export default async function handler(req, res) {
     return res.status(503).json({ error: 'Database not configured yet. Add Supabase env vars in Vercel.' })
   }
 
-  const { title, location, slots, minPlayers, maxPlayers, visibility, groupIds, notes, gameType, opponent } = req.body
+  const { title, location, slots, minPlayers, maxPlayers, visibility, groupIds, notes, gameType, opponent, noTeamSplit } = req.body
 
   if (!title || !location || !Array.isArray(slots) || slots.length === 0 || !minPlayers || !maxPlayers) {
     return res.status(400).json({ error: 'Missing required fields' })
@@ -53,6 +53,7 @@ export default async function handler(req, res) {
         notes: notes || null,
         game_type: ['practice', 'competition', 'watch_party'].includes(gameType) ? gameType : 'game',
         opponent: opponent?.trim() || null,
+        no_team_split: noTeamSplit === true,
         team_a_name: teamAName,
         team_b_name: teamBName,
       })
