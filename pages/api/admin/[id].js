@@ -1,7 +1,7 @@
 // PATCH /api/admin/[id] — close poll, shuffle teams
 // DELETE /api/admin/[id] — delete poll
 import { supabaseAdmin, isSupabaseConfigured } from '../../../lib/supabase'
-import { generateTeams, pickBestSlot, formatSlot, getActivePlayers, expandWithGuests, getWaitlist } from '../../../lib/teams'
+import { generateTeams, pickBestSlot, formatSlot, getActivePlayers, expandWithGuests, getWaitlist, getTotalSpots } from '../../../lib/teams'
 import { sendWhatsAppAnnouncement } from '../../../lib/whatsapp'
 import { sendPushToAll, sendPushToPlayer } from '../../../lib/push'
 import { pickTeamNames } from '../../../lib/teamNames'
@@ -40,18 +40,52 @@ export default async function handler(req, res) {
 
       if (action === 'close') {
         const activePlayers = await withSkillRatings(db, getActivePlayers(poll))
-        const expanded = expandWithGuests(activePlayers)
+        const gameTime = pickBestSlot(activePlayers, poll.slots)
+        const gameDate = new Date(gameTime).toISOString().split('T')[0]
+
+        // Auto-join: add opted-in players who aren't already in the poll
+        let autoJoinedPlayers = []
+        try {
+          const { data: candidates } = await db
+            .from('players')
+            .select('id, name, positions, avatar_url, auto_join_until, blackout_ranges')
+            .eq('auto_join', true)
+
+          const existingNames = new Set((poll.players || []).map(p => p.name.toLowerCase()))
+          const existingIds = new Set((poll.players || []).map(p => p.playerId).filter(Boolean))
+          const capacity = poll.max_players - getTotalSpots(poll.players || [])
+
+          const eligible = (candidates || []).filter(p => {
+            if (existingNames.has(p.name.toLowerCase()) || existingIds.has(p.id)) return false
+            if (p.auto_join_until && p.auto_join_until < gameDate) return false
+            return !(p.blackout_ranges || []).some(r => r.from <= gameDate && gameDate <= r.to)
+          }).slice(0, Math.max(0, capacity))
+
+          if (eligible.length > 0) {
+            const newEntries = eligible.map(p => ({
+              name: p.name, slots: [], playerId: p.id,
+              positions: p.positions || [], guests: 0, note: null,
+              avatar_url: p.avatar_url || null,
+            }))
+            const updatedPlayers = [...(poll.players || []), ...newEntries]
+            await db.from('polls').update({ players: updatedPlayers }).eq('id', id)
+            poll = { ...poll, players: updatedPlayers }
+            autoJoinedPlayers = eligible
+          }
+        } catch (e) { console.error('Auto-join failed:', e.message) }
+
+        const refreshedActive = await withSkillRatings(db, getActivePlayers(poll))
+        const expanded = expandWithGuests(refreshedActive)
         const teams = poll.no_team_split
           ? { teamA: expanded, teamB: [] }
           : generateTeams(expanded)
-        const gameTime = pickBestSlot(activePlayers, poll.slots)
         const { data, error } = await db
           .from('polls').update({ status: 'confirmed', teams, game_time: gameTime, version: poll.version + 1 }).eq('id', id).select().single()
         if (error) throw error
 
         try {
           await sendWhatsAppAnnouncement({
-            poll: { ...poll, players_count: activePlayers.length },
+            poll: { ...poll, players_count: refreshedActive.length },
             teamA: teams.teamA, teamB: teams.teamB, gameTime: formatSlot(gameTime),
           })
         } catch (e) { console.error('WhatsApp failed:', e.message) }
@@ -63,6 +97,16 @@ export default async function handler(req, res) {
             url: `/poll/${data.id}`,
           })
         } catch (e) { console.error('Push notification failed:', e.message) }
+
+        for (const p of autoJoinedPlayers) {
+          try {
+            await sendPushToPlayer(db, p.id, {
+              title: '⚽ You\'ve been auto-joined!',
+              body: `${data.title} · ${formatSlot(gameTime)}. Can't make it? Tap to remove yourself.`,
+              url: `/poll/${data.id}`,
+            })
+          } catch (e) { console.error(`Auto-join push failed for ${p.name}:`, e.message) }
+        }
 
         return res.status(200).json(data)
       }

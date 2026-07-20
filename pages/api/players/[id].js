@@ -13,7 +13,7 @@ export default async function handler(req, res) {
     try {
       const { data, error } = await db
         .from('players')
-        .select('id, name, phone, positions, skill_rating, skill_rating_updated_at, position_skills, avatar_url')
+        .select('id, name, phone, positions, skill_rating, skill_rating_updated_at, position_skills, avatar_url, auto_join, auto_join_until, blackout_ranges')
         .eq('id', id)
         .maybeSingle()
       if (error) throw error
@@ -25,7 +25,7 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'PATCH') {
-    const { pin, phone, positions, skillRating, positionSkills } = req.body
+    const { pin, phone, positions, skillRating, positionSkills, autoJoin, autoJoinUntil, blackoutRanges } = req.body
     if (!pin) return res.status(400).json({ error: 'Current PIN is required' })
     if (positions && (!Array.isArray(positions) || positions.some(p => !POSITIONS.includes(p)))) {
       return res.status(400).json({ error: 'Invalid position' })
@@ -52,12 +52,18 @@ export default async function handler(req, res) {
         update.skill_rating = deriveSkillRating(update.position_skills, skillRating ?? player.skill_rating)
         update.skill_rating_updated_at = new Date().toISOString()
       }
+      if (autoJoin !== undefined) update.auto_join = autoJoin === true
+      if (autoJoinUntil !== undefined) update.auto_join_until = autoJoinUntil || null
+      if (blackoutRanges !== undefined) {
+        if (!Array.isArray(blackoutRanges)) return res.status(400).json({ error: 'blackoutRanges must be an array' })
+        update.blackout_ranges = blackoutRanges
+      }
 
       const { data, error } = await db
         .from('players')
         .update(update)
         .eq('id', id)
-        .select('id, name, phone, positions, skill_rating, skill_rating_updated_at, position_skills, avatar_url')
+        .select('id, name, phone, positions, skill_rating, skill_rating_updated_at, position_skills, avatar_url, auto_join, auto_join_until, blackout_ranges')
         .single()
       if (error) throw error
 

@@ -174,6 +174,128 @@ function PositionSkillsEditor({ positions, positionSkills, skillRating, onPositi
   )
 }
 
+function AutoJoinSection({ player, showToast }) {
+  const [autoJoin, setAutoJoin] = useState(player.auto_join || false)
+  const [autoJoinUntil, setAutoJoinUntil] = useState(player.auto_join_until || '')
+  const [blackoutRanges, setBlackoutRanges] = useState(player.blackout_ranges || [])
+  const [newFrom, setNewFrom] = useState('')
+  const [newTo, setNewTo] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const dirty =
+    autoJoin !== (player.auto_join || false) ||
+    (autoJoinUntil || '') !== (player.auto_join_until || '') ||
+    JSON.stringify(blackoutRanges) !== JSON.stringify(player.blackout_ranges || [])
+
+  const addRange = () => {
+    if (!newFrom || !newTo || newFrom > newTo) return
+    setBlackoutRanges(rs => [...rs, { from: newFrom, to: newTo }])
+    setNewFrom('')
+    setNewTo('')
+  }
+
+  const removeRange = (i) => setBlackoutRanges(rs => rs.filter((_, idx) => idx !== i))
+
+  const save = async () => {
+    const pin = window.prompt('Enter your PIN to save auto-join settings:')
+    if (!pin) return
+    setSaving(true)
+    try {
+      const res = await fetch(`/api/players/${player.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin, autoJoin, autoJoinUntil: autoJoinUntil || null, blackoutRanges }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      showToast('Auto-join settings saved!')
+    } catch (e) {
+      showToast(e.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Card>
+      <Label>Auto-join</Label>
+      <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 12px' }}>
+        Automatically added to games when they're confirmed. You'll get a push notification and can remove yourself if needed.
+      </p>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+        <button
+          type="button"
+          onClick={() => setAutoJoin(v => !v)}
+          style={{
+            width: 44, height: 24, borderRadius: 12,
+            background: autoJoin ? colors.accent : colors.pitchMid,
+            border: `1.5px solid ${autoJoin ? colors.accent : colors.grass + '44'}`,
+            position: 'relative', cursor: 'pointer', flexShrink: 0,
+          }}
+        >
+          <span style={{
+            position: 'absolute', top: 2,
+            left: autoJoin ? 22 : 2,
+            width: 16, height: 16, borderRadius: 8, background: '#fff',
+            transition: 'left 0.15s',
+          }} />
+        </button>
+        <span style={{ fontSize: 14, fontWeight: 600 }}>
+          {autoJoin ? 'Auto-join enabled' : 'Auto-join disabled'}
+        </span>
+      </div>
+
+      {autoJoin && (
+        <>
+          <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 6px' }}>
+            Auto-join until <span style={{ fontWeight: 400 }}>(leave blank for indefinitely)</span>
+          </p>
+          <div style={{ marginBottom: 16 }}>
+            <Input type="date" value={autoJoinUntil} onChange={e => setAutoJoinUntil(e.target.value)} />
+          </div>
+
+          <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 6px' }}>
+            Blackout ranges <span style={{ fontWeight: 400 }}>(dates you're not available)</span>
+          </p>
+          {blackoutRanges.map((r, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <span style={{ fontSize: 13, color: colors.grassLight, fontWeight: 600, flex: 1 }}>
+                {r.from} → {r.to}
+              </span>
+              <button
+                type="button"
+                onClick={() => removeRange(i)}
+                style={{ background: 'none', border: 'none', color: colors.danger, cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: '0 4px' }}
+              >
+                ×
+              </button>
+            </div>
+          ))}
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 4 }}>
+            <div style={{ flex: 1, minWidth: 120 }}>
+              <Input type="date" value={newFrom} onChange={e => setNewFrom(e.target.value)} placeholder="From" />
+            </div>
+            <span style={{ color: colors.muted, fontSize: 13, flexShrink: 0 }}>→</span>
+            <div style={{ flex: 1, minWidth: 120 }}>
+              <Input type="date" value={newTo} onChange={e => setNewTo(e.target.value)} placeholder="To" />
+            </div>
+            <Btn small variant="ghost" onClick={addRange} disabled={!newFrom || !newTo || newFrom > newTo}>
+              + Add
+            </Btn>
+          </div>
+        </>
+      )}
+
+      {dirty && (
+        <Btn small variant="ghost" onClick={save} disabled={saving} style={{ marginTop: 12 }}>
+          {saving ? 'Saving...' : 'Save auto-join settings'}
+        </Btn>
+      )}
+    </Card>
+  )
+}
+
 function GroupsSection({ player, showToast }) {
   const [groups, setGroups] = useState(null)
   const [error, setError] = useState('')
@@ -473,6 +595,7 @@ export default function ProfilePage() {
           </Btn>
         </Card>
         <NotificationsSection player={player} showToast={showToast} />
+        <AutoJoinSection player={player} showToast={showToast} />
         <GroupsSection player={player} showToast={showToast} />
         <Toast msg={toast} />
       </Layout>
