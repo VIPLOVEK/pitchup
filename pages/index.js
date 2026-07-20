@@ -248,7 +248,7 @@ export default function Home({ polls, groups, announcement, todayWcMatches }) {
     if (poll.status === 'confirmed') return '✅ Game is ON!'
     const d = effectiveDate(poll)
     const days = daysUntil(d)
-    if (days <= 0) return 'Today'
+    if (days === 0) return 'Today'
     if (days === 1) return 'Tomorrow'
     if (days <= 7) return `This ${d.toLocaleDateString('en-US', { weekday: 'long' })}`
     return 'Coming up'
@@ -265,7 +265,11 @@ export default function Home({ polls, groups, announcement, todayWcMatches }) {
   }
 
   const activePolls = polls
-    .filter(p => p.status === 'open' || (p.status === 'confirmed' && (!p.game_time || new Date(p.game_time) > now)))
+    .filter(p => {
+      if (p.status === 'open') return !p.game_time || new Date(p.game_time) > now
+      if (p.status === 'confirmed') return !p.game_time || new Date(p.game_time) > now
+      return false
+    })
     .sort((a, b) => effectiveDate(a) - effectiveDate(b))
 
   const pastPolls = polls.filter(p =>
