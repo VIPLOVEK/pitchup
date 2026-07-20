@@ -360,7 +360,11 @@ export default function Home({ polls, groups, announcement, todayWcMatches }) {
                 ...(amIn ? { border: '1.5px solid rgba(99,179,237,0.4)' } : {}),
               }} className="card-link">
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <Label style={{ margin: 0, color: confirmed ? '#22c55e' : undefined }}>{typeLabel}{!confirmed && poll.game_type === 'game' ? ' — tap to join' : ''}</Label>
+                  <Label style={{ margin: 0, color: confirmed ? '#22c55e' : undefined }}>
+                    {typeLabel}
+                    {!confirmed && ` · ${displayDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
+                    {!confirmed && poll.game_type === 'game' ? ' — tap to join' : ''}
+                  </Label>
                   <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                     {amIn && <span style={{ fontSize: 11, fontWeight: 800, color: '#63b3ed', background: 'rgba(99,179,237,0.12)', border: '1px solid rgba(99,179,237,0.3)', borderRadius: 20, padding: '2px 8px' }}>✓ You're in</span>}
                     {todayGame && !amIn && <span style={{ fontSize: 11, fontWeight: 800, color: '#fff', background: '#22c55e', borderRadius: 20, padding: '2px 8px' }}>TODAY</span>}
