@@ -250,8 +250,9 @@ export default function Home({ polls, groups, announcement, todayWcMatches }) {
     const days = daysUntil(d)
     if (days === 0) return 'Today'
     if (days === 1) return 'Tomorrow'
-    if (days <= 7) return `This ${d.toLocaleDateString('en-US', { weekday: 'long' })}`
-    return 'Coming up'
+    if (days > 1 && days <= 7) return `This ${d.toLocaleDateString('en-US', { weekday: 'long' })}`
+    if (days > 7) return 'Coming up'
+    return 'Upcoming'
   }
 
   function countdown(gameDate) {
@@ -266,15 +267,18 @@ export default function Home({ polls, groups, announcement, todayWcMatches }) {
 
   const activePolls = polls
     .filter(p => {
-      if (p.status === 'open') return !p.game_time || new Date(p.game_time) > now
-      if (p.status === 'confirmed') return !p.game_time || new Date(p.game_time) > now
-      return false
+      if (p.status !== 'open' && p.status !== 'confirmed') return false
+      // confirmed with no date → keep (date TBD)
+      if (p.status === 'confirmed' && !p.game_time) return true
+      // use effectiveDate so slot-based polls (no game_time) are also filtered by date
+      return effectiveDate(p) > now
     })
     .sort((a, b) => effectiveDate(a) - effectiveDate(b))
 
   const pastPolls = polls.filter(p =>
     p.status === 'cancelled' || p.status === 'finished' ||
-    (p.status === 'confirmed' && p.game_time && new Date(p.game_time) <= now)
+    (p.status === 'confirmed' && p.game_time && new Date(p.game_time) <= now) ||
+    (p.status === 'open' && effectiveDate(p) <= now)
   )
 
   function isToday(poll) {
