@@ -226,7 +226,7 @@ export default async function handler(req, res) {
       }
 
       if (action === 'updateDetails') {
-        const { title, location, slots, minPlayers, maxPlayers, notes, gameType, opponent, noTeamSplit } = req.body
+        const { title, location, slots, minPlayers, maxPlayers, notes, gameType, opponent, noTeamSplit, cutoffHours } = req.body
         if (poll.status !== 'open') return res.status(400).json({ error: 'Poll is no longer open' })
         if (!title || !location) return res.status(400).json({ error: 'Title and location are required' })
         if (!Array.isArray(slots) || slots.length === 0) return res.status(400).json({ error: 'At least one time slot is required' })
@@ -243,7 +243,7 @@ export default async function handler(req, res) {
 
         const { data, error } = await db
           .from('polls')
-          .update({ title, location, slots, min_players: minPlayers, max_players: maxPlayers, players: updatedPlayers, notes: notes !== undefined ? notes : poll.notes, game_type: ['practice', 'competition', 'watch_party'].includes(gameType) ? gameType : (gameType === 'game' ? 'game' : poll.game_type ?? 'game'), opponent: opponent !== undefined ? (opponent?.trim() || null) : poll.opponent ?? null, no_team_split: noTeamSplit !== undefined ? noTeamSplit === true : poll.no_team_split ?? false, version: poll.version + 1 })
+          .update({ title, location, slots, min_players: minPlayers, max_players: maxPlayers, players: updatedPlayers, notes: notes !== undefined ? notes : poll.notes, game_type: ['practice', 'competition', 'watch_party'].includes(gameType) ? gameType : (gameType === 'game' ? 'game' : poll.game_type ?? 'game'), opponent: opponent !== undefined ? (opponent?.trim() || null) : poll.opponent ?? null, no_team_split: noTeamSplit !== undefined ? noTeamSplit === true : poll.no_team_split ?? false, cutoff_hours: [1, 1.5, 2, 3, 6, 12, 24].includes(Number(cutoffHours)) ? Number(cutoffHours) : poll.cutoff_hours ?? 1.5, version: poll.version + 1 })
           .eq('id', id)
           .select()
           .single()

@@ -45,6 +45,7 @@ function CreatePollForm({ onCreated, groups, prefill }) {
   const [gameType, setGameType] = useState(prefill?.game_type || 'game')
   const [opponent, setOpponent] = useState(prefill?.opponent || '')
   const [noTeamSplit, setNoTeamSplit] = useState(prefill?.no_team_split || false)
+  const [cutoffHours, setCutoffHours] = useState(prefill?.cutoff_hours ?? 1.5)
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -93,6 +94,7 @@ function CreatePollForm({ onCreated, groups, prefill }) {
           gameType,
           opponent: opponent || undefined,
           noTeamSplit,
+          cutoffHours,
         }),
       })
       const data = await res.json()
@@ -202,6 +204,17 @@ function CreatePollForm({ onCreated, groups, prefill }) {
         </div>
       </div>
 
+      <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 8px' }}>Poll closes before kickoff</p>
+      <select value={cutoffHours} onChange={e => setCutoffHours(Number(e.target.value))} style={selectStyle}>
+        <option value={1}>1 hour before</option>
+        <option value={1.5}>1.5 hours before (default)</option>
+        <option value={2}>2 hours before</option>
+        <option value={3}>3 hours before</option>
+        <option value={6}>6 hours before</option>
+        <option value={12}>12 hours before</option>
+        <option value={24}>24 hours before</option>
+      </select>
+
       <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 8px' }}>Who can join?</p>
       <select value={visibility} onChange={e => setVisibility(e.target.value)} style={selectStyle}>
         <option value="all">Everyone</option>
@@ -225,7 +238,7 @@ function CreatePollForm({ onCreated, groups, prefill }) {
       <Input value={password} onChange={e => setPassword(e.target.value)} placeholder="Admin password" type="password" />
       {error && <p style={{ color: colors.danger, fontSize: 13, marginBottom: 10 }}>{error}</p>}
       <p style={{ color: colors.muted, fontSize: 12, margin: '0 0 14px' }}>
-        Voting stays open until all {maxPlayers} spots are filled (instant confirm) or until 1.5 hours before kickoff — whichever comes first. If fewer than {minPlayers} players have joined by the 1.5-hour mark, the game is cancelled. Anyone beyond {maxPlayers} goes on the waiting list and is auto-promoted if a spot opens up.
+        Voting stays open until all {maxPlayers} spots are filled (instant confirm) or until {cutoffHours} hour{cutoffHours !== 1 ? 's' : ''} before kickoff — whichever comes first. If fewer than {minPlayers} players have joined by then, the game is cancelled. Anyone beyond {maxPlayers} goes on the waiting list and is auto-promoted if a spot opens up.
       </p>
       <Btn full onClick={handleCreate} disabled={loading}>
         {loading ? 'Creating...' : 'Create poll & get link'}
@@ -324,6 +337,7 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
   const [editGameType, setEditGameType] = useState(poll.game_type || 'game')
   const [editOpponent, setEditOpponent] = useState(poll.opponent || '')
   const [editNoTeamSplit, setEditNoTeamSplit] = useState(poll.no_team_split || false)
+  const [editCutoffHours, setEditCutoffHours] = useState(poll.cutoff_hours ?? 1.5)
   const noTeamSplit = poll.no_team_split || false
   const isOpen = poll.status === 'open'
   const isConfirmed = poll.status === 'confirmed'
@@ -788,6 +802,17 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
             }}
           />
 
+          <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 8px' }}>Poll closes before kickoff</p>
+          <select value={editCutoffHours} onChange={e => setEditCutoffHours(Number(e.target.value))} style={{ ...selectStyle, marginBottom: 14 }}>
+            <option value={1}>1 hour before</option>
+            <option value={1.5}>1.5 hours before (default)</option>
+            <option value={2}>2 hours before</option>
+            <option value={3}>3 hours before</option>
+            <option value={6}>6 hours before</option>
+            <option value={12}>12 hours before</option>
+            <option value={24}>24 hours before</option>
+          </select>
+
           {detailsError && <p style={{ color: colors.danger, fontSize: 13, marginBottom: 10 }}>{detailsError}</p>}
 
           <div style={{ display: 'flex', gap: 8 }}>
@@ -814,6 +839,7 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
                   gameType: editGameType,
                   opponent: editOpponent || undefined,
                   noTeamSplit: editNoTeamSplit,
+                  cutoffHours: editCutoffHours,
                 })
                 setEditingDetails(false)
               }}
