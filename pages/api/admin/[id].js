@@ -35,7 +35,7 @@ export default async function handler(req, res) {
   if (req.method === 'PATCH') {
     const { action } = req.body
     try {
-      const { data: poll } = await db.from('polls').select('*').eq('id', id).single()
+      let { data: poll } = await db.from('polls').select('*').eq('id', id).single()
       if (!poll) return res.status(404).json({ error: 'Not found' })
 
       if (action === 'close') {
