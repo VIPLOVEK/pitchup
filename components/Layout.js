@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import Head from 'next/head'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
@@ -54,6 +55,81 @@ const NAV_ITEMS = [
   { href: '/profile', label: 'Me',       Icon: PersonIcon },
 ]
 
+function DisclaimerModal() {
+  const [player, setPlayer] = useState(null)
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('pitchup_player')
+      if (!saved) return
+      const p = JSON.parse(saved)
+      if (!p.terms_accepted_at) setPlayer(p)
+    } catch (_) {}
+  }, [])
+
+  if (!player) return null
+
+  const accept = async () => {
+    try {
+      const res = await fetch(`/api/players/${player.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ acceptTerms: true }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        localStorage.setItem('pitchup_player', JSON.stringify({ ...player, terms_accepted_at: data.terms_accepted_at }))
+      }
+    } catch (_) {}
+    setPlayer(null)
+  }
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 1000,
+      background: 'rgba(0,0,0,0.88)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: 20,
+    }}>
+      <div style={{
+        background: '#0a1628',
+        border: `1px solid ${colors.grass}33`,
+        borderRadius: 16,
+        padding: 28,
+        maxWidth: 400,
+        width: '100%',
+      }}>
+        <div style={{ fontSize: 36, textAlign: 'center', marginBottom: 12 }}>⚽</div>
+        <h2 style={{ fontSize: 18, fontWeight: 800, margin: '0 0 16px', textAlign: 'center', color: colors.white }}>
+          One quick thing before you play
+        </h2>
+        <p style={{ color: colors.muted, fontSize: 14, lineHeight: 1.7, margin: '0 0 14px' }}>
+          Football is a contact sport and participation carries an inherent risk of injury.
+        </p>
+        <p style={{ color: colors.muted, fontSize: 14, lineHeight: 1.7, margin: '0 0 24px' }}>
+          By continuing, you confirm you are participating <strong style={{ color: colors.white }}>voluntarily and at your own risk</strong>. PitchUp and its organisers accept no liability for any injury, loss, or damage arising from participation. Please ensure you are fit to play.
+        </p>
+        <button
+          onClick={accept}
+          style={{
+            width: '100%',
+            background: `linear-gradient(135deg, ${colors.accent} 0%, #d4960a 100%)`,
+            color: '#0a1628',
+            border: 'none',
+            borderRadius: 10,
+            padding: '14px 20px',
+            fontSize: 16,
+            fontWeight: 700,
+            cursor: 'pointer',
+          }}
+        >
+          I understand — let's play
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function Layout({ children, title = 'PitchUp', description = 'PitchUp — pickup soccer organizer', ogImageUrl }) {
   const router = useRouter()
   const isAdmin = router.pathname.startsWith('/admin')
@@ -67,6 +143,7 @@ export default function Layout({ children, title = 'PitchUp', description = 'Pit
 
   return (
     <>
+      <DisclaimerModal />
       <Head>
         <title>{title}</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />

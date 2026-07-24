@@ -1016,6 +1016,10 @@ export default function PollPage({ poll: initialPoll, error }) {
   const [selectedSlots, setSelectedSlots] = useState([])
   const [guests, setGuests] = useState(0)
   const [note, setNote] = useState('')
+  const [guestTerms, setGuestTerms] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return !!localStorage.getItem('pitchup_terms_accepted')
+  })
   const [submitted, setSubmitted] = useState(false)
   const [loading, setLoading] = useState(false)
   const [kicking, setKicking] = useState(false)
@@ -1514,11 +1518,28 @@ export default function PollPage({ poll: initialPoll, error }) {
           placeholder="Note for the group (optional, e.g. 'running 5 min late')"
           style={{ marginTop: 12 }}
         />
+        {!profile && (
+          <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginTop: 14, cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={guestTerms}
+              onChange={e => {
+                setGuestTerms(e.target.checked)
+                if (e.target.checked) localStorage.setItem('pitchup_terms_accepted', '1')
+                else localStorage.removeItem('pitchup_terms_accepted')
+              }}
+              style={{ marginTop: 2, flexShrink: 0 }}
+            />
+            <span style={{ fontSize: 12, color: colors.muted, lineHeight: 1.5 }}>
+              I understand that football is a contact sport and I participate voluntarily at my own risk. PitchUp and its organisers accept no liability for any injury or loss.
+            </span>
+          </label>
+        )}
         <div style={{ marginTop: 14 }}>
           <Btn
             full
             onClick={handleVote}
-            disabled={!name.trim() || selectedSlots.length === 0 || loading || kicking || (matchedPlayer && !/^\d{4,6}$/.test(pin)) || (poll.visibility === 'groups' && hasAccess === false)}
+            disabled={!name.trim() || selectedSlots.length === 0 || loading || kicking || (matchedPlayer && !/^\d{4,6}$/.test(pin)) || (poll.visibility === 'groups' && hasAccess === false) || (!profile && !guestTerms)}
             style={{ padding: '16px 20px', fontSize: 17, borderRadius: 12 }}
           >
             {kicking ? <>Joining <span className="kick-ball">{poll.game_type === 'watch_party' ? '📺' : '⚽'}</span></> : loading ? 'Joining...' : poll.game_type === 'watch_party' ? "I'm in — count me 📺" : "I'm in — count me ⚽"}

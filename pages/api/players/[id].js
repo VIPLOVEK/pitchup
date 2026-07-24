@@ -9,6 +9,22 @@ export default async function handler(req, res) {
   if (!isSupabaseConfigured()) return res.status(503).json({ error: 'Database not configured yet.' })
   const db = supabaseAdmin()
 
+  // Terms acceptance — no PIN required
+  if (req.method === 'PATCH' && req.body?.acceptTerms === true && !req.body?.pin) {
+    try {
+      const { data, error } = await db
+        .from('players')
+        .update({ terms_accepted_at: new Date().toISOString() })
+        .eq('id', id)
+        .select('id, terms_accepted_at')
+        .single()
+      if (error) throw error
+      return res.status(200).json(data)
+    } catch (e) {
+      return res.status(500).json({ error: e.message })
+    }
+  }
+
   if (req.method === 'GET') {
     try {
       const { data, error } = await db
