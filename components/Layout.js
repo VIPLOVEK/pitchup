@@ -55,8 +55,17 @@ const NAV_ITEMS = [
   { href: '/profile', label: 'Me',       Icon: PersonIcon },
 ]
 
+const checkStyle = {
+  display: 'flex', alignItems: 'flex-start', gap: 10,
+  marginBottom: 12, cursor: 'pointer',
+}
+const checkLabelStyle = { fontSize: 13, color: '#a0aec0', lineHeight: 1.6 }
+
 function DisclaimerModal() {
   const [player, setPlayer] = useState(null)
+  const [age, setAge] = useState(false)
+  const [fitness, setFitness] = useState(false)
+  const [risk, setRisk] = useState(false)
 
   useEffect(() => {
     try {
@@ -69,7 +78,10 @@ function DisclaimerModal() {
 
   if (!player) return null
 
+  const allChecked = age && fitness && risk
+
   const accept = async () => {
+    if (!allChecked) return
     try {
       const res = await fetch(`/api/players/${player.id}`, {
         method: 'PATCH',
@@ -98,33 +110,54 @@ function DisclaimerModal() {
         padding: 28,
         maxWidth: 400,
         width: '100%',
+        maxHeight: '90vh',
+        overflowY: 'auto',
       }}>
         <div style={{ fontSize: 36, textAlign: 'center', marginBottom: 12 }}>⚽</div>
-        <h2 style={{ fontSize: 18, fontWeight: 800, margin: '0 0 16px', textAlign: 'center', color: colors.white }}>
-          One quick thing before you play
+        <h2 style={{ fontSize: 18, fontWeight: 800, margin: '0 0 8px', textAlign: 'center', color: colors.white }}>
+          Before you play
         </h2>
-        <p style={{ color: colors.muted, fontSize: 14, lineHeight: 1.7, margin: '0 0 14px' }}>
-          Football is a contact sport and participation carries an inherent risk of injury.
+        <p style={{ color: '#a0aec0', fontSize: 13, lineHeight: 1.6, margin: '0 0 20px', textAlign: 'center' }}>
+          Please confirm the following before joining games.
         </p>
-        <p style={{ color: colors.muted, fontSize: 14, lineHeight: 1.7, margin: '0 0 24px' }}>
-          By continuing, you confirm you are participating <strong style={{ color: colors.white }}>voluntarily and at your own risk</strong>. PitchUp and its organisers accept no liability for any injury, loss, or damage arising from participation. Please ensure you are fit to play.
-        </p>
+
+        <label style={checkStyle}>
+          <input type="checkbox" checked={age} onChange={e => setAge(e.target.checked)} style={{ marginTop: 2, flexShrink: 0 }} />
+          <span style={checkLabelStyle}>I am <strong style={{ color: colors.white }}>18 years of age or older</strong></span>
+        </label>
+
+        <label style={checkStyle}>
+          <input type="checkbox" checked={fitness} onChange={e => setFitness(e.target.checked)} style={{ marginTop: 2, flexShrink: 0 }} />
+          <span style={checkLabelStyle}>I confirm I am <strong style={{ color: colors.white }}>fit to play contact sport</strong> and have no medical condition that would make it unsafe for me to participate</span>
+        </label>
+
+        <label style={{ ...checkStyle, marginBottom: 20 }}>
+          <input type="checkbox" checked={risk} onChange={e => setRisk(e.target.checked)} style={{ marginTop: 2, flexShrink: 0 }} />
+          <span style={checkLabelStyle}>I understand football is a contact sport with risk of injury and I participate <strong style={{ color: colors.white }}>voluntarily at my own risk</strong>. PitchUp and its organisers accept no liability for any injury or loss.</span>
+        </label>
+
         <button
           onClick={accept}
+          disabled={!allChecked}
           style={{
             width: '100%',
-            background: `linear-gradient(135deg, ${colors.accent} 0%, #d4960a 100%)`,
-            color: '#0a1628',
+            background: allChecked ? `linear-gradient(135deg, ${colors.accent} 0%, #d4960a 100%)` : '#1a2a40',
+            color: allChecked ? '#0a1628' : '#4a5568',
             border: 'none',
             borderRadius: 10,
             padding: '14px 20px',
             fontSize: 16,
             fontWeight: 700,
-            cursor: 'pointer',
+            cursor: allChecked ? 'pointer' : 'default',
+            transition: 'all 0.2s',
           }}
         >
-          I understand — let's play
+          I agree — let's play
         </button>
+
+        <p style={{ textAlign: 'center', margin: '12px 0 0' }}>
+          <a href="/terms" style={{ color: '#4a5568', fontSize: 12 }}>View full terms & conditions</a>
+        </p>
       </div>
     </div>
   )
@@ -214,9 +247,12 @@ export default function Layout({ children, title = 'PitchUp', description = 'Pit
 
       <main style={{ maxWidth: 480, margin: '0 auto', padding: '24px 16px 118px' }}>
         {children}
-        <div style={{ textAlign: 'center', marginTop: 12 }}>
+        <div style={{ textAlign: 'center', marginTop: 12, display: 'flex', justifyContent: 'center', gap: 16 }}>
           <Link href="/feedback" style={{ color: colors.muted, fontSize: 12, fontWeight: 600, letterSpacing: '0.02em' }}>
             💡 Suggest a feature
+          </Link>
+          <Link href="/terms" style={{ color: colors.muted, fontSize: 12, fontWeight: 600, letterSpacing: '0.02em' }}>
+            Terms
           </Link>
         </div>
       </main>

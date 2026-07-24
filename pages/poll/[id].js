@@ -1531,7 +1531,8 @@ export default function PollPage({ poll: initialPoll, error }) {
               style={{ marginTop: 2, flexShrink: 0 }}
             />
             <span style={{ fontSize: 12, color: colors.muted, lineHeight: 1.5 }}>
-              I understand that football is a contact sport and I participate voluntarily at my own risk. PitchUp and its organisers accept no liability for any injury or loss.
+              I confirm I am 18+, fit to play contact sport, and understand that participation is at my own risk. PitchUp accepts no liability for injury or loss.{' '}
+              <a href="/terms" style={{ color: colors.muted, textDecoration: 'underline' }}>Full terms</a>
             </span>
           </label>
         )}
