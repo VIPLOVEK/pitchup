@@ -1015,6 +1015,7 @@ export default function PollPage({ poll: initialPoll, error }) {
   const [players, setPlayers] = useState([])
   const [selectedSlots, setSelectedSlots] = useState([])
   const [guests, setGuests] = useState(0)
+  const [guestPositions, setGuestPositions] = useState([])
   const [note, setNote] = useState('')
   const [guestTerms, setGuestTerms] = useState(() => {
     if (typeof window === 'undefined') return false
@@ -1215,6 +1216,7 @@ export default function PollPage({ poll: initialPoll, error }) {
           playerId,
           positions,
           guests,
+          guestPositions: guestPositions.slice(0, guests),
           note: note.trim() || undefined,
         }),
       })
@@ -1441,11 +1443,18 @@ export default function PollPage({ poll: initialPoll, error }) {
           </>
         )}
         <p style={{ color: colors.white, fontSize: 13, fontWeight: 600, margin: '16px 0 6px' }}>Bringing anyone?</p>
-        <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+        <div style={{ display: 'flex', gap: 8, marginBottom: guests > 0 ? 10 : 14 }}>
           {[0, 1, 2].map(n => (
             <button
               key={n}
-              onClick={() => setGuests(n)}
+              onClick={() => {
+                setGuests(n)
+                setGuestPositions(prev => {
+                  const next = [...prev]
+                  while (next.length < n) next.push('Any')
+                  return next.slice(0, n)
+                })
+              }}
               style={{
                 background: guests === n ? colors.accent + '22' : colors.pitchMid,
                 border: `1.5px solid ${guests === n ? colors.accent : colors.grass + '33'}`,
@@ -1462,6 +1471,38 @@ export default function PollPage({ poll: initialPoll, error }) {
             </button>
           ))}
         </div>
+        {guests > 0 && (
+          <div style={{ marginBottom: 14 }}>
+            {Array.from({ length: guests }, (_, i) => (
+              <div key={i} style={{ marginBottom: 10 }}>
+                <p style={{ color: colors.muted, fontSize: 12, margin: '0 0 6px' }}>
+                  Guest {guests > 1 ? i + 1 : ''} position <span style={{ fontWeight: 400 }}>(helps balance teams)</span>
+                </p>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {[['GK', 'Goalkeeper'], ['DEF', 'Defender'], ['MID', 'Midfielder'], ['FWD', 'Forward'], ['Any', 'Any']].map(([label, val]) => {
+                    const selected = (guestPositions[i] || 'Any') === val
+                    return (
+                      <button
+                        key={val}
+                        type="button"
+                        onClick={() => setGuestPositions(ps => { const next = [...ps]; next[i] = val; return next })}
+                        style={{
+                          background: selected ? colors.accent + '22' : colors.pitchMid,
+                          border: `1.5px solid ${selected ? colors.accent : colors.grass + '33'}`,
+                          color: selected ? colors.accent : colors.muted,
+                          borderRadius: 8, padding: '5px 10px',
+                          fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                        }}
+                      >
+                        {label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
         <p style={{ color: colors.white, fontSize: 13, fontWeight: 600, margin: '16px 0 2px' }}>📅 When are you free?</p>
         <p style={{ color: colors.muted, fontSize: 12, margin: '0 0 10px' }}>Tick all times that work — the most popular slot gets confirmed.</p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>

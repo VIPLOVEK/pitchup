@@ -91,9 +91,10 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'POST') {
-    const { name, slots: votedSlots, playerId, positions, guests, note } = req.body
+    const { name, slots: votedSlots, playerId, positions, guests, note, guestPositions } = req.body
     if (!name) return res.status(400).json({ error: 'name is required' })
     const guestCount = Math.min(Math.max(0, parseInt(guests, 10) || 0), 2)
+    const safeGuestPositions = Array.isArray(guestPositions) ? guestPositions.slice(0, guestCount) : []
     const noteText = note?.toString().trim().slice(0, 80) || null
 
     const MAX_RETRIES = 5
@@ -144,13 +145,13 @@ export default async function handler(req, res) {
           // Update existing entry — player is changing their slot selection
           updatedPlayers = players.map((p, idx) =>
             idx === existingIdx
-              ? { ...p, slots: votedSlots || [], guests: guestCount, note: noteText, ...(avatarUrl ? { avatar_url: avatarUrl } : {}) }
+              ? { ...p, slots: votedSlots || [], guests: guestCount, guestPositions: safeGuestPositions, note: noteText, ...(avatarUrl ? { avatar_url: avatarUrl } : {}) }
               : p
           )
         } else {
           updatedPlayers = [
             ...players,
-            { name: name.trim(), slots: votedSlots || [], playerId: playerId || null, positions: positions || [], guests: guestCount, note: noteText, avatar_url: avatarUrl },
+            { name: name.trim(), slots: votedSlots || [], playerId: playerId || null, positions: positions || [], guests: guestCount, guestPositions: safeGuestPositions, note: noteText, avatar_url: avatarUrl },
           ]
         }
 
