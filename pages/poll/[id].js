@@ -1594,16 +1594,19 @@ export default function PollPage({ poll: initialPoll, error }) {
             </span>
           </label>
         )}
-        <div style={{ marginTop: 14 }}>
-          <Btn
-            full
-            onClick={handleVote}
-            disabled={!name.trim() || selectedSlots.length === 0 || loading || kicking || (matchedPlayer && !/^\d{4,6}$/.test(pin)) || (poll.visibility === 'groups' && hasAccess === false) || (!profile && !guestTerms)}
-            style={{ padding: '16px 20px', fontSize: 17, borderRadius: 12 }}
-          >
-            {kicking ? <>Joining <span className="kick-ball">{poll.game_type === 'watch_party' ? '📺' : '⚽'}</span></> : loading ? 'Joining...' : poll.game_type === 'watch_party' ? "I'm in — count me 📺" : "I'm in — count me ⚽"}
-          </Btn>
-        </div>
+        {/* Static button — only show when floating button isn't active */}
+        {!(selectedSlots.length > 0 && name.trim()) && (
+          <div style={{ marginTop: 14 }}>
+            <Btn
+              full
+              onClick={handleVote}
+              disabled={!name.trim() || selectedSlots.length === 0 || loading || kicking || (matchedPlayer && !/^\d{4,6}$/.test(pin)) || (poll.visibility === 'groups' && hasAccess === false) || (!profile && !guestTerms)}
+              style={{ padding: '16px 20px', fontSize: 17, borderRadius: 12 }}
+            >
+              {poll.game_type === 'watch_party' ? "I'm in — count me 📺" : "I'm in — count me ⚽"}
+            </Btn>
+          </div>
+        )}
 
         {/* Floating sticky CTA — visible once a slot is tapped */}
         {selectedSlots.length > 0 && name.trim() && (
