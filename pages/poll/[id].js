@@ -1503,8 +1503,8 @@ export default function PollPage({ poll: initialPoll, error }) {
             ))}
           </div>
         )}
-        <p style={{ color: colors.white, fontSize: 13, fontWeight: 600, margin: '16px 0 2px' }}>📅 When are you free?</p>
-        <p style={{ color: colors.muted, fontSize: 12, margin: '0 0 10px' }}>Tick all times that work — the most popular slot gets confirmed.</p>
+        <p style={{ color: colors.white, fontSize: 13, fontWeight: 600, margin: '16px 0 2px' }}>📅 Pick your time</p>
+        <p style={{ color: colors.muted, fontSize: 12, margin: '0 0 10px' }}>👆 Tap a slot to join — select all times that work for you.</p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {(() => {
             return poll.slots.map((slot, i) => {
@@ -1517,37 +1517,54 @@ export default function PollPage({ poll: initialPoll, error }) {
                   key={i}
                   onClick={() => toggleSlot(i)}
                   style={{
-                    background: selected ? colors.accent + '22' : colors.pitchMid,
-                    border: `1.5px solid ${selected ? colors.accent : colors.grass + '33'}`,
-                    color: selected ? colors.accent : colors.muted,
-                    borderRadius: 8,
-                    padding: '8px 14px',
+                    background: selected ? colors.grassLight + '18' : colors.pitchMid,
+                    border: `2px solid ${selected ? colors.grassLight : colors.grass + '33'}`,
+                    color: colors.white,
+                    borderRadius: 10,
+                    padding: '10px 14px',
                     fontSize: 13,
                     fontWeight: 600,
                     cursor: 'pointer',
                     transition: 'all 0.15s',
                     textAlign: 'left',
                     width: '100%',
+                    position: 'relative',
                   }}
                 >
-                  {formatSlot(slot)}
-                  {voters.length > 0 && (
-                    <span style={{ display: 'block', fontSize: 10, color: colors.muted, marginTop: 1 }}>
-                      {voters.length} player{voters.length !== 1 ? 's' : ''}
+                  <div style={{ paddingRight: 32 }}>
+                    <span style={{ color: selected ? colors.grassLight : colors.white, fontWeight: 700 }}>
+                      {formatSlot(slot)}
                     </span>
-                  )}
-                  <WeatherBadge lat={venue?.lat} lon={venue?.lon} datetime={slot} />
-                  {voters.length > 0 && (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 8, alignItems: 'center' }}>
-                      {shown.map((p, j) => (
-                        <span key={j} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: colors.grass + '15', border: `1px solid ${colors.grass}33`, borderRadius: 20, padding: '2px 8px 2px 3px', fontSize: 11, color: colors.white, fontWeight: 500 }}>
-                          <Avatar name={p.name} src={p.avatar_url} size={16} />
-                          {p.name.split(' ')[0]}
-                        </span>
-                      ))}
-                      {extra > 0 && <span style={{ fontSize: 11, color: colors.muted }}>+{extra} more</span>}
-                    </div>
-                  )}
+                    {voters.length > 0 && (
+                      <span style={{ display: 'block', fontSize: 11, color: colors.muted, marginTop: 1 }}>
+                        {voters.length} player{voters.length !== 1 ? 's' : ''} available
+                      </span>
+                    )}
+                    <WeatherBadge lat={venue?.lat} lon={venue?.lon} datetime={slot} />
+                    {voters.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 8, alignItems: 'center' }}>
+                        {shown.map((p, j) => (
+                          <span key={j} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: colors.grass + '15', border: `1px solid ${colors.grass}33`, borderRadius: 20, padding: '2px 8px 2px 3px', fontSize: 11, color: colors.white, fontWeight: 500 }}>
+                            <Avatar name={p.name} src={p.avatar_url} size={16} />
+                            {p.name.split(' ')[0]}
+                          </span>
+                        ))}
+                        {extra > 0 && <span style={{ fontSize: 11, color: colors.muted }}>+{extra} more</span>}
+                      </div>
+                    )}
+                  </div>
+                  {/* Checkmark circle top-right */}
+                  <div style={{
+                    position: 'absolute', top: 10, right: 10,
+                    width: 24, height: 24, borderRadius: 12,
+                    background: selected ? colors.grassLight : 'transparent',
+                    border: `2px solid ${selected ? colors.grassLight : colors.muted + '55'}`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 13, color: '#0a1628', fontWeight: 800,
+                    flexShrink: 0, transition: 'all 0.15s',
+                  }}>
+                    {selected ? '✓' : ''}
+                  </div>
                 </button>
               )
             })
@@ -1587,6 +1604,34 @@ export default function PollPage({ poll: initialPoll, error }) {
             {kicking ? <>Joining <span className="kick-ball">{poll.game_type === 'watch_party' ? '📺' : '⚽'}</span></> : loading ? 'Joining...' : poll.game_type === 'watch_party' ? "I'm in — count me 📺" : "I'm in — count me ⚽"}
           </Btn>
         </div>
+
+        {/* Floating sticky CTA — visible once a slot is tapped */}
+        {selectedSlots.length > 0 && name.trim() && (
+          <div style={{
+            position: 'fixed', bottom: 92, left: 16, right: 16, zIndex: 90,
+            maxWidth: 448, margin: '0 auto',
+          }}>
+            <button
+              onClick={handleVote}
+              disabled={loading || kicking || (matchedPlayer && !/^\d{4,6}$/.test(pin)) || (poll.visibility === 'groups' && hasAccess === false) || (!profile && !guestTerms)}
+              style={{
+                width: '100%',
+                background: `linear-gradient(135deg, ${colors.grassLight} 0%, ${colors.grass} 100%)`,
+                color: '#0a1628',
+                border: 'none',
+                borderRadius: 14,
+                padding: '16px 20px',
+                fontSize: 17,
+                fontWeight: 800,
+                cursor: 'pointer',
+                boxShadow: `0 4px 24px ${colors.grassLight}44`,
+                opacity: (loading || kicking || (!profile && !guestTerms)) ? 0.5 : 1,
+              }}
+            >
+              {kicking ? `Joining…` : loading ? 'Joining...' : poll.game_type === 'watch_party' ? "I'm in — count me 📺" : `I'm in — count me ⚽`}
+            </button>
+          </div>
+        )}
         {name.trim() && !myEntry && (() => {
           const declines = poll.declines || []
           const hasDeclined = declines.some(d => d.toLowerCase() === name.trim().toLowerCase())
