@@ -1594,47 +1594,29 @@ export default function PollPage({ poll: initialPoll, error }) {
             </span>
           </label>
         )}
-        {/* Static button — only show when floating button isn't active */}
-        {!(selectedSlots.length > 0 && name.trim()) && (
-          <div style={{ marginTop: 14 }}>
-            <Btn
-              full
-              onClick={handleVote}
-              disabled={!name.trim() || selectedSlots.length === 0 || loading || kicking || (matchedPlayer && !/^\d{4,6}$/.test(pin)) || (poll.visibility === 'groups' && hasAccess === false) || (!profile && !guestTerms)}
-              style={{ padding: '16px 20px', fontSize: 17, borderRadius: 12 }}
-            >
-              {poll.game_type === 'watch_party' ? "I'm in — count me 📺" : "I'm in — count me ⚽"}
-            </Btn>
-          </div>
-        )}
-
-        {/* Floating sticky CTA — visible once a slot is tapped */}
-        {selectedSlots.length > 0 && name.trim() && (
-          <div style={{
-            position: 'fixed', bottom: 92, left: 16, right: 16, zIndex: 90,
-            maxWidth: 448, margin: '0 auto',
-          }}>
-            <button
-              onClick={handleVote}
-              disabled={loading || kicking || (matchedPlayer && !/^\d{4,6}$/.test(pin)) || (poll.visibility === 'groups' && hasAccess === false) || (!profile && !guestTerms)}
-              style={{
-                width: '100%',
-                background: `linear-gradient(135deg, ${colors.grassLight} 0%, ${colors.grass} 100%)`,
-                color: '#0a1628',
-                border: 'none',
-                borderRadius: 14,
-                padding: '16px 20px',
-                fontSize: 17,
-                fontWeight: 800,
-                cursor: 'pointer',
-                boxShadow: `0 4px 24px ${colors.grassLight}44`,
-                opacity: (loading || kicking || (!profile && !guestTerms)) ? 0.5 : 1,
-              }}
-            >
-              {kicking ? `Joining…` : loading ? 'Joining...' : poll.game_type === 'watch_party' ? "I'm in — count me 📺" : `I'm in — count me ⚽`}
-            </button>
-          </div>
-        )}
+        <div style={{ marginTop: 16 }}>
+          <button
+            onClick={handleVote}
+            disabled={!name.trim() || selectedSlots.length === 0 || loading || kicking || (matchedPlayer && !/^\d{4,6}$/.test(pin)) || (poll.visibility === 'groups' && hasAccess === false) || (!profile && !guestTerms)}
+            style={{
+              width: '100%',
+              background: selectedSlots.length > 0 && name.trim()
+                ? `linear-gradient(135deg, ${colors.grassLight} 0%, ${colors.grass} 100%)`
+                : colors.pitchMid,
+              color: selectedSlots.length > 0 && name.trim() ? '#0a1628' : colors.muted,
+              border: `2px solid ${selectedSlots.length > 0 && name.trim() ? colors.grassLight : colors.grass + '22'}`,
+              borderRadius: 14,
+              padding: '17px 20px',
+              fontSize: 17,
+              fontWeight: 800,
+              cursor: selectedSlots.length > 0 ? 'pointer' : 'default',
+              transition: 'all 0.2s',
+              boxShadow: selectedSlots.length > 0 && name.trim() ? `0 4px 20px ${colors.grassLight}33` : 'none',
+            }}
+          >
+            {kicking ? <>Joining <span className="kick-ball">{poll.game_type === 'watch_party' ? '📺' : '⚽'}</span></> : loading ? 'Joining...' : poll.game_type === 'watch_party' ? "I'm in — count me 📺" : "I'm in — count me ⚽"}
+          </button>
+        </div>
         {name.trim() && !myEntry && (() => {
           const declines = poll.declines || []
           const hasDeclined = declines.some(d => d.toLowerCase() === name.trim().toLowerCase())
