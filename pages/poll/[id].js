@@ -70,7 +70,7 @@ function MvpVoting({ poll }) {
     if (saved) setVoterName(JSON.parse(saved).name)
   }, [])
 
-  if (poll.score_a == null || poll.score_b == null) return null
+  if (!poll.game_time || new Date(poll.game_time) >= new Date()) return null
 
   const { teamA = [], teamB = [] } = poll.teams || {}
   const allPlayers = [...teamA, ...teamB].filter(p => !p.isGuest)

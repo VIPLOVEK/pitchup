@@ -2,7 +2,7 @@
 // are short on players and approaching their voting cutoff. Intended to
 // be called periodically (e.g. by Vercel Cron, see vercel.json).
 import { supabaseAdmin, isSupabaseConfigured } from '../../../lib/supabase'
-import { shouldSendReminder, shouldSendConfirmedReminder, shouldSendVoteReminder } from '../../../lib/pollStatus'
+import { shouldSendReminder, shouldSendConfirmedReminder, shouldSendVoteReminder, shouldSendMvpPush } from '../../../lib/pollStatus'
 import { sendWhatsAppReminder } from '../../../lib/whatsapp'
 import { sendPushToAll } from '../../../lib/push'
 import { formatSlot } from '../../../lib/teams'
@@ -77,6 +77,26 @@ export default async function handler(req, res) {
           sent++
         } catch (e) {
           console.error(`Confirmed reminder failed for poll ${poll.id}:`, e.message)
+        }
+      }
+    }
+
+    // Post-game MVP voting push — fires ~1h after kickoff
+    const { data: mvpPolls, error: mvpErr } = await db
+      .from('polls').select('*').eq('status', 'confirmed').eq('mvp_push_sent', false)
+    if (!mvpErr && mvpPolls) {
+      for (const poll of mvpPolls) {
+        if (!shouldSendMvpPush(poll)) continue
+        try {
+          await sendPushToAll({
+            title: '⭐ Man of the Match',
+            body: `Who stood out in ${poll.title}? Tap to cast your vote!`,
+            url: `/poll/${poll.id}`,
+          })
+          await db.from('polls').update({ mvp_push_sent: true }).eq('id', poll.id)
+          sent++
+        } catch (e) {
+          console.error(`MVP push failed for poll ${poll.id}:`, e.message)
         }
       }
     }
