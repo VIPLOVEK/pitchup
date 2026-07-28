@@ -29,7 +29,7 @@ export default async function handler(req, res) {
     try {
       const { data, error } = await db
         .from('players')
-        .select('id, name, phone, positions, skill_rating, skill_rating_updated_at, position_skills, avatar_url, auto_join, auto_join_until, blackout_ranges')
+        .select('id, name, phone, positions, skill_rating, skill_rating_updated_at, position_skills, avatar_url, auto_join, auto_join_until, blackout_ranges, terms_accepted_at')
         .eq('id', id)
         .maybeSingle()
       if (error) throw error
@@ -82,7 +82,7 @@ export default async function handler(req, res) {
         .from('players')
         .update(update)
         .eq('id', id)
-        .select('id, name, phone, positions, skill_rating, skill_rating_updated_at, position_skills, avatar_url, auto_join, auto_join_until, blackout_ranges')
+        .select('id, name, phone, positions, skill_rating, skill_rating_updated_at, position_skills, avatar_url, auto_join, auto_join_until, blackout_ranges, terms_accepted_at')
         .single()
       if (error) throw error
 
