@@ -1,5 +1,5 @@
 // GET   /api/players/[id] — fetch a profile (used to restore a saved session)
-// PATCH /api/players/[id] — update phone/positions (requires current PIN)
+// PATCH /api/players/[id] — update name/phone/positions (requires current PIN)
 import { supabaseAdmin, isSupabaseConfigured } from '../../../lib/supabase'
 import { verifyPin } from '../../../lib/players'
 import { POSITIONS, isValidPositionSkills, deriveSkillRating } from '../../../lib/positions'
@@ -41,8 +41,10 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'PATCH') {
-    const { pin, phone, positions, skillRating, positionSkills, autoJoin, autoJoinUntil, blackoutRanges } = req.body
+    const { pin, name, phone, positions, skillRating, positionSkills, autoJoin, autoJoinUntil, blackoutRanges } = req.body
     if (!pin) return res.status(400).json({ error: 'Current PIN is required' })
+    if (name !== undefined && !name?.trim()) return res.status(400).json({ error: 'Name cannot be empty' })
+    if (name !== undefined && name.trim().length > 60) return res.status(400).json({ error: 'Name is too long' })
     if (positions && (!Array.isArray(positions) || positions.some(p => !POSITIONS.includes(p)))) {
       return res.status(400).json({ error: 'Invalid position' })
     }
@@ -61,6 +63,7 @@ export default async function handler(req, res) {
       }
 
       const update = {}
+      if (name !== undefined) update.name = name.trim()
       if (phone !== undefined) update.phone = phone?.trim() || null
       if (positions !== undefined) update.positions = positions
       if (positionSkills !== undefined || skillRating !== undefined) {
@@ -82,6 +85,25 @@ export default async function handler(req, res) {
         .select('id, name, phone, positions, skill_rating, skill_rating_updated_at, position_skills, avatar_url, auto_join, auto_join_until, blackout_ranges')
         .single()
       if (error) throw error
+
+      // Cascade name change to open/confirmed polls so team displays stay consistent
+      if (update.name && update.name !== player.name) {
+        const { data: polls } = await db
+          .from('polls')
+          .select('id, players, version')
+          .in('status', ['open', 'confirmed'])
+        if (polls) {
+          for (const poll of polls) {
+            const entries = poll.players || []
+            if (!entries.some(p => p.playerId === id)) continue
+            const updated = entries.map(p => p.playerId === id ? { ...p, name: update.name } : p)
+            await db.from('polls')
+              .update({ players: updated, version: poll.version + 1 })
+              .eq('id', poll.id)
+              .eq('version', poll.version)
+          }
+        }
+      }
 
       return res.status(200).json(data)
     } catch (e) {

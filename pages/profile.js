@@ -472,11 +472,19 @@ export default function ProfilePage() {
       .finally(() => setLoaded(true))
   }, [])
 
+  // Edit-info state (name + phone)
+  const [editingInfo, setEditingInfo] = useState(false)
+  const [editName, setEditName] = useState('')
+  const [editPhone, setEditPhone] = useState('')
+  const [savingInfo, setSavingInfo] = useState(false)
+
   useEffect(() => {
     if (player) {
       setPositions(player.positions || [])
       setSkillRating(player.skill_rating || DEFAULT_SKILL_RATING)
       setPositionSkills(player.position_skills || {})
+      setEditName(player.name)
+      setEditPhone(player.phone || '')
     }
   }, [player])
 
@@ -530,6 +538,31 @@ export default function ProfilePage() {
     }
   }
 
+  const handleSaveInfo = async () => {
+    if (!editName.trim()) { showToast('Name cannot be empty'); return }
+    const enteredPin = window.prompt('Enter your PIN to save changes:')
+    if (!enteredPin) return
+    setSavingInfo(true)
+    try {
+      const res = await fetch(`/api/players/${player.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin: enteredPin, name: editName.trim(), phone: editPhone.trim() }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      const updated = { ...player, ...data }
+      setPlayer(updated)
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated))
+      setEditingInfo(false)
+      showToast('Profile updated!')
+    } catch (e) {
+      showToast(e.message)
+    } finally {
+      setSavingInfo(false)
+    }
+  }
+
   const handleLogout = () => {
     localStorage.removeItem(STORAGE_KEY)
     setPlayer(null)
@@ -554,17 +587,55 @@ export default function ProfilePage() {
       <Layout title="My Profile — PitchUp">
         <Card>
           <Label>My profile</Label>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: editingInfo ? 12 : 16 }}>
             <AvatarUpload player={player} onUpdate={updated => {
               setPlayer(updated)
               localStorage.setItem(STORAGE_KEY, JSON.stringify(updated))
             }} showToast={showToast} />
-            <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0, letterSpacing: '-0.5px' }}>
-              {player.name}
-            </h1>
+            {editingInfo ? (
+              <div style={{ flex: 1 }}>
+                <Input
+                  value={editName}
+                  onChange={e => setEditName(e.target.value)}
+                  placeholder="Your name"
+                  style={{ marginBottom: 8 }}
+                />
+                <Input
+                  value={editPhone}
+                  onChange={e => setEditPhone(e.target.value)}
+                  placeholder="Phone number (optional)"
+                />
+              </div>
+            ) : (
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0, letterSpacing: '-0.5px' }}>
+                    {player.name}
+                  </h1>
+                  <button
+                    type="button"
+                    onClick={() => { setEditName(player.name); setEditPhone(player.phone || ''); setEditingInfo(true) }}
+                    title="Edit name & phone"
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: colors.muted, fontSize: 14, padding: '2px 4px', lineHeight: 1 }}
+                  >
+                    ✏️
+                  </button>
+                </div>
+                {player.phone && (
+                  <p style={{ color: colors.muted, fontSize: 13, margin: '4px 0 0' }}>📱 {player.phone}</p>
+                )}
+              </div>
+            )}
           </div>
-          {player.phone && (
-            <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 4px' }}>📱 {player.phone}</p>
+          {editingInfo && (
+            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+              <Btn small variant="primary" onClick={handleSaveInfo} disabled={savingInfo || !editName.trim()}>
+                {savingInfo ? 'Saving…' : 'Save'}
+              </Btn>
+              <Btn small variant="ghost" onClick={() => setEditingInfo(false)} disabled={savingInfo}>
+                Cancel
+              </Btn>
+            </div>
           )}
           <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 8px' }}>
             Preferred positions <span style={{ color: colors.muted, fontWeight: 400 }}>(pick as many as you like — leave blank for "Any")</span>
