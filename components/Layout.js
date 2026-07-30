@@ -3,6 +3,7 @@ import Head from 'next/head'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
 import { colors } from '../lib/tokens'
+import OnboardingSlideshow, { ONBOARDING_KEY } from './Onboarding'
 
 // ── SVG nav icons ─────────────────────────────────────────────────────────────
 function HomeIcon({ active }) {
@@ -166,6 +167,13 @@ function DisclaimerModal() {
 export default function Layout({ children, title = 'PitchUp', description = 'PitchUp — pickup soccer organizer', ogImageUrl }) {
   const router = useRouter()
   const isAdmin = router.pathname.startsWith('/admin')
+  const [showOnboarding, setShowOnboarding] = useState(false)
+
+  useEffect(() => {
+    try {
+      if (!localStorage.getItem(ONBOARDING_KEY)) setShowOnboarding(true)
+    } catch (_) {}
+  }, [])
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || ''
   const ogImage = ogImageUrl || (appUrl ? `${appUrl}/logo.png` : '/logo.png')
 
@@ -177,6 +185,7 @@ export default function Layout({ children, title = 'PitchUp', description = 'Pit
   return (
     <>
       <DisclaimerModal />
+      <OnboardingSlideshow open={showOnboarding} onClose={() => setShowOnboarding(false)} />
       <Head>
         <title>{title}</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -227,6 +236,21 @@ export default function Layout({ children, title = 'PitchUp', description = 'Pit
           />
           <span>Pitch<span style={{ color: colors.accent }}>Up</span></span>
         </Link>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button
+            onClick={() => setShowOnboarding(true)}
+            title="How to use PitchUp"
+            style={{
+              background: 'rgba(255,255,255,0.07)',
+              border: '1px solid rgba(255,255,255,0.12)',
+              color: colors.muted,
+              borderRadius: '50%',
+              width: 32, height: 32,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 15, fontWeight: 800, cursor: 'pointer',
+              lineHeight: 1,
+            }}
+          >?</button>
         <Link
           href={isAdmin ? '/' : '/admin'}
           style={{
@@ -243,6 +267,7 @@ export default function Layout({ children, title = 'PitchUp', description = 'Pit
         >
           {isAdmin ? '← Back' : 'Admin'}
         </Link>
+        </div>
       </header>
 
       <main style={{ maxWidth: 480, margin: '0 auto', padding: '24px 16px 118px' }}>
