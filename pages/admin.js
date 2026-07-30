@@ -1348,13 +1348,35 @@ const FEEDBACK_STATUS_LABELS = {
   declined: 'Declined',
 }
 
+function resizeFlyerToJpegBase64(file, maxPx = 1200) {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      const scale = Math.min(1, maxPx / Math.max(img.width, img.height))
+      const w = Math.round(img.width * scale)
+      const h = Math.round(img.height * scale)
+      const canvas = document.createElement('canvas')
+      canvas.width = w; canvas.height = h
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h)
+      resolve(canvas.toDataURL('image/jpeg', 0.88).split(',')[1])
+    }
+    img.onerror = reject
+    img.src = url
+  })
+}
+
 function BroadcastTab({ password, showToast }) {
   const [message, setMessage] = useState('')
+  const [imageBase64, setImageBase64] = useState(null)
+  const [imagePreview, setImagePreview] = useState(null)
   const [sendPush, setSendPush] = useState(true)
   const [pin, setPin] = useState(true)
   const [loading, setLoading] = useState(false)
   const [active, setActive] = useState(null)
   const [loadingActive, setLoadingActive] = useState(true)
+  const fileRef = useRef(null)
 
   useEffect(() => {
     fetch('/api/announcement')
@@ -1363,20 +1385,39 @@ function BroadcastTab({ password, showToast }) {
       .catch(() => setLoadingActive(false))
   }, [])
 
+  async function handleImageFile(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      const b64 = await resizeFlyerToJpegBase64(file)
+      setImageBase64(b64)
+      setImagePreview(`data:image/jpeg;base64,${b64}`)
+    } catch {
+      showToast('Could not process image')
+    }
+  }
+
+  function removeImage() {
+    setImageBase64(null)
+    setImagePreview(null)
+    if (fileRef.current) fileRef.current.value = ''
+  }
+
   async function send(e) {
     e.preventDefault()
-    if (!message.trim()) return
+    if (!message.trim() && !imageBase64) return
     setLoading(true)
     try {
       const res = await fetch('/api/admin/announce', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', authorization: `Bearer ${password}` },
-        body: JSON.stringify({ message, sendPush, pin }),
+        body: JSON.stringify({ message, sendPush, pin, imageBase64 }),
       })
       if (!res.ok) { const d = await res.json(); showToast(d.error || 'Failed'); return }
       showToast(sendPush && pin ? '📣 Sent push + pinned to homepage' : sendPush ? '📣 Push sent' : '📌 Pinned to homepage')
       setMessage('')
-      if (pin) setActive({ message, created_at: new Date().toISOString() })
+      removeImage()
+      if (pin) setActive({ message, image_url: imagePreview, created_at: new Date().toISOString() })
     } finally {
       setLoading(false)
     }
@@ -1394,20 +1435,40 @@ function BroadcastTab({ password, showToast }) {
     <Card>
       <Label>📣 Broadcast</Label>
       {active && (
-        <div style={{ background: '#f59e0b18', border: '1px solid #f59e0b44', borderRadius: 8, padding: '10px 12px', marginBottom: 14 }}>
-          <div style={{ fontSize: 11, color: '#f59e0b', fontWeight: 700, marginBottom: 4 }}>PINNED NOW</div>
-          <div style={{ fontSize: 13, color: colors.white }}>{active.message}</div>
-          <button onClick={clear} style={{ marginTop: 8, fontSize: 11, color: colors.muted, background: 'none', border: `1px solid ${colors.grass}33`, borderRadius: 6, padding: '3px 10px', cursor: 'pointer' }}>
+        <div style={{ background: '#f59e0b18', border: '1px solid #f59e0b44', borderRadius: 8, overflow: 'hidden', marginBottom: 14 }}>
+          <div style={{ fontSize: 11, color: '#f59e0b', fontWeight: 700, padding: '8px 12px 0' }}>PINNED NOW</div>
+          {active.image_url && <img src={active.image_url} alt="" style={{ width: '100%', display: 'block', maxHeight: 180, objectFit: 'cover' }} />}
+          {active.message && <div style={{ fontSize: 13, color: colors.white, padding: '8px 12px' }}>{active.message}</div>}
+          <button onClick={clear} style={{ margin: '0 12px 10px', fontSize: 11, color: colors.muted, background: 'none', border: `1px solid ${colors.grass}33`, borderRadius: 6, padding: '3px 10px', cursor: 'pointer' }}>
             Clear
           </button>
         </div>
       )}
       {loadingActive && <p style={{ color: colors.muted, fontSize: 13 }}>Loading…</p>}
       <form onSubmit={send}>
+        {imagePreview ? (
+          <div style={{ position: 'relative', marginBottom: 12 }}>
+            <img src={imagePreview} alt="Preview" style={{ width: '100%', borderRadius: 8, maxHeight: 200, objectFit: 'cover', display: 'block' }} />
+            <button
+              type="button"
+              onClick={removeImage}
+              style={{ position: 'absolute', top: 6, right: 6, background: 'rgba(0,0,0,0.6)', border: 'none', color: '#fff', borderRadius: '50%', width: 24, height: 24, cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >×</button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            style={{ width: '100%', background: colors.pitchMid, border: `1.5px dashed ${colors.grass}44`, color: colors.muted, borderRadius: 8, padding: '12px', fontSize: 13, cursor: 'pointer', marginBottom: 12, textAlign: 'center' }}
+          >
+            📎 Attach flyer / image (optional)
+          </button>
+        )}
+        <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageFile} />
         <textarea
           value={message}
           onChange={e => setMessage(e.target.value)}
-          placeholder="e.g. Game moved to 7pm tonight — same venue"
+          placeholder="Caption or message (optional if image attached)"
           maxLength={280}
           rows={3}
           style={{ width: '100%', background: colors.pitchMid, border: `1px solid ${colors.grass}33`, color: colors.white, borderRadius: 8, padding: '10px 12px', fontSize: 13, resize: 'vertical', boxSizing: 'border-box', marginBottom: 12 }}
@@ -1420,7 +1481,7 @@ function BroadcastTab({ password, showToast }) {
           <input type="checkbox" checked={pin} onChange={e => setPin(e.target.checked)} />
           Pin to homepage until cleared
         </label>
-        <Btn style={{ marginTop: 8 }} disabled={loading || !message.trim() || (!sendPush && !pin)}>
+        <Btn style={{ marginTop: 8 }} disabled={loading || (!message.trim() && !imageBase64) || (!sendPush && !pin)}>
           {loading ? 'Sending…' : '📣 Broadcast'}
         </Btn>
       </form>

@@ -8,7 +8,7 @@ export default async function handler(req, res) {
   const db = supabaseAdmin()
   const { data } = await db
     .from('announcements')
-    .select('id, message, created_at')
+    .select('id, message, image_url, created_at')
     .eq('active', true)
     .order('created_at', { ascending: false })
     .limit(1)

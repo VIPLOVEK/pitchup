@@ -125,26 +125,55 @@ function RequestGameModal({ onClose }) {
 
 function AnnouncementBanner({ announcement }) {
   const [dismissed, setDismissed] = useState(false)
+  const [lightbox, setLightbox] = useState(false)
   if (!announcement || dismissed) return null
+  const hasImage = !!announcement.image_url
+  const hasMessage = !!announcement.message
   return (
-    <div style={{
-      background: '#f59e0b18',
-      border: '1px solid #f59e0b55',
-      borderRadius: 10,
-      padding: '12px 14px',
-      marginBottom: 16,
-      display: 'flex',
-      alignItems: 'flex-start',
-      gap: 10,
-    }}>
-      <span style={{ fontSize: 18, lineHeight: 1.3 }}>📣</span>
-      <div style={{ flex: 1, fontSize: 14, color: colors.white, lineHeight: 1.5 }}>{announcement.message}</div>
-      <button
-        onClick={() => setDismissed(true)}
-        style={{ background: 'none', border: 'none', color: colors.muted, cursor: 'pointer', fontSize: 16, padding: '0 2px', lineHeight: 1 }}
-        aria-label="Dismiss"
-      >×</button>
-    </div>
+    <>
+      <div style={{
+        background: '#f59e0b18',
+        border: '1px solid #f59e0b55',
+        borderRadius: 10,
+        marginBottom: 16,
+        overflow: 'hidden',
+        position: 'relative',
+      }}>
+        {hasImage && (
+          <img
+            src={announcement.image_url}
+            alt="Announcement"
+            onClick={() => setLightbox(true)}
+            style={{ width: '100%', display: 'block', cursor: 'pointer', maxHeight: 320, objectFit: 'cover' }}
+          />
+        )}
+        {hasMessage && (
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '12px 14px' }}>
+            <span style={{ fontSize: 18, lineHeight: 1.3 }}>📣</span>
+            <div style={{ flex: 1, fontSize: 14, color: colors.white, lineHeight: 1.5 }}>{announcement.message}</div>
+          </div>
+        )}
+        <button
+          onClick={() => setDismissed(true)}
+          style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.5)', border: 'none', color: '#fff', cursor: 'pointer', fontSize: 16, width: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}
+          aria-label="Dismiss"
+        >×</button>
+        {hasImage && (
+          <div style={{ textAlign: 'center', padding: '4px 0 8px', fontSize: 11, color: colors.muted }}>Tap image to expand</div>
+        )}
+      </div>
+      {lightbox && (
+        <div
+          onClick={() => setLightbox(false)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
+        >
+          <img src={announcement.image_url} alt="Announcement" style={{ maxWidth: '100%', maxHeight: '90vh', borderRadius: 8, objectFit: 'contain' }} />
+          <button
+            style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', fontSize: 20, width: 36, height: 36, borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          >×</button>
+        </div>
+      )}
+    </>
   )
 }
 
