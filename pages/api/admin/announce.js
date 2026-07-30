@@ -47,7 +47,7 @@ export default async function handler(req, res) {
     if (sendPush && isPushConfigured()) {
       await sendPushToAll({
         title: '📣 PitchUp announcement',
-        body: message.trim().slice(0, 120),
+        body: (message?.trim() || 'New announcement — tap to view').slice(0, 120),
         url: '/',
       })
     }

@@ -6,13 +6,16 @@ export default async function handler(req, res) {
   if (!isSupabaseConfigured()) return res.status(200).json(null)
 
   const db = supabaseAdmin()
-  const { data } = await db
-    .from('announcements')
-    .select('id, message, image_url, created_at')
-    .eq('active', true)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-
-  return res.status(200).json(data || null)
+  try {
+    const { data } = await db
+      .from('announcements')
+      .select('id, message, image_url, created_at')
+      .eq('active', true)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    return res.status(200).json(data || null)
+  } catch (e) {
+    return res.status(200).json(null)
+  }
 }
