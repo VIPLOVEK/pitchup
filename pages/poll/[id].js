@@ -1125,15 +1125,9 @@ export default function PollPage({ poll: initialPoll, error }) {
     return (
       <Layout title={poll.title} description={`Game is on at ${poll.location} — ${formatSlot(poll.game_time)}.`} ogImageUrl={ogImageUrl}>
         <GameConfirmed poll={poll} profile={profile} />
-        {/* Profile users: WaitlistCard shows their status + leave button via myEntry */}
-        {(profile || myEntry) ? (
-          <WaitlistCard poll={poll} waitlist={waitlist} myEntry={myEntry} onWaitlist={onWaitlist}
-            name={name} setName={setName} profile={profile}
-            loading={loading} setLoading={setLoading} setToast={setToast} setPoll={setPoll} />
-        ) : (
-          /* Name-only voters: self-contained opt-out with name identification */
-          <ConfirmedOptOut poll={poll} loading={loading} setLoading={setLoading} setToast={setToast} setPoll={setPoll} />
-        )}
+        <WaitlistCard poll={poll} waitlist={waitlist} myEntry={myEntry} onWaitlist={onWaitlist}
+          name={name} setName={setName} profile={profile}
+          loading={loading} setLoading={setLoading} setToast={setToast} setPoll={setPoll} />
         <Toast msg={toast} />
         {isAdminMode && <AdminBar poll={poll} onUpdate={setPoll} />}
       </Layout>
