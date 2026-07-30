@@ -25,6 +25,7 @@ export default async function handler(req, res) {
       const membersByGroup = {}
       for (const m of members) {
         if (!membersByGroup[m.group_id]) membersByGroup[m.group_id] = []
+        if (!m.players) continue
         membersByGroup[m.group_id].push({ id: m.players.id, name: m.players.name, status: m.status })
       }
 

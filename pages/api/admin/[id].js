@@ -41,7 +41,7 @@ export default async function handler(req, res) {
       if (action === 'close') {
         const activePlayers = await withSkillRatings(db, getActivePlayers(poll))
         const gameTime = pickBestSlot(activePlayers, poll.slots)
-        const gameDate = new Date(gameTime).toISOString().split('T')[0]
+        const gameDate = gameTime ? new Date(gameTime).toISOString().split('T')[0] : null
 
         // Auto-join: add opted-in players who aren't already in the poll
         let autoJoinedPlayers = []

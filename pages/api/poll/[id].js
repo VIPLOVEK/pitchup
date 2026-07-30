@@ -131,7 +131,7 @@ export default async function handler(req, res) {
         }
 
         const players = current.players || []
-        const existingIdx = players.findIndex(p => p.name.toLowerCase() === name.trim().toLowerCase())
+        const existingIdx = players.findIndex(p => p.name?.toLowerCase() === name.trim().toLowerCase())
 
         // Look up avatar for players with a profile so it's available in team displays
         let avatarUrl = null
@@ -198,7 +198,7 @@ export default async function handler(req, res) {
       if (fetchErr || !poll) return res.status(404).json({ error: 'Poll not found' })
       if (poll.status === 'cancelled') return res.status(400).json({ error: 'This poll has been cancelled' })
 
-      const entry = (poll.players || []).find(p => p.name.toLowerCase() === name.trim().toLowerCase())
+      const entry = (poll.players || []).find(p => p.name?.toLowerCase() === name.trim().toLowerCase())
       if (!entry) return res.status(404).json({ error: 'You are not in this poll' })
 
       if (entry.playerId) {
@@ -212,7 +212,7 @@ export default async function handler(req, res) {
 
       const wasActive = getActivePlayers(poll)
       const wasWaitlist = getWaitlist(poll)
-      const updatedPlayers = poll.players.filter(p => p.name.toLowerCase() !== name.trim().toLowerCase())
+      const updatedPlayers = (poll.players || []).filter(p => p.name?.toLowerCase() !== name.trim().toLowerCase())
       const { data: updated, error } = await db
         .from('polls')
         .update({ players: updatedPlayers, version: poll.version + 1 })

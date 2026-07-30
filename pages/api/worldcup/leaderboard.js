@@ -4,9 +4,15 @@ export default async function handler(req, res) {
   if (!isSupabaseConfigured()) return res.status(503).json({ error: 'DB not configured' })
   const db = supabaseAdmin()
 
-  const { data: preds } = await db
-    .from('wc_predictions')
-    .select('player_name, player_id, prediction, is_correct, match_id, wc_matches(match_date)')
+  let preds
+  try {
+    const { data } = await db
+      .from('wc_predictions')
+      .select('player_name, player_id, prediction, is_correct, match_id, wc_matches(match_date)')
+    preds = data
+  } catch (e) {
+    return res.status(500).json({ error: e.message })
+  }
 
   if (!preds) return res.status(200).json([])
 

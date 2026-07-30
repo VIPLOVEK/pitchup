@@ -11,16 +11,20 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'chatId, emoji, playerName required' })
 
   const db = supabaseAdmin()
-  const { data: row, error: fetchErr } = await db.from('wc_chat').select('reactions').eq('id', chatId).single()
-  if (fetchErr || !row) return res.status(404).json({ error: 'Message not found' })
+  try {
+    const { data: row, error: fetchErr } = await db.from('wc_chat').select('reactions').eq('id', chatId).single()
+    if (fetchErr || !row) return res.status(404).json({ error: 'Message not found' })
 
-  const reactions = row.reactions || {}
-  const current = reactions[emoji] || []
-  reactions[emoji] = current.includes(playerName)
-    ? current.filter(n => n !== playerName)
-    : [...current, playerName]
+    const reactions = row.reactions || {}
+    const current = reactions[emoji] || []
+    reactions[emoji] = current.includes(playerName)
+      ? current.filter(n => n !== playerName)
+      : [...current, playerName]
 
-  const { data, error } = await db.from('wc_chat').update({ reactions }).eq('id', chatId).select().single()
-  if (error) return res.status(500).json({ error: error.message })
-  return res.status(200).json(data)
+    const { data, error } = await db.from('wc_chat').update({ reactions }).eq('id', chatId).select().single()
+    if (error) return res.status(500).json({ error: error.message })
+    return res.status(200).json(data)
+  } catch (e) {
+    return res.status(500).json({ error: e.message })
+  }
 }

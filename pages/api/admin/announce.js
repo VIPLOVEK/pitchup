@@ -14,8 +14,12 @@ export default async function handler(req, res) {
   const db = supabaseAdmin()
 
   if (req.method === 'DELETE') {
-    await db.from('announcements').update({ active: false }).eq('active', true)
-    return res.status(200).json({ cleared: true })
+    try {
+      await db.from('announcements').update({ active: false }).eq('active', true)
+      return res.status(200).json({ cleared: true })
+    } catch (e) {
+      return res.status(500).json({ error: e.message })
+    }
   }
 
   if (req.method !== 'POST') return res.status(405).end()
