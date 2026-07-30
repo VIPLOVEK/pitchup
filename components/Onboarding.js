@@ -128,7 +128,7 @@ function ProfileVisual() {
 function NotificationsVisual() {
   const notifs = [
     { icon: '✅', label: 'Game confirmed', body: 'Friday Night Futsal is on at 7pm — Powerleague' },
-    { icon: '⏰', label: 'Voting closes soon', body: 'Tuesday 5-a-side needs more players before it closes!' },
+    { icon: '⏰', label: 'Voting closes soon', body: 'Tuesday game needs more players before voting closes!' },
     { icon: '⭐', label: 'Man of the Match', body: 'Who stood out tonight? Tap to cast your vote!' },
     { icon: '⚽', label: 'Player dropped out', body: 'Xavi just dropped out — less than 2h to kickoff!' },
   ]
@@ -186,7 +186,7 @@ const SLIDES = [
     icon: '🏟️',
     accent: colors.accent,
     title: 'Welcome to PitchUp',
-    subtitle: 'Your home for 5-a-side football',
+    subtitle: 'Your home for 5, 7, 8 & 11-a-side football',
     body: 'Organise games, vote on times, get balanced teams, and stay in the loop — all in one place. Here\'s a quick guide to get started.',
     Visual: WelcomeVisual,
   },

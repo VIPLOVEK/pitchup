@@ -164,7 +164,7 @@ function DisclaimerModal() {
   )
 }
 
-export default function Layout({ children, title = 'PitchUp', description = 'PitchUp — pickup soccer organizer', ogImageUrl }) {
+export default function Layout({ children, title = 'PitchUp', description = 'PitchUp — football game organizer', ogImageUrl }) {
   const router = useRouter()
   const isAdmin = router.pathname.startsWith('/admin')
   const [showOnboarding, setShowOnboarding] = useState(false)
