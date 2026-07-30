@@ -186,7 +186,7 @@ const SLIDES = [
     icon: '🏟️',
     accent: colors.accent,
     title: 'Welcome to PitchUp',
-    subtitle: 'Your home for 5, 7, 8 & 11-a-side football',
+    subtitle: 'Your home for football',
     body: 'Organise games, vote on times, get balanced teams, and stay in the loop — all in one place. Here\'s a quick guide to get started.',
     Visual: WelcomeVisual,
   },
