@@ -189,6 +189,34 @@ export default async function handler(req, res) {
           .update({ teams: { teamA, teamB }, no_shows: noShows || [], version: poll.version + 1 })
           .eq('id', id).select().single()
         if (error) throw error
+
+        // Create penalty records for newly-added no-shows (skip if already recorded for this poll)
+        try {
+          const prevNoShows = poll.no_shows || []
+          const newNoShows = (noShows || []).filter(name => !prevNoShows.includes(name))
+          if (newNoShows.length > 0) {
+            const { data: existing } = await db.from('penalties').select('player_name').eq('poll_id', id)
+            const alreadyPenalised = new Set((existing || []).map(p => p.player_name.toLowerCase()))
+            const playerMap = Object.fromEntries((poll.players || []).map(p => [p.name.toLowerCase(), p]))
+            const toInsert = newNoShows
+              .filter(name => !alreadyPenalised.has(name.toLowerCase()))
+              .map(name => {
+                const entry = playerMap[name.toLowerCase()]
+                return {
+                  player_id: entry?.playerId || null,
+                  player_name: name,
+                  reason: 'Goalie first half',
+                  poll_id: id,
+                  poll_title: poll.title,
+                  completed: false,
+                }
+              })
+            if (toInsert.length > 0) await db.from('penalties').insert(toInsert)
+          }
+        } catch (e) {
+          console.error('Penalty creation failed (non-fatal):', e.message)
+        }
+
         return res.status(200).json(data)
       }
 

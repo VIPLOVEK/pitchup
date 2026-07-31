@@ -1489,6 +1489,138 @@ function BroadcastTab({ password, showToast }) {
   )
 }
 
+function PenaltiesTab({ password, showToast }) {
+  const [penalties, setPenalties] = useState(null)
+  const [showCompleted, setShowCompleted] = useState(false)
+  const [editingId, setEditingId] = useState(null)
+  const [editReason, setEditReason] = useState('')
+
+  const load = () => {
+    fetch('/api/admin/penalties?pending=false', { headers: { authorization: `Bearer ${password}` } })
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(setPenalties)
+      .catch(() => showToast('Failed to load penalties'))
+  }
+
+  useEffect(() => { load() }, [password])
+
+  const markDone = async (id) => {
+    try {
+      await fetch(`/api/admin/penalties?id=${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', authorization: `Bearer ${password}` },
+        body: JSON.stringify({ completed: true }),
+      })
+      setPenalties(ps => ps.map(p => p.id === id ? { ...p, completed: true } : p))
+      showToast('Penalty marked as served ✓')
+    } catch { showToast('Failed') }
+  }
+
+  const saveReason = async (id) => {
+    try {
+      const res = await fetch(`/api/admin/penalties?id=${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', authorization: `Bearer ${password}` },
+        body: JSON.stringify({ reason: editReason }),
+      })
+      const data = await res.json()
+      setPenalties(ps => ps.map(p => p.id === id ? { ...p, reason: data.reason } : p))
+      setEditingId(null)
+    } catch { showToast('Failed') }
+  }
+
+  const remove = async (id) => {
+    if (!window.confirm('Remove this penalty record?')) return
+    try {
+      await fetch(`/api/admin/penalties?id=${id}`, { method: 'DELETE', headers: { authorization: `Bearer ${password}` } })
+      setPenalties(ps => ps.filter(p => p.id !== id))
+    } catch { showToast('Failed') }
+  }
+
+  const pending = (penalties || []).filter(p => !p.completed)
+  const completed = (penalties || []).filter(p => p.completed)
+
+  return (
+    <div>
+      <Card>
+        <Label>🚫 No-show Penalties</Label>
+        <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 16px' }}>
+          When admin marks a player as a no-show, a penalty (e.g. goalie first half) is automatically created.
+          Mark it done once they've served it at the next game.
+        </p>
+
+        {penalties === null && <p style={{ color: colors.muted, fontSize: 13 }}>Loading…</p>}
+
+        {pending.length === 0 && penalties !== null && (
+          <p style={{ color: colors.muted, fontSize: 13, textAlign: 'center', padding: '12px 0' }}>
+            No pending penalties 🎉
+          </p>
+        )}
+
+        {pending.map(p => (
+          <div key={p.id} style={{
+            display: 'flex', alignItems: 'flex-start', gap: 10,
+            padding: '10px 0', borderBottom: `1px solid ${colors.grass}22`,
+          }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 700, fontSize: 14, color: colors.white }}>{p.player_name}</div>
+              {p.poll_title && (
+                <div style={{ color: colors.muted, fontSize: 12 }}>No-show: {p.poll_title}</div>
+              )}
+              {editingId === p.id ? (
+                <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                  <input
+                    value={editReason}
+                    onChange={e => setEditReason(e.target.value)}
+                    style={{ flex: 1, background: colors.pitchMid, border: `1px solid ${colors.grass}44`, color: colors.white, borderRadius: 6, padding: '4px 8px', fontSize: 13 }}
+                  />
+                  <Btn small onClick={() => saveReason(p.id)}>Save</Btn>
+                  <Btn small variant="ghost" onClick={() => setEditingId(null)}>✕</Btn>
+                </div>
+              ) : (
+                <div
+                  style={{ color: colors.danger, fontSize: 13, marginTop: 2, cursor: 'pointer' }}
+                  onClick={() => { setEditingId(p.id); setEditReason(p.reason || '') }}
+                  title="Tap to edit penalty"
+                >
+                  ⚠️ {p.reason || 'Penalty to serve'} <span style={{ color: colors.muted, fontSize: 11 }}>✏️</span>
+                </div>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: 6, flexShrink: 0, marginTop: 2 }}>
+              <Btn small onClick={() => markDone(p.id)}>✓ Done</Btn>
+              <Btn small variant="danger" onClick={() => remove(p.id)}>✕</Btn>
+            </div>
+          </div>
+        ))}
+
+        {completed.length > 0 && (
+          <div style={{ marginTop: 16 }}>
+            <button
+              onClick={() => setShowCompleted(v => !v)}
+              style={{ background: 'none', border: 'none', color: colors.muted, fontSize: 12, cursor: 'pointer', padding: 0 }}
+            >
+              {showCompleted ? '▲ Hide completed' : `▼ Show ${completed.length} completed`}
+            </button>
+            {showCompleted && completed.map(p => (
+              <div key={p.id} style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                padding: '8px 0', borderBottom: `1px solid ${colors.grass}11`, opacity: 0.5,
+              }}>
+                <div style={{ flex: 1 }}>
+                  <span style={{ fontSize: 13, color: colors.white }}>{p.player_name}</span>
+                  <span style={{ fontSize: 12, color: colors.muted, marginLeft: 8 }}>✓ {p.reason}</span>
+                </div>
+                <Btn small variant="danger" onClick={() => remove(p.id)}>✕</Btn>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+    </div>
+  )
+}
+
 function FeedbackTab({ password, showToast }) {
   const [requests, setRequests] = useState(null)
   const [error, setError] = useState('')
@@ -1882,6 +2014,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(false)
   const [authErr, setAuthErr] = useState('')
   const [groups, setGroups] = useState([])
+  const [pendingPenaltyCount, setPendingPenaltyCount] = useState(0)
 
   const appUrl = typeof window !== 'undefined' ? window.location.origin : ''
 
@@ -1889,6 +2022,14 @@ export default function AdminPage() {
 
   const loadGroups = () => {
     fetch('/api/groups').then(res => res.ok ? res.json() : []).then(setGroups).catch(() => {})
+  }
+
+  const loadPenaltyCount = (pwd) => {
+    if (!pwd) return
+    fetch('/api/admin/penalties', { headers: { authorization: `Bearer ${pwd}` } })
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setPendingPenaltyCount(Array.isArray(data) ? data.filter(p => !p.completed).length : 0))
+      .catch(() => {})
   }
 
   useEffect(() => {
@@ -1907,6 +2048,7 @@ export default function AdminPage() {
       setPolls(data)
       setAuthed(true)
       localStorage.setItem('pitchup_admin', JSON.stringify({ password, ts: Date.now() }))
+      loadPenaltyCount(password)
     } catch (e) {
       setAuthErr(e.message)
     } finally {
@@ -1973,7 +2115,7 @@ export default function AdminPage() {
   return (
     <Layout title="Admin — PitchUp">
       <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
-        {['create', 'manage', 'recurring', 'roster', 'groups', 'broadcast', 'feedback'].map(t => (
+        {['create', 'manage', 'recurring', 'roster', 'groups', 'broadcast', 'penalties', 'feedback'].map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -1986,11 +2128,21 @@ export default function AdminPage() {
               fontWeight: 600,
               fontSize: 13,
               cursor: 'pointer',
+              position: 'relative',
             }}
           >
-            {t === 'create' ? '➕ New Poll' : t === 'manage' ? (
-              <>📋 Manage ({polls.filter(p => p.status !== 'pending').length}){polls.filter(p => p.status === 'pending').length > 0 && <span style={{ marginLeft: 6, background: '#fbbf24', color: '#000', borderRadius: 10, padding: '1px 6px', fontSize: 11, fontWeight: 800 }}>{polls.filter(p => p.status === 'pending').length}</span>}</>
-            ) : t === 'recurring' ? '🔁 Recurring' : t === 'roster' ? '👥 Roster' : t === 'groups' ? '🏷️ Groups' : t === 'broadcast' ? '📣 Broadcast' : '💡 Feedback'}
+            {t === 'create' ? '➕ New Poll'
+              : t === 'manage' ? (
+                <>📋 Manage ({polls.filter(p => p.status !== 'pending').length}){polls.filter(p => p.status === 'pending').length > 0 && <span style={{ marginLeft: 6, background: '#fbbf24', color: '#000', borderRadius: 10, padding: '1px 6px', fontSize: 11, fontWeight: 800 }}>{polls.filter(p => p.status === 'pending').length}</span>}</>
+              )
+              : t === 'recurring' ? '🔁 Recurring'
+              : t === 'roster' ? '👥 Roster'
+              : t === 'groups' ? '🏷️ Groups'
+              : t === 'broadcast' ? '📣 Broadcast'
+              : t === 'penalties' ? (
+                <>🚫 Penalties{pendingPenaltyCount > 0 && <span style={{ marginLeft: 6, background: colors.danger, color: '#fff', borderRadius: 10, padding: '1px 6px', fontSize: 11, fontWeight: 800 }}>{pendingPenaltyCount}</span>}</>
+              )
+              : '💡 Feedback'}
           </button>
         ))}
       </div>
@@ -2004,6 +2156,8 @@ export default function AdminPage() {
       {tab === 'groups' && <GroupsTab password={password} showToast={showToast} onGroupsChanged={loadGroups} />}
 
       {tab === 'broadcast' && <BroadcastTab password={password} showToast={showToast} />}
+
+      {tab === 'penalties' && <PenaltiesTab password={password} showToast={showToast} />}
 
       {tab === 'feedback' && <FeedbackTab password={password} showToast={showToast} />}
 
