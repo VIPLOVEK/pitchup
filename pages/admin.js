@@ -943,6 +943,7 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
 function RosterTab({ password, showToast }) {
   const [players, setPlayers] = useState(null)
   const [error, setError] = useState('')
+  const [search, setSearch] = useState('')
 
   useEffect(() => {
     fetch('/api/admin/players', { headers: { authorization: `Bearer ${password}` } })
@@ -1026,11 +1027,28 @@ function RosterTab({ password, showToast }) {
   }
 
   const sorted = [...players].sort((a, b) => b.gamesPlayed - a.gamesPlayed)
+  const q = search.trim().toLowerCase()
+  const visible = q ? sorted.filter(p => p.name.toLowerCase().includes(q) || p.phone?.includes(q)) : sorted
 
   return (
     <Card>
-      <Label>{players.length} player{players.length === 1 ? '' : 's'}</Label>
-      {sorted.map(p => (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, gap: 10 }}>
+        <Label style={{ margin: 0 }}>{players.length} player{players.length === 1 ? '' : 's'}</Label>
+        <input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search by name…"
+          style={{
+            background: colors.pitchMid, border: `1px solid ${colors.grass}44`,
+            borderRadius: 8, color: colors.white, padding: '6px 10px',
+            fontSize: 13, outline: 'none', width: 160,
+          }}
+        />
+      </div>
+      {visible.length === 0 && q && (
+        <p style={{ color: colors.muted, fontSize: 13, textAlign: 'center', padding: '12px 0' }}>No players match "{search}"</p>
+      )}
+      {visible.map(p => (
         <div
           key={p.id}
           style={{
