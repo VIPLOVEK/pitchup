@@ -270,6 +270,7 @@ function WaitlistCard({ poll, waitlist, myEntry, onWaitlist, name, setName, prof
       if (!res.ok) throw new Error(data.error)
       setPoll(data)
       setShowLeaveModal(false)
+      if (!myEntry.playerId) localStorage.removeItem(`pitchup_vote_${poll.id}`)
       setToast(onWaitlist ? "You've left the waitlist" : "You've left the game")
       setTimeout(() => setToast(''), 2500)
     } catch (e) {
@@ -1096,6 +1097,10 @@ export default function PollPage({ poll: initialPoll, error }) {
       const p = JSON.parse(saved)
       setProfile(p)
       setName(p.name)
+    } else if (initialPoll?.id) {
+      // Restore the name an anonymous (no-profile) player used to vote in this poll
+      const anonName = localStorage.getItem(`pitchup_vote_${initialPoll.id}`)
+      if (anonName) setName(anonName)
     }
     fetch('/api/players')
       .then(res => res.ok ? res.json() : [])
@@ -1223,6 +1228,7 @@ export default function PollPage({ poll: initialPoll, error }) {
       setSubmitted(false)
       setSelectedSlots([])
       setShowLeaveModal(false)
+      localStorage.removeItem(`pitchup_vote_${poll.id}`)
       setToast("You've left the game")
     } catch (e) {
       setToast(e.message || 'Something went wrong')
@@ -1272,6 +1278,9 @@ export default function PollPage({ poll: initialPoll, error }) {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
       setPoll(data)
+      // Persist the voted name for anonymous players so they can find their
+      // entry (and leave) when they return to the page without a profile.
+      if (!playerId) localStorage.setItem(`pitchup_vote_${poll.id}`, name.trim())
       setKicking(true)
       setTimeout(() => setSubmitted(true), 400)
     } catch (e) {
