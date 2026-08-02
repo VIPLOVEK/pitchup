@@ -169,6 +169,61 @@ function MvpVoting({ poll }) {
   )
 }
 
+// ── Shared in-app leave confirmation modal ────────────────────────────────────
+function LeaveModal({ label, needsPin, onConfirm, onCancel, loading }) {
+  const [pin, setPin] = useState('')
+  const [err, setErr] = useState('')
+
+  const submit = async () => {
+    if (needsPin && !/^\d{4,6}$/.test(pin)) { setErr('Enter your 4–6 digit PIN'); return }
+    setErr('')
+    await onConfirm(pin)
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+      <div style={{ background: '#0d1f38', borderRadius: '20px 20px 0 0', padding: '24px 20px 32px', width: '100%', maxWidth: 480 }}>
+        <div style={{ fontWeight: 800, fontSize: 17, marginBottom: 8 }}>{label}</div>
+        {needsPin ? (
+          <>
+            <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 14px' }}>
+              Enter your PIN to confirm it's you.
+            </p>
+            <Input
+              type="password"
+              inputMode="numeric"
+              placeholder="Your PIN (4–6 digits)"
+              value={pin}
+              onChange={e => { setPin(e.target.value.replace(/\D/g, '')); setErr('') }}
+              autoFocus
+            />
+            {err && <p style={{ color: colors.danger, fontSize: 13, margin: '-6px 0 10px' }}>{err}</p>}
+            <p style={{ color: colors.muted, fontSize: 12, margin: '0 0 16px' }}>
+              Forgot your PIN? Ask the admin to reset it for you.
+            </p>
+          </>
+        ) : (
+          <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 16px' }}>This can't be undone.</p>
+        )}
+        <div style={{ display: 'flex', gap: 10 }}>
+          <Btn variant="ghost" style={{ flex: 1 }} onClick={onCancel} disabled={loading}>Cancel</Btn>
+          <button
+            onClick={submit}
+            disabled={loading || (needsPin && pin.length < 4)}
+            style={{
+              flex: 1, background: loading ? colors.pitchMid : colors.danger,
+              color: '#fff', border: 'none', borderRadius: 10, padding: '13px 0',
+              fontWeight: 700, fontSize: 15, cursor: loading ? 'default' : 'pointer',
+            }}
+          >
+            {loading ? 'Leaving…' : 'Leave'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Waitlist card (shown below confirmed game) ────────────────────────────────
 function WaitlistCard({ poll, waitlist, myEntry, onWaitlist, name, setName, profile, loading, setLoading, setToast, setPoll }) {
   const { teamA = [], teamB = [] } = poll.teams || {}
@@ -200,24 +255,21 @@ function WaitlistCard({ poll, waitlist, myEntry, onWaitlist, name, setName, prof
     }
   }
 
-  const handleLeave = async () => {
+  const [showLeaveModal, setShowLeaveModal] = useState(false)
+
+  const handleLeave = async (pin) => {
     if (!myEntry) return
-    if (!window.confirm(`Remove yourself from ${onWaitlist ? 'the waitlist' : 'this game'}?`)) return
-    let pinInput = ''
-    if (myEntry.playerId) {
-      pinInput = window.prompt('Enter your PIN to confirm:')
-      if (!pinInput) return
-    }
     setLoading(true)
     try {
       const res = await fetch(`/api/poll/${poll.id}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: myEntry.name, pin: pinInput || undefined }),
+        body: JSON.stringify({ name: myEntry.name, pin: pin || undefined }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
       setPoll(data)
+      setShowLeaveModal(false)
       setToast(onWaitlist ? "You've left the waitlist" : "You've left the game")
       setTimeout(() => setToast(''), 2500)
     } catch (e) {
@@ -271,7 +323,7 @@ function WaitlistCard({ poll, waitlist, myEntry, onWaitlist, name, setName, prof
               </div>
             )}
           </div>
-          <Btn small variant="ghost" onClick={handleLeave} disabled={loading}>
+          <Btn small variant="ghost" onClick={() => setShowLeaveModal(true)} disabled={loading}>
             {onWaitlist ? 'Leave waitlist' : "Can't make it — leave game"}
           </Btn>
         </Card>
@@ -292,6 +344,15 @@ function WaitlistCard({ poll, waitlist, myEntry, onWaitlist, name, setName, prof
             {loading ? 'Joining...' : '⏳ Join waitlist'}
           </Btn>
         </Card>
+      )}
+      {showLeaveModal && (
+        <LeaveModal
+          label={onWaitlist ? 'Leave the waitlist?' : "Can't make it?"}
+          needsPin={!!myEntry?.playerId}
+          onConfirm={handleLeave}
+          onCancel={() => setShowLeaveModal(false)}
+          loading={loading}
+        />
       )}
     </>
   )
@@ -1027,6 +1088,7 @@ export default function PollPage({ poll: initialPoll, error }) {
   const [toast, setToast] = useState('')
   const [hasAccess, setHasAccess] = useState(null)
   const [pollGroups, setPollGroups] = useState([])
+  const [showLeaveModal, setShowLeaveModal] = useState(false)
 
   useEffect(() => {
     const saved = localStorage.getItem('pitchup_player')
@@ -1146,28 +1208,21 @@ export default function PollPage({ poll: initialPoll, error }) {
 
   const toggleSlot = (i) => setSelectedSlots(s => s.includes(i) ? s.filter(x => x !== i) : [...s, i])
 
-  const handleRemoveVote = async () => {
+  const handleRemoveVote = async (pin) => {
     if (!myEntry) return
-    if (!window.confirm('Remove your vote and leave this game?')) return
-
-    let pinInput = ''
-    if (myEntry.playerId) {
-      pinInput = window.prompt('Enter your PIN to confirm:')
-      if (!pinInput) return
-    }
-
     setLoading(true)
     try {
       const res = await fetch(`/api/poll/${poll.id}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: myEntry.name, pin: pinInput || undefined }),
+        body: JSON.stringify({ name: myEntry.name, pin: pin || undefined }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
       setPoll(data)
       setSubmitted(false)
       setSelectedSlots([])
+      setShowLeaveModal(false)
       setToast("You've left the game")
     } catch (e) {
       setToast(e.message || 'Something went wrong')
@@ -1261,7 +1316,7 @@ export default function PollPage({ poll: initialPoll, error }) {
               </div>
             )}
             {myEntry && (
-              <Btn small variant="ghost" onClick={handleRemoveVote} disabled={loading} style={{ marginTop: 16 }}>
+              <Btn small variant="ghost" onClick={() => setShowLeaveModal(true)} disabled={loading} style={{ marginTop: 16 }}>
                 Leave game
               </Btn>
             )}
@@ -1300,6 +1355,15 @@ export default function PollPage({ poll: initialPoll, error }) {
         </Card>
         {active.length >= poll.min_players && <DraftTeams poll={poll} active={active} />}
         <Toast msg={toast} />
+        {showLeaveModal && (
+          <LeaveModal
+            label="Can't make it?"
+            needsPin={!!myEntry?.playerId}
+            onConfirm={handleRemoveVote}
+            onCancel={() => setShowLeaveModal(false)}
+            loading={loading}
+          />
+        )}
       </Layout>
     )
   }
@@ -1392,7 +1456,7 @@ export default function PollPage({ poll: initialPoll, error }) {
           <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 12px' }}>
             You're registered as <strong style={{ color: colors.white }}>{myEntry.name}</strong>. You can update your available times or leave the game below.
           </p>
-          <Btn small variant="ghost" onClick={handleRemoveVote} disabled={loading}>
+          <Btn small variant="ghost" onClick={() => setShowLeaveModal(true)} disabled={loading}>
             Can't make it anymore
           </Btn>
         </Card>
@@ -1656,6 +1720,15 @@ export default function PollPage({ poll: initialPoll, error }) {
 
       <Toast msg={toast} />
       {isAdminMode && <AdminBar poll={poll} onUpdate={setPoll} />}
+      {showLeaveModal && (
+        <LeaveModal
+          label="Can't make it?"
+          needsPin={!!myEntry?.playerId}
+          onConfirm={handleRemoveVote}
+          onCancel={() => setShowLeaveModal(false)}
+          loading={loading}
+        />
+      )}
     </Layout>
   )
 }
