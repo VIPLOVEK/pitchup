@@ -1,7 +1,7 @@
 // GET   /api/players/[id] — fetch a profile (used to restore a saved session)
 // PATCH /api/players/[id] — update name/phone/positions (requires current PIN)
 import { supabaseAdmin, isSupabaseConfigured } from '../../../lib/supabase'
-import { verifyPin } from '../../../lib/players'
+import { verifyPin, hashPin } from '../../../lib/players'
 import { POSITIONS, isValidPositionSkills, deriveSkillRating } from '../../../lib/positions'
 
 export default async function handler(req, res) {
@@ -41,8 +41,9 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'PATCH') {
-    const { pin, name, phone, positions, skillRating, positionSkills, autoJoin, autoJoinUntil, blackoutRanges } = req.body
+    const { pin, newPin, name, phone, positions, skillRating, positionSkills, autoJoin, autoJoinUntil, blackoutRanges } = req.body
     if (!pin) return res.status(400).json({ error: 'Current PIN is required' })
+    if (newPin !== undefined && !/^\d{4,6}$/.test(newPin)) return res.status(400).json({ error: 'New PIN must be 4-6 digits' })
     if (name !== undefined && !name?.trim()) return res.status(400).json({ error: 'Name cannot be empty' })
     if (name !== undefined && name.trim().length > 60) return res.status(400).json({ error: 'Name is too long' })
     if (positions && (!Array.isArray(positions) || positions.some(p => !POSITIONS.includes(p)))) {
@@ -71,6 +72,7 @@ export default async function handler(req, res) {
         update.skill_rating = deriveSkillRating(update.position_skills, skillRating ?? player.skill_rating)
         update.skill_rating_updated_at = new Date().toISOString()
       }
+      if (newPin !== undefined) update.pin_hash = hashPin(newPin)
       if (autoJoin !== undefined) update.auto_join = autoJoin === true
       if (autoJoinUntil !== undefined) update.auto_join_until = autoJoinUntil || null
       if (blackoutRanges !== undefined) {

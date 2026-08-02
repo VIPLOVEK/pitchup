@@ -94,6 +94,43 @@ function NotificationsSection({ player, showToast }) {
   )
 }
 
+// Shared bottom-sheet PIN confirmation modal used across profile actions
+function ProfilePinModal({ title, description, onConfirm, onCancel, loading }) {
+  const [pin, setPin] = useState('')
+  const [err, setErr] = useState('')
+
+  const submit = async () => {
+    if (!/^\d{4,6}$/.test(pin)) { setErr('Enter your 4–6 digit PIN'); return }
+    setErr('')
+    await onConfirm(pin)
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.72)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+      <div style={{ background: '#0d1f38', borderRadius: '20px 20px 0 0', padding: '24px 20px 36px', width: '100%', maxWidth: 480 }}>
+        <div style={{ fontWeight: 800, fontSize: 17, marginBottom: 6 }}>{title}</div>
+        {description && <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 14px' }}>{description}</p>}
+        <Input
+          type="password"
+          inputMode="numeric"
+          placeholder="Your PIN (4–6 digits)"
+          value={pin}
+          onChange={e => { setPin(e.target.value.replace(/\D/g, '')); setErr('') }}
+          autoFocus
+          style={{ marginBottom: err ? 4 : 12 }}
+        />
+        {err && <p style={{ color: colors.danger, fontSize: 13, margin: '0 0 10px' }}>{err}</p>}
+        <div style={{ display: 'flex', gap: 10 }}>
+          <Btn variant="ghost" style={{ flex: 1 }} onClick={onCancel} disabled={loading}>Cancel</Btn>
+          <Btn style={{ flex: 1 }} onClick={submit} disabled={loading || pin.length < 4}>
+            {loading ? 'Saving…' : 'Confirm'}
+          </Btn>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function PositionPicker({ positions, onToggle }) {
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
@@ -181,6 +218,7 @@ function AutoJoinSection({ player, showToast }) {
   const [newFrom, setNewFrom] = useState('')
   const [newTo, setNewTo] = useState('')
   const [saving, setSaving] = useState(false)
+  const [showPinModal, setShowPinModal] = useState(false)
 
   const dirty =
     autoJoin !== (player.auto_join || false) ||
@@ -196,9 +234,7 @@ function AutoJoinSection({ player, showToast }) {
 
   const removeRange = (i) => setBlackoutRanges(rs => rs.filter((_, idx) => idx !== i))
 
-  const save = async () => {
-    const pin = window.prompt('Enter your PIN to save auto-join settings:')
-    if (!pin) return
+  const save = async (pin) => {
     setSaving(true)
     try {
       const res = await fetch(`/api/players/${player.id}`, {
@@ -208,6 +244,7 @@ function AutoJoinSection({ player, showToast }) {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
+      setShowPinModal(false)
       showToast('Auto-join settings saved!')
     } catch (e) {
       showToast(e.message)
@@ -288,9 +325,18 @@ function AutoJoinSection({ player, showToast }) {
       )}
 
       {dirty && (
-        <Btn small variant="ghost" onClick={save} disabled={saving} style={{ marginTop: 12 }}>
-          {saving ? 'Saving...' : 'Save auto-join settings'}
+        <Btn small variant="ghost" onClick={() => setShowPinModal(true)} disabled={saving} style={{ marginTop: 12 }}>
+          Save auto-join settings
         </Btn>
+      )}
+      {showPinModal && (
+        <ProfilePinModal
+          title="Confirm your PIN"
+          description="Enter your PIN to save auto-join settings."
+          onConfirm={save}
+          onCancel={() => setShowPinModal(false)}
+          loading={saving}
+        />
       )}
     </Card>
   )
@@ -379,30 +425,39 @@ function resizeToJpegBase64(file, maxPx = 256) {
 
 function AvatarUpload({ player, onUpdate, showToast }) {
   const [uploading, setUploading] = useState(false)
+  const [pendingBase64, setPendingBase64] = useState(null)
   const inputRef = useRef(null)
 
   async function handleFile(e) {
     const file = e.target.files?.[0]
     if (!file) return
-    setUploading(true)
     try {
       const imageBase64 = await resizeToJpegBase64(file)
-      const pin = window.prompt('Enter your PIN to update your photo:')
-      if (!pin) return
+      setPendingBase64(imageBase64)
+    } catch {
+      showToast('Could not process image')
+    } finally {
+      if (inputRef.current) inputRef.current.value = ''
+    }
+  }
+
+  async function uploadWithPin(pin) {
+    setUploading(true)
+    try {
       const res = await fetch('/api/profile/avatar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ playerId: player.id, pin, imageBase64 }),
+        body: JSON.stringify({ playerId: player.id, pin, imageBase64: pendingBase64 }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
       onUpdate({ ...player, avatar_url: data.avatar_url })
+      setPendingBase64(null)
       showToast('Photo updated!')
     } catch (err) {
       showToast(err.message || 'Upload failed')
     } finally {
       setUploading(false)
-      if (inputRef.current) inputRef.current.value = ''
     }
   }
 
@@ -425,6 +480,15 @@ function AvatarUpload({ player, onUpdate, showToast }) {
       </div>
       <div style={{ position: 'absolute', bottom: 0, right: 0, background: colors.accent, borderRadius: '50%', width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, cursor: 'pointer', pointerEvents: 'none' }}>📷</div>
       <input ref={inputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFile} />
+      {pendingBase64 && (
+        <ProfilePinModal
+          title="Update photo?"
+          description="Enter your PIN to confirm."
+          onConfirm={uploadWithPin}
+          onCancel={() => setPendingBase64(null)}
+          loading={uploading}
+        />
+      )}
     </div>
   )
 }
@@ -478,6 +542,18 @@ export default function ProfilePage() {
   const [editPhone, setEditPhone] = useState('')
   const [savingInfo, setSavingInfo] = useState(false)
 
+  // PIN modal state (used for saveProfile + saveInfo)
+  const [pinModal, setPinModal] = useState(null) // null | 'saveProfile' | 'saveInfo'
+  const [pinModalLoading, setPinModalLoading] = useState(false)
+
+  // Change PIN state
+  const [changingPin, setChangingPin] = useState(false)
+  const [currentPin, setCurrentPin] = useState('')
+  const [newPin, setNewPin] = useState('')
+  const [confirmPin, setConfirmPin] = useState('')
+  const [pinChangeError, setPinChangeError] = useState('')
+  const [pinChangeSaving, setPinChangeSaving] = useState(false)
+
   useEffect(() => {
     if (player) {
       setPositions(player.positions || [])
@@ -519,35 +595,35 @@ export default function ProfilePage() {
     }
   }
 
-  const handleSaveProfile = async () => {
-    const enteredPin = window.prompt('Enter your PIN to update your profile:')
-    if (!enteredPin) return
+  const handleSaveProfile = async (pin) => {
+    setPinModalLoading(true)
     try {
       const res = await fetch(`/api/players/${player.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pin: enteredPin, positions, skillRating, positionSkills }),
+        body: JSON.stringify({ pin, positions, skillRating, positionSkills }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
       setPlayer(data)
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+      setPinModal(null)
       showToast('Profile updated!')
     } catch (e) {
       showToast(e.message)
+    } finally {
+      setPinModalLoading(false)
     }
   }
 
-  const handleSaveInfo = async () => {
+  const handleSaveInfo = async (pin) => {
     if (!editName.trim()) { showToast('Name cannot be empty'); return }
-    const enteredPin = window.prompt('Enter your PIN to save changes:')
-    if (!enteredPin) return
     setSavingInfo(true)
     try {
       const res = await fetch(`/api/players/${player.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pin: enteredPin, name: editName.trim(), phone: editPhone.trim() }),
+        body: JSON.stringify({ pin, name: editName.trim(), phone: editPhone.trim() }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
@@ -555,11 +631,36 @@ export default function ProfilePage() {
       setPlayer(updated)
       localStorage.setItem(STORAGE_KEY, JSON.stringify(updated))
       setEditingInfo(false)
+      setPinModal(null)
       showToast('Profile updated!')
     } catch (e) {
       showToast(e.message)
     } finally {
       setSavingInfo(false)
+    }
+  }
+
+  const handleChangePin = async () => {
+    if (!/^\d{4,6}$/.test(currentPin)) { setPinChangeError('Enter your current PIN (4–6 digits)'); return }
+    if (!/^\d{4,6}$/.test(newPin)) { setPinChangeError('New PIN must be 4–6 digits'); return }
+    if (newPin !== confirmPin) { setPinChangeError("New PINs don't match"); return }
+    setPinChangeError('')
+    setPinChangeSaving(true)
+    try {
+      const res = await fetch(`/api/players/${player.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin: currentPin, newPin }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setChangingPin(false)
+      setCurrentPin(''); setNewPin(''); setConfirmPin('')
+      showToast('PIN changed successfully!')
+    } catch (e) {
+      setPinChangeError(e.message)
+    } finally {
+      setPinChangeSaving(false)
     }
   }
 
@@ -629,8 +730,8 @@ export default function ProfilePage() {
           </div>
           {editingInfo && (
             <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-              <Btn small variant="primary" onClick={handleSaveInfo} disabled={savingInfo || !editName.trim()}>
-                {savingInfo ? 'Saving…' : 'Save'}
+              <Btn small variant="primary" onClick={() => setPinModal('saveInfo')} disabled={savingInfo || !editName.trim()}>
+                Save
               </Btn>
               <Btn small variant="ghost" onClick={() => setEditingInfo(false)} disabled={savingInfo}>
                 Cancel
@@ -657,14 +758,77 @@ export default function ProfilePage() {
             onSkillRatingChange={setSkillRating}
           />
           {profileDirty && (
-            <Btn small variant="ghost" onClick={handleSaveProfile} style={{ marginTop: 8 }}>
+            <Btn small variant="ghost" onClick={() => setPinModal('saveProfile')} style={{ marginTop: 8 }}>
               Save profile
             </Btn>
           )}
+
+          {/* Change PIN */}
+          {changingPin ? (
+            <div style={{ marginTop: 16, padding: '14px', background: colors.pitchMid, borderRadius: 10 }}>
+              <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 10 }}>Change PIN</div>
+              <Input
+                type="password"
+                inputMode="numeric"
+                placeholder="Current PIN"
+                value={currentPin}
+                onChange={e => { setCurrentPin(e.target.value.replace(/\D/g, '')); setPinChangeError('') }}
+              />
+              <Input
+                type="password"
+                inputMode="numeric"
+                placeholder="New PIN (4–6 digits)"
+                value={newPin}
+                onChange={e => { setNewPin(e.target.value.replace(/\D/g, '')); setPinChangeError('') }}
+              />
+              <Input
+                type="password"
+                inputMode="numeric"
+                placeholder="Confirm new PIN"
+                value={confirmPin}
+                onChange={e => { setConfirmPin(e.target.value.replace(/\D/g, '')); setPinChangeError('') }}
+              />
+              {pinChangeError && <p style={{ color: colors.danger, fontSize: 13, margin: '-6px 0 10px' }}>{pinChangeError}</p>}
+              <div style={{ display: 'flex', gap: 8 }}>
+                <Btn small onClick={handleChangePin} disabled={pinChangeSaving}>
+                  {pinChangeSaving ? 'Saving…' : 'Change PIN'}
+                </Btn>
+                <Btn small variant="ghost" onClick={() => { setChangingPin(false); setCurrentPin(''); setNewPin(''); setConfirmPin(''); setPinChangeError('') }}>
+                  Cancel
+                </Btn>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setChangingPin(true)}
+              style={{ background: 'none', border: 'none', color: colors.muted, fontSize: 13, cursor: 'pointer', padding: '10px 0 0', textDecoration: 'underline', display: 'block' }}
+            >
+              Change PIN
+            </button>
+          )}
+
           <Btn full variant="ghost" onClick={handleLogout} style={{ marginTop: 12 }}>
             Log out
           </Btn>
         </Card>
+        {pinModal === 'saveProfile' && (
+          <ProfilePinModal
+            title="Save profile"
+            description="Enter your PIN to update positions and skill level."
+            onConfirm={handleSaveProfile}
+            onCancel={() => setPinModal(null)}
+            loading={pinModalLoading}
+          />
+        )}
+        {pinModal === 'saveInfo' && (
+          <ProfilePinModal
+            title="Save changes"
+            description="Enter your PIN to update your name or phone number."
+            onConfirm={handleSaveInfo}
+            onCancel={() => setPinModal(null)}
+            loading={savingInfo}
+          />
+        )}
         <NotificationsSection player={player} showToast={showToast} />
         <AutoJoinSection player={player} showToast={showToast} />
         <GroupsSection player={player} showToast={showToast} />
