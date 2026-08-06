@@ -833,7 +833,7 @@ function GameConfirmed({ poll, profile }) {
         </div>
       </Card>
       <MvpVoting poll={poll} />
-      <Comments poll={poll} profileName={profile?.name || name || null} />
+      <Comments poll={poll} profileName={profile?.name || null} />
     </div>
   )
 }
