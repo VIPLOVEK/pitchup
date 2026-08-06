@@ -432,20 +432,51 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
         </p>
       )}
 
-      {/* Active players */}
-      <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap' }}>
-        {active.map((p, i) => (
-          <PlayerChip
-            key={i}
-            name={p.name}
-            meta={p.guests ? `+${p.guests} guest${p.guests > 1 ? 's' : ''}` : undefined}
-            onRemove={isOpen ? () => doAction('removePlayer', 'PATCH', { name: p.name }) : undefined}
-          />
-        ))}
-        {poll.players.length === 0 && (
-          <span style={{ color: colors.muted, fontSize: 13 }}>No players yet.</span>
-        )}
-      </div>
+      {/* Active players — flat list when open, team split when confirmed */}
+      {isConfirmed && poll.teams && !noTeamSplit ? (
+        <div style={{ marginTop: 10, display: 'flex', gap: 12 }}>
+          {[
+            { key: 'A', list: poll.teams.teamA || [], color: colors.teamA, label: poll.team_a_name || 'Team A', emoji: '⚪' },
+            { key: 'B', list: poll.teams.teamB || [], color: colors.teamB, label: poll.team_b_name || 'Team B', emoji: '🎨' },
+          ].map(({ key, list, color, label, emoji }) => (
+            <div key={key} style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>
+                {emoji} {label} ({list.filter(p => !p.isGuest).length})
+              </div>
+              {list.filter(p => !p.isGuest).map((p, i) => (
+                <div key={i} style={{ fontSize: 13, color: colors.white, padding: '2px 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {p.name}{p.guests ? <span style={{ color: colors.muted, fontSize: 11 }}> +{p.guests}</span> : null}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      ) : isConfirmed && noTeamSplit ? (
+        <div style={{ marginTop: 8 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: colors.grassLight, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>
+            👥 Squad ({(poll.teams?.teamA || active).filter(p => !p.isGuest).length})
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap' }}>
+            {(poll.teams?.teamA || active).filter(p => !p.isGuest).map((p, i) => (
+              <PlayerChip key={i} name={p.name} meta={p.guests ? `+${p.guests} guest${p.guests > 1 ? 's' : ''}` : undefined} />
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap' }}>
+          {active.map((p, i) => (
+            <PlayerChip
+              key={i}
+              name={p.name}
+              meta={p.guests ? `+${p.guests} guest${p.guests > 1 ? 's' : ''}` : undefined}
+              onRemove={isOpen ? () => doAction('removePlayer', 'PATCH', { name: p.name }) : undefined}
+            />
+          ))}
+          {poll.players.length === 0 && (
+            <span style={{ color: colors.muted, fontSize: 13 }}>No players yet.</span>
+          )}
+        </div>
+      )}
 
       {/* Waiting list */}
       {waitlist.length > 0 && (
