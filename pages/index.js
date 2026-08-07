@@ -3,7 +3,7 @@ import Link from 'next/link'
 import Layout from '../components/Layout'
 import { Card, Label, ProgressBar, Pill } from '../components/UI'
 import { colors, radius } from '../lib/tokens'
-import { getActivePlayers } from '../lib/teams'
+import { getActivePlayers, getTotalSpots } from '../lib/teams'
 import { LOCATIONS } from '../lib/locations'
 
 function RequestGameModal({ onClose }) {
@@ -413,7 +413,7 @@ export default function Home({ polls, groups, announcement, todayWcMatches }) {
                     border: `1px solid ${confirmed ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`,
                     borderRadius: 20, padding: '2px 10px',
                   }}>
-                    👥 {activePlayers.length}{poll.min_players ? `/${poll.min_players}` : ''}
+                    👥 {getTotalSpots(activePlayers)}{poll.min_players ? `/${poll.min_players}` : ''}
                   </span>
                 </div>
                 {poll.opponent && (
