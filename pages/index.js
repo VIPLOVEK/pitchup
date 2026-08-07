@@ -403,7 +403,19 @@ export default function Home({ polls, groups, announcement, todayWcMatches }) {
                   </div>
                 </div>
                 <GroupBadges poll={poll} groups={groups} />
-                <h2 style={{ fontSize: 20, fontWeight: 800, margin: '0 0 4px', letterSpacing: '-0.3px' }}>{poll.title}</h2>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, margin: '0 0 4px' }}>
+                  <h2 style={{ fontSize: 20, fontWeight: 800, margin: 0, letterSpacing: '-0.3px' }}>{poll.title}</h2>
+                  <span style={{
+                    flexShrink: 0,
+                    fontSize: 13, fontWeight: 700,
+                    color: confirmed ? '#22c55e' : activePlayers.length >= poll.min_players ? colors.accent : colors.muted,
+                    background: confirmed ? 'rgba(34,197,94,0.1)' : 'rgba(255,255,255,0.06)',
+                    border: `1px solid ${confirmed ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`,
+                    borderRadius: 20, padding: '2px 10px',
+                  }}>
+                    👥 {activePlayers.length}{poll.min_players ? `/${poll.min_players}` : ''}
+                  </span>
+                </div>
                 {poll.opponent && (
                   <p style={{ fontSize: 13, fontWeight: 700, margin: '0 0 4px', color: poll.game_type === 'competition' ? '#facc15' : '#fb923c' }}>vs {poll.opponent}</p>
                 )}
