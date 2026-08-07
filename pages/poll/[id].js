@@ -5,7 +5,7 @@ import Layout from '../../components/Layout'
 import { Card, Label, ProgressBar, Btn, Input, Pill, PlayerChip, Avatar, Toast, GoalCelebration, WeatherBadge } from '../../components/UI'
 import { supabase } from '../../lib/supabase'
 import { colors, radius } from '../../lib/tokens'
-import { formatSlot, getActivePlayers, getWaitlist, getTotalSpots, expandWithGuests, getTentativePlayers, teamAvgYear } from '../../lib/teams'
+import { formatSlot, getActivePlayers, getWaitlist, getTotalSpots, expandWithGuests, getTentativePlayers } from '../../lib/teams'
 import { findLocation } from '../../lib/locations'
 
 // ── Venue info (map link + boot type) ──────────────────────────────────────────
@@ -771,8 +771,7 @@ function GameConfirmed({ poll, profile }) {
             <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.teamA, marginBottom: 2 }}>
               {nameA}
             </div>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginBottom: 4 }}>⚪ White</div>
-            {teamAvgYear(teamA) && <div style={{ fontSize: 11, color: colors.muted, marginBottom: 6 }}>Avg age: ~{new Date().getFullYear() - teamAvgYear(teamA)}</div>}
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginBottom: 8 }}>⚪ White</div>
             <PositionSummary players={teamA} />
             {teamA.map((p, i) => (
               <div key={i} style={{ display: 'flex', marginBottom: 4 }}>
@@ -784,8 +783,7 @@ function GameConfirmed({ poll, profile }) {
             <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.teamB, marginBottom: 2 }}>
               {nameB}
             </div>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginBottom: 4 }}>🎨 Colors</div>
-            {teamAvgYear(teamB) && <div style={{ fontSize: 11, color: colors.muted, marginBottom: 6 }}>Avg age: ~{new Date().getFullYear() - teamAvgYear(teamB)}</div>}
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginBottom: 8 }}>🎨 Colors</div>
             <PositionSummary players={teamB} />
             {teamB.map((p, i) => (
               <div key={i} style={{ display: 'flex', marginBottom: 4 }}>
@@ -1100,7 +1098,6 @@ export default function PollPage({ poll: initialPoll, error }) {
   const [pollGroups, setPollGroups] = useState([])
   const [showLeaveModal, setShowLeaveModal] = useState(false)
   const [isTentative, setIsTentative] = useState(false)
-  const [birthYear, setBirthYear] = useState('')
 
   useEffect(() => {
     const saved = localStorage.getItem('pitchup_player')
@@ -1287,7 +1284,6 @@ export default function PollPage({ poll: initialPoll, error }) {
           guests: isTentative ? 0 : guests,
           guestPositions: isTentative ? [] : guestPositions.slice(0, guests),
           note: note.trim() || undefined,
-          yearOfBirth: birthYear ? parseInt(birthYear, 10) : undefined,
         }),
       })
       const data = await res.json()
@@ -1534,14 +1530,6 @@ export default function PollPage({ poll: initialPoll, error }) {
                 <Link href="/profile" style={{ color: colors.accent, textDecoration: 'underline' }}>Set up a profile</Link> to save your name and get notified about future games.
               </p>
             )}
-            <Input
-              value={birthYear}
-              onChange={e => setBirthYear(e.target.value.replace(/\D/g, '').slice(0, 4))}
-              placeholder="Birth year (optional, e.g. 1990)"
-              inputMode="numeric"
-              style={{ marginBottom: 4 }}
-            />
-            <p style={{ color: colors.muted, fontSize: 11, margin: '0 0 10px' }}>Used to balance team ages — optional.</p>
           </>
         )}
         <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>

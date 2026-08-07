@@ -91,7 +91,7 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'POST') {
-    const { name, slots: votedSlots, playerId, positions, guests, note, guestPositions, tentative, yearOfBirth } = req.body
+    const { name, slots: votedSlots, playerId, positions, guests, note, guestPositions, tentative } = req.body
     if (!name) return res.status(400).json({ error: 'name is required' })
     const guestCount = Math.min(Math.max(0, parseInt(guests, 10) || 0), 2)
     const safeGuestPositions = Array.isArray(guestPositions) ? guestPositions.slice(0, guestCount) : []
@@ -135,13 +135,12 @@ export default async function handler(req, res) {
 
         // Look up avatar and birth year for players with a profile so they're available in team displays
         let avatarUrl = null
-        let profileBirthYear = null
+        let resolvedBirthYear = null
         if (playerId) {
           const { data: profile } = await db.from('players').select('avatar_url, year_of_birth').eq('id', playerId).maybeSingle()
           avatarUrl = profile?.avatar_url || null
-          profileBirthYear = profile?.year_of_birth || null
+          resolvedBirthYear = profile?.year_of_birth || null
         }
-        const resolvedBirthYear = profileBirthYear || (yearOfBirth ? parseInt(yearOfBirth, 10) || null : null)
 
         let updatedPlayers
         if (existingIdx !== -1) {
