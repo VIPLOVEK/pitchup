@@ -41,7 +41,7 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'PATCH') {
-    const { pin, newPin, name, phone, positions, skillRating, positionSkills, autoJoin, autoJoinUntil, blackoutRanges } = req.body
+    const { pin, newPin, name, phone, positions, skillRating, positionSkills, autoJoin, autoJoinUntil, blackoutRanges, yearOfBirth } = req.body
     if (!pin) return res.status(400).json({ error: 'Current PIN is required' })
     if (newPin !== undefined && !/^\d{4,6}$/.test(newPin)) return res.status(400).json({ error: 'New PIN must be 4-6 digits' })
     if (name !== undefined && !name?.trim()) return res.status(400).json({ error: 'Name cannot be empty' })
@@ -54,6 +54,10 @@ export default async function handler(req, res) {
     }
     if (positionSkills !== undefined && !isValidPositionSkills(positions || [], positionSkills)) {
       return res.status(400).json({ error: 'Invalid position skills' })
+    }
+    if (yearOfBirth !== undefined && yearOfBirth !== null) {
+      const y = parseInt(yearOfBirth, 10)
+      if (isNaN(y) || y < 1940 || y > new Date().getFullYear() - 10) return res.status(400).json({ error: 'Invalid birth year' })
     }
 
     try {
@@ -72,6 +76,7 @@ export default async function handler(req, res) {
         update.skill_rating = deriveSkillRating(update.position_skills, skillRating ?? player.skill_rating)
         update.skill_rating_updated_at = new Date().toISOString()
       }
+      if (yearOfBirth !== undefined) update.year_of_birth = yearOfBirth ? parseInt(yearOfBirth, 10) : null
       if (newPin !== undefined) update.pin_hash = hashPin(newPin)
       if (autoJoin !== undefined) update.auto_join = autoJoin === true
       if (autoJoinUntil !== undefined) update.auto_join_until = autoJoinUntil || null
@@ -84,7 +89,7 @@ export default async function handler(req, res) {
         .from('players')
         .update(update)
         .eq('id', id)
-        .select('id, name, phone, positions, skill_rating, skill_rating_updated_at, position_skills, avatar_url, auto_join, auto_join_until, blackout_ranges, terms_accepted_at')
+        .select('id, name, phone, year_of_birth, positions, skill_rating, skill_rating_updated_at, position_skills, avatar_url, auto_join, auto_join_until, blackout_ranges, terms_accepted_at')
         .single()
       if (error) throw error
 

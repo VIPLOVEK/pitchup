@@ -91,7 +91,7 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'POST') {
-    const { name, slots: votedSlots, playerId, positions, guests, note, guestPositions, tentative } = req.body
+    const { name, slots: votedSlots, playerId, positions, guests, note, guestPositions, tentative, yearOfBirth } = req.body
     if (!name) return res.status(400).json({ error: 'name is required' })
     const guestCount = Math.min(Math.max(0, parseInt(guests, 10) || 0), 2)
     const safeGuestPositions = Array.isArray(guestPositions) ? guestPositions.slice(0, guestCount) : []
@@ -133,25 +133,28 @@ export default async function handler(req, res) {
         const players = current.players || []
         const existingIdx = players.findIndex(p => p.name?.toLowerCase() === name.trim().toLowerCase())
 
-        // Look up avatar for players with a profile so it's available in team displays
+        // Look up avatar and birth year for players with a profile so they're available in team displays
         let avatarUrl = null
+        let profileBirthYear = null
         if (playerId) {
-          const { data: profile } = await db.from('players').select('avatar_url').eq('id', playerId).maybeSingle()
+          const { data: profile } = await db.from('players').select('avatar_url, year_of_birth').eq('id', playerId).maybeSingle()
           avatarUrl = profile?.avatar_url || null
+          profileBirthYear = profile?.year_of_birth || null
         }
+        const resolvedBirthYear = profileBirthYear || (yearOfBirth ? parseInt(yearOfBirth, 10) || null : null)
 
         let updatedPlayers
         if (existingIdx !== -1) {
           // Update existing entry — player is changing their slot selection
           updatedPlayers = players.map((p, idx) =>
             idx === existingIdx
-              ? { ...p, slots: votedSlots || [], tentative: tentative || false, guests: guestCount, guestPositions: safeGuestPositions, note: noteText, ...(avatarUrl ? { avatar_url: avatarUrl } : {}) }
+              ? { ...p, slots: votedSlots || [], tentative: tentative || false, guests: guestCount, guestPositions: safeGuestPositions, note: noteText, ...(avatarUrl ? { avatar_url: avatarUrl } : {}), ...(resolvedBirthYear ? { year_of_birth: resolvedBirthYear } : {}) }
               : p
           )
         } else {
           updatedPlayers = [
             ...players,
-            { name: name.trim(), slots: votedSlots || [], tentative: tentative || false, playerId: playerId || null, positions: positions || [], guests: guestCount, guestPositions: safeGuestPositions, note: noteText, avatar_url: avatarUrl },
+            { name: name.trim(), slots: votedSlots || [], tentative: tentative || false, playerId: playerId || null, positions: positions || [], guests: guestCount, guestPositions: safeGuestPositions, note: noteText, avatar_url: avatarUrl, year_of_birth: resolvedBirthYear },
           ]
         }
 

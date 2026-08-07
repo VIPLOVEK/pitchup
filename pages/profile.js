@@ -540,6 +540,7 @@ export default function ProfilePage() {
   const [editingInfo, setEditingInfo] = useState(false)
   const [editName, setEditName] = useState('')
   const [editPhone, setEditPhone] = useState('')
+  const [editBirthYear, setEditBirthYear] = useState('')
   const [savingInfo, setSavingInfo] = useState(false)
 
   // PIN modal state (used for saveProfile + saveInfo)
@@ -561,6 +562,7 @@ export default function ProfilePage() {
       setPositionSkills(player.position_skills || {})
       setEditName(player.name)
       setEditPhone(player.phone || '')
+      setEditBirthYear(player.year_of_birth ? String(player.year_of_birth) : '')
     }
   }, [player])
 
@@ -623,7 +625,7 @@ export default function ProfilePage() {
       const res = await fetch(`/api/players/${player.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pin, name: editName.trim(), phone: editPhone.trim() }),
+        body: JSON.stringify({ pin, name: editName.trim(), phone: editPhone.trim(), yearOfBirth: editBirthYear ? parseInt(editBirthYear, 10) : null }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
@@ -705,6 +707,13 @@ export default function ProfilePage() {
                   value={editPhone}
                   onChange={e => setEditPhone(e.target.value)}
                   placeholder="Phone number (optional)"
+                  style={{ marginBottom: 8 }}
+                />
+                <Input
+                  value={editBirthYear}
+                  onChange={e => setEditBirthYear(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                  placeholder="Birth year (e.g. 1990)"
+                  inputMode="numeric"
                 />
               </div>
             ) : (
@@ -715,7 +724,7 @@ export default function ProfilePage() {
                   </h1>
                   <button
                     type="button"
-                    onClick={() => { setEditName(player.name); setEditPhone(player.phone || ''); setEditingInfo(true) }}
+                    onClick={() => { setEditName(player.name); setEditPhone(player.phone || ''); setEditBirthYear(player.year_of_birth ? String(player.year_of_birth) : ''); setEditingInfo(true) }}
                     title="Edit name & phone"
                     style={{ background: 'none', border: 'none', cursor: 'pointer', color: colors.muted, fontSize: 14, padding: '2px 4px', lineHeight: 1 }}
                   >
@@ -724,6 +733,9 @@ export default function ProfilePage() {
                 </div>
                 {player.phone && (
                   <p style={{ color: colors.muted, fontSize: 13, margin: '4px 0 0' }}>📱 {player.phone}</p>
+                )}
+                {player.year_of_birth && (
+                  <p style={{ color: colors.muted, fontSize: 13, margin: '4px 0 0' }}>🎂 Born {player.year_of_birth}</p>
                 )}
               </div>
             )}

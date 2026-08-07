@@ -3,7 +3,7 @@ import Link from 'next/link'
 import Layout from '../components/Layout'
 import { Card, Label, ProgressBar, Btn, Input, Pill, PlayerChip, Toast, CopyBtn, Spinner, WeatherBadge } from '../components/UI'
 import { colors, radius, groupColorPalette } from '../lib/tokens'
-import { getActivePlayers, getWaitlist, getTotalSpots, getTentativePlayers } from '../lib/teams'
+import { getActivePlayers, getWaitlist, getTotalSpots, getTentativePlayers, teamAvgYear } from '../lib/teams'
 import { LOCATIONS, findLocation } from '../lib/locations'
 import { SKILL_LABELS, DEFAULT_SKILL_RATING, POSITIONS } from '../lib/positions'
 
@@ -441,9 +441,10 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
             { key: 'B', list: poll.teams.teamB || [], color: colors.teamB, label: poll.team_b_name || 'Team B', emoji: '🎨' },
           ].map(({ key, list, color, label, emoji }) => (
             <div key={key} style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 2 }}>
                 {emoji} {label} ({list.filter(p => !p.isGuest).length})
               </div>
+              {teamAvgYear(list) && <div style={{ fontSize: 10, color: '#ffffff55', marginBottom: 6 }}>Avg age ~{new Date().getFullYear() - teamAvgYear(list)}</div>}
               {list.filter(p => !p.isGuest).map((p, i) => (
                 <div key={i} style={{ fontSize: 13, color: colors.white, padding: '2px 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {p.name}{p.guests ? <span style={{ color: colors.muted, fontSize: 11 }}> +{p.guests}</span> : null}
