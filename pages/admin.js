@@ -200,7 +200,7 @@ function CreatePollForm({ onCreated, groups, prefill }) {
         type="number"
         value={pitchFee}
         onChange={e => setPitchFee(e.target.value)}
-        placeholder="Pitch fee total £ (optional — split equally per player)"
+        placeholder="Pitch fee total $ (optional — split equally per player)"
         style={{ marginBottom: 10 }}
       />
 
@@ -504,10 +504,10 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
         <div style={{ marginTop: 12, background: colors.pitchMid, borderRadius: 8, padding: '10px 14px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.muted }}>
-              💷 Pitch Fee
+              💵 Pitch Fee
             </div>
             <div style={{ fontSize: 13, fontWeight: 700, color: colors.accent }}>
-              £{poll.pitch_fee} total · £{(poll.pitch_fee / Math.max(1, active.length)).toFixed(2)} per person
+              ${poll.pitch_fee} total · ${(poll.pitch_fee / Math.max(1, active.length)).toFixed(2)} per person
             </div>
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -532,7 +532,7 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
           </div>
           <div style={{ fontSize: 12, color: colors.muted, marginTop: 8 }}>
             {active.filter(p => p.paid).length}/{active.length} paid
-            {' · '}£{(active.filter(p => p.paid).length * (poll.pitch_fee / Math.max(1, active.length))).toFixed(2)} collected
+            {' · '}${(active.filter(p => p.paid).length * (poll.pitch_fee / Math.max(1, active.length))).toFixed(2)} collected
           </div>
         </div>
       )}

@@ -1035,7 +1035,7 @@ function AdminBar({ poll, onUpdate }) {
               <div style={{ marginTop: 4 }}>
                 <div style={{ height: 1, background: 'rgba(255,255,255,0.07)', margin: '4px 0 8px' }} />
                 <div style={{ fontSize: 10, fontWeight: 700, color: colors.accent, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 6 }}>
-                  💷 Pitch Fee · £{poll.pitch_fee} total · £{perPerson}/person
+                  💵 Pitch Fee · ${poll.pitch_fee} total · ${perPerson}/person
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 6 }}>
                   {active.map((p, i) => (
@@ -1055,7 +1055,7 @@ function AdminBar({ poll, onUpdate }) {
                   ))}
                 </div>
                 <div style={{ fontSize: 11, color: colors.muted }}>
-                  {paidCount}/{active.length} paid · £{(paidCount * parseFloat(perPerson)).toFixed(2)} collected
+                  {paidCount}/{active.length} paid · ${(paidCount * parseFloat(perPerson)).toFixed(2)} collected
                 </div>
               </div>
             )
