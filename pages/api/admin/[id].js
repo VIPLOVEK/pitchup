@@ -247,6 +247,41 @@ export default async function handler(req, res) {
         return res.status(200).json(data)
       }
 
+      if (action === 'togglePaid') {
+        const { playerName } = req.body
+        const { data: pollData, error: fetchErr } = await db.from('polls').select('*').eq('id', id).single()
+        if (fetchErr || !pollData) return res.status(404).json({ error: 'Poll not found' })
+        const players = (pollData.players || []).map(p =>
+          p.name.toLowerCase() === playerName.toLowerCase() ? { ...p, paid: !p.paid } : p
+        )
+        const { data, error } = await db.from('polls')
+          .update({ players, version: pollData.version + 1 })
+          .eq('id', id).select().single()
+        if (error) throw error
+        return res.status(200).json(data)
+      }
+
+      if (action === 'groundUpdate') {
+        const { confirmTentative = [], noShows = [] } = req.body
+        const { data: pollData, error: fetchErr } = await db.from('polls').select('*').eq('id', id).single()
+        if (fetchErr || !pollData) return res.status(404).json({ error: 'Poll not found' })
+
+        let players = (pollData.players || []).map(p => {
+          if (confirmTentative.includes(p.name)) return { ...p, tentative: false }
+          return p
+        }).filter(p => !noShows.includes(p.name))
+
+        const active = getActivePlayers({ ...pollData, players })
+        const expanded = expandWithGuests(active)
+        const teams = generateTeams(expanded)
+
+        const { data, error } = await db.from('polls')
+          .update({ players, teams, version: pollData.version + 1 })
+          .eq('id', id).select().single()
+        if (error) throw error
+        return res.status(200).json(data)
+      }
+
       if (action === 'setGoals') {
         const { goals } = req.body
         if (poll.status !== 'confirmed') return res.status(400).json({ error: 'Game must be confirmed first' })

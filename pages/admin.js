@@ -46,6 +46,8 @@ function CreatePollForm({ onCreated, groups, prefill }) {
   const [opponent, setOpponent] = useState(prefill?.opponent || '')
   const [noTeamSplit, setNoTeamSplit] = useState(prefill?.no_team_split || false)
   const [cutoffHours, setCutoffHours] = useState(prefill?.cutoff_hours ?? 1.5)
+  const [autoLockHours, setAutoLockHours] = useState(prefill?.auto_lock_hours ?? null)
+  const [pitchFee, setPitchFee] = useState(prefill?.pitch_fee ? String(prefill.pitch_fee) : '')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -95,6 +97,8 @@ function CreatePollForm({ onCreated, groups, prefill }) {
           opponent: opponent || undefined,
           noTeamSplit,
           cutoffHours,
+          autoLockHours: autoLockHours ?? undefined,
+          pitchFee: pitchFee ? Number(pitchFee) : undefined,
         }),
       })
       const data = await res.json()
@@ -116,7 +120,7 @@ function CreatePollForm({ onCreated, groups, prefill }) {
       <Label>Create a poll</Label>
       {prefill && (
         <div style={{ background: colors.accent + '18', border: `1px solid ${colors.accent}33`, borderRadius: 8, padding: '8px 12px', marginBottom: 12, fontSize: 13, color: colors.accent }}>
-          📋 Duplicated from "{prefill.title}" — fill in the new time slots below.
+          🔁 Repeating "{prefill.title}" — update the time slots and any settings below.
         </div>
       )}
       <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="Game title" />
@@ -192,6 +196,13 @@ function CreatePollForm({ onCreated, groups, prefill }) {
           boxSizing: 'border-box',
         }}
       />
+      <Input
+        type="number"
+        value={pitchFee}
+        onChange={e => setPitchFee(e.target.value)}
+        placeholder="Pitch fee total £ (optional — split equally per player)"
+        style={{ marginBottom: 10 }}
+      />
 
       <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
         <div style={{ flex: 1 }}>
@@ -213,6 +224,14 @@ function CreatePollForm({ onCreated, groups, prefill }) {
         <option value={6}>6 hours before</option>
         <option value={12}>12 hours before</option>
         <option value={24}>24 hours before</option>
+      </select>
+
+      <p style={{ color: colors.muted, fontSize: 13, margin: '10px 0 8px' }}>Auto-lock teams before kickoff</p>
+      <select value={autoLockHours === null ? 'never' : autoLockHours} onChange={e => setAutoLockHours(e.target.value === 'never' ? null : Number(e.target.value))} style={selectStyle}>
+        <option value="never">Never (lock manually)</option>
+        <option value={1}>1 hour before</option>
+        <option value={2}>2 hours before</option>
+        <option value={3}>3 hours before</option>
       </select>
 
       <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 8px' }}>Who can join?</p>
@@ -477,6 +496,44 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
           {poll.players.length === 0 && (
             <span style={{ color: colors.muted, fontSize: 13 }}>No players yet.</span>
           )}
+        </div>
+      )}
+
+      {/* Pitch fee tracker */}
+      {isConfirmed && poll.pitch_fee && (
+        <div style={{ marginTop: 12, background: colors.pitchMid, borderRadius: 8, padding: '10px 14px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.muted }}>
+              💷 Pitch Fee
+            </div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: colors.accent }}>
+              £{poll.pitch_fee} total · £{(poll.pitch_fee / Math.max(1, active.length)).toFixed(2)} per person
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {active.map((p, i) => {
+              const paid = p.paid === true
+              return (
+                <button
+                  key={i}
+                  onClick={() => doAction('togglePaid', 'PATCH', { playerName: p.name })}
+                  disabled={loading}
+                  style={{
+                    background: paid ? 'rgba(34,197,94,0.15)' : colors.pitchCard,
+                    border: `1px solid ${paid ? 'rgba(34,197,94,0.4)' : colors.grass + '33'}`,
+                    borderRadius: 20, padding: '4px 10px', fontSize: 12, fontWeight: 600,
+                    color: paid ? '#22c55e' : colors.muted, cursor: 'pointer',
+                  }}
+                >
+                  {paid ? '✓' : '○'} {p.name.split(' ')[0]}
+                </button>
+              )
+            })}
+          </div>
+          <div style={{ fontSize: 12, color: colors.muted, marginTop: 8 }}>
+            {active.filter(p => p.paid).length}/{active.length} paid
+            {' · '}£{(active.filter(p => p.paid).length * (poll.pitch_fee / Math.max(1, active.length))).toFixed(2)} collected
+          </div>
         </div>
       )}
 
@@ -970,8 +1027,13 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
             🎲 New team names
           </Btn>
         )}
+        {isConfirmed && (
+          <Btn small variant="ghost" onClick={() => window.open(`/ground/${poll.id}`, '_blank')} disabled={loading}>
+            📍 Ground
+          </Btn>
+        )}
         <Btn small variant="ghost" onClick={() => onDuplicate(poll)} disabled={loading}>
-          📋 Duplicate
+          🔁 Repeat
         </Btn>
         <Btn small variant="danger" onClick={() => doAction(null, 'DELETE')} disabled={loading}>
           Delete
@@ -1119,6 +1181,11 @@ function RosterTab({ password, showToast }) {
             {p.phone && <div style={{ color: colors.muted, fontSize: 12, marginTop: 2 }}>📱 {p.phone}</div>}
             <div style={{ color: colors.muted, fontSize: 12, marginTop: 2 }}>
               ⚽ {p.gamesPlayed} game{p.gamesPlayed === 1 ? '' : 's'} played
+              {p.noShows > 0 && (
+                <span style={{ fontSize: 11, color: colors.danger, marginLeft: 6 }}>
+                  {p.noShows} no-show{p.noShows > 1 ? 's' : ''}
+                </span>
+              )}
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>

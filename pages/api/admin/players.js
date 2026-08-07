@@ -34,10 +34,26 @@ export default async function handler(req, res) {
       }
     }
 
-    const withStats = players.map(p => ({
+    let withStats = players.map(p => ({
       ...p,
       gamesPlayed: (gamesPlayed[`id:${p.id}`] || 0) + (gamesPlayed[`name:${p.name.toLowerCase()}`] || 0),
     }))
+
+    // Count no-shows from the no_shows array on each poll
+    const { data: allPolls, error: nsErr } = await db
+      .from('polls').select('no_shows').not('no_shows', 'is', null)
+    if (!nsErr && allPolls) {
+      const noShowCount = {}
+      for (const poll of allPolls) {
+        for (const name of poll.no_shows || []) {
+          noShowCount[name.toLowerCase()] = (noShowCount[name.toLowerCase()] || 0) + 1
+        }
+      }
+      withStats = withStats.map(p => ({
+        ...p,
+        noShows: noShowCount[p.name.toLowerCase()] || 0,
+      }))
+    }
 
     return res.status(200).json(withStats)
   } catch (e) {

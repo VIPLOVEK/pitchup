@@ -101,6 +101,27 @@ export default async function handler(req, res) {
       }
     }
 
+    // Auto-lock teams when kickoff is approaching
+    const { data: autoLockPolls } = await db.from('polls')
+      .select('*').eq('status', 'confirmed').eq('teams_locked', false)
+      .not('auto_lock_hours', 'is', null).not('game_time', 'is', null)
+    if (autoLockPolls) {
+      for (const poll of autoLockPolls) {
+        const hoursUntil = (new Date(poll.game_time) - Date.now()) / 3600000
+        if (hoursUntil > 0 && hoursUntil <= poll.auto_lock_hours) {
+          try {
+            await db.from('polls').update({ teams_locked: true }).eq('id', poll.id)
+            await sendPushToAll({
+              title: '🔐 Teams locked!',
+              body: `${poll.title} — teams are set for ${formatSlot(poll.game_time)}. See you there!`,
+              url: `/poll/${poll.id}`,
+            })
+            sent++
+          } catch (e) { console.error('Auto-lock failed:', e.message) }
+        }
+      }
+    }
+
     return res.status(200).json({ sent })
   } catch (e) {
     return res.status(500).json({ error: e.message })
