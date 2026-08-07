@@ -3,7 +3,7 @@ import Link from 'next/link'
 import Layout from '../components/Layout'
 import { Card, Label, ProgressBar, Btn, Input, Pill, PlayerChip, Toast, CopyBtn, Spinner, WeatherBadge } from '../components/UI'
 import { colors, radius, groupColorPalette } from '../lib/tokens'
-import { getActivePlayers, getWaitlist, getTotalSpots } from '../lib/teams'
+import { getActivePlayers, getWaitlist, getTotalSpots, getTentativePlayers } from '../lib/teams'
 import { LOCATIONS, findLocation } from '../lib/locations'
 import { SKILL_LABELS, DEFAULT_SKILL_RATING, POSITIONS } from '../lib/positions'
 
@@ -345,6 +345,7 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
   const shareUrl = `${appUrl}/poll/${poll.id}`
   const active = getActivePlayers(poll)
   const waitlist = getWaitlist(poll)
+  const tentatives = getTentativePlayers(poll)
 
   const doAction = async (action, method = 'PATCH', extra = {}) => {
     setLoading(true)
@@ -493,6 +494,20 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
                 meta={p.guests ? `+${p.guests} guest${p.guests > 1 ? 's' : ''}` : undefined}
                 onRemove={isOpen ? () => doAction('removePlayer', 'PATCH', { name: p.name }) : undefined}
               />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Tentative players */}
+      {tentatives.length > 0 && (
+        <div style={{ marginTop: 10 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#f59e0b', marginBottom: 6 }}>
+            ⚡ Tentative ({tentatives.length})
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+            {tentatives.map((p, i) => (
+              <PlayerChip key={i} name={p.name} color="#f59e0b" />
             ))}
           </div>
         </div>
@@ -932,6 +947,17 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
           <Btn small variant="ghost" onClick={openTeamEditor} disabled={loading}>
             👥 Adjust who played
           </Btn>
+        )}
+        {isConfirmed && (
+          poll.teams_locked ? (
+            <Btn small variant="ghost" onClick={() => doAction('unlockTeams')} disabled={loading}>
+              🔓 Unlock teams
+            </Btn>
+          ) : (
+            <Btn small onClick={() => doAction('lockTeams')} disabled={loading}>
+              🔐 Lock teams
+            </Btn>
+          )
         )}
         {isConfirmed && !noTeamSplit && (
           <Btn small variant="ghost" onClick={() => doAction('shuffle')} disabled={loading}>
