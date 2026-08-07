@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { getActivePlayers, getWaitlist, getTentativePlayers, formatSlot } from '../../lib/teams'
+import { getActivePlayers, getWaitlist, getTentativePlayers, getTotalSpots, formatSlot } from '../../lib/teams'
 import { supabaseAdmin, isSupabaseConfigured } from '../../lib/supabase'
 import { colors } from '../../lib/tokens'
 
@@ -156,10 +156,69 @@ export default function GroundPage({ poll: initialPoll }) {
           )}
         </div>
 
+        {/* Team split */}
+        {poll.teams && (poll.teams.teamA?.length > 0 || poll.teams.teamB?.length > 0) && (
+          <div style={{ background: colors.pitchCard, borderRadius: 12, padding: '16px', marginBottom: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: colors.muted, marginBottom: 12 }}>
+              🏟️ Teams
+            </div>
+            <div style={{ display: 'flex', gap: 12 }}>
+              {[
+                { key: 'A', list: poll.teams.teamA || [], label: poll.team_a_name || 'Team A', color: '#63b3ed' },
+                { key: 'B', list: poll.teams.teamB || [], label: poll.team_b_name || 'Team B', color: '#f687b3' },
+              ].map(({ key, list, label, color }) => (
+                <div key={key} style={{ flex: 1 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+                    {label} ({list.filter(p => !p.isGuest).length})
+                  </div>
+                  {list.filter(p => !p.isGuest).map((p, i) => (
+                    <div key={i} style={{ fontSize: 14, fontWeight: 600, color: colors.white, padding: '3px 0', borderBottom: `1px solid ${colors.grass}11` }}>
+                      {p.name.split(' ')[0]}
+                      {p.positions?.[0] ? <span style={{ color: colors.muted, fontSize: 11, marginLeft: 4 }}>({p.positions[0]})</span> : null}
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Pitch fee tracker */}
+        {poll.pitch_fee && (
+          <div style={{ background: colors.pitchCard, borderRadius: 12, padding: '16px', marginBottom: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: colors.muted, marginBottom: 4 }}>
+              💵 Pitch Fee
+            </div>
+            <div style={{ color: colors.accent, fontWeight: 700, fontSize: 14, marginBottom: 12 }}>
+              ${poll.pitch_fee} total · ${(poll.pitch_fee / Math.max(1, getTotalSpots(active))).toFixed(2)}/person
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {active.map((p, i) => (
+                <button
+                  key={i}
+                  onClick={() => doAction({ action: 'togglePaid', playerName: p.name })}
+                  disabled={loading}
+                  style={{
+                    background: p.paid ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.05)',
+                    border: `1px solid ${p.paid ? 'rgba(34,197,94,0.4)' : 'rgba(255,255,255,0.12)'}`,
+                    borderRadius: 20, padding: '6px 14px', fontSize: 13, fontWeight: 700,
+                    color: p.paid ? '#22c55e' : colors.muted, cursor: 'pointer', minHeight: 36,
+                  }}
+                >
+                  {p.paid ? '✓' : '○'} {p.name.split(' ')[0]}
+                </button>
+              ))}
+            </div>
+            <div style={{ fontSize: 12, color: colors.muted, marginTop: 10 }}>
+              {active.filter(p => p.paid).length}/{active.length} paid
+            </div>
+          </div>
+        )}
+
         {/* Active players */}
         <div style={{ background: colors.pitchCard, borderRadius: 12, padding: '16px', marginBottom: 16 }}>
           <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: colors.grassLight, marginBottom: 12 }}>
-            ⚽ Active players ({active.length})
+            ⚽ Mark no-shows ({active.length} active)
           </div>
           {active.length === 0 && (
             <div style={{ color: colors.muted, fontSize: 14 }}>No active players</div>
@@ -176,7 +235,7 @@ export default function GroundPage({ poll: initialPoll }) {
                 disabled={loading}
                 style={{ ...btnStyle, background: colors.danger + '22', color: colors.danger, border: `1px solid ${colors.danger}44`, padding: '6px 12px', minHeight: 36 }}
               >
-                ×
+                × No-show
               </button>
             </div>
           ))}
