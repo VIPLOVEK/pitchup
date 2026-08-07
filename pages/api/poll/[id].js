@@ -91,7 +91,7 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'POST') {
-    const { name, slots: votedSlots, playerId, positions, guests, note, guestPositions, tentative } = req.body
+    const { name, slots: votedSlots, playerId, positions, guests, note, guestPositions, tentative, yearOfBirth } = req.body
     if (!name) return res.status(400).json({ error: 'name is required' })
     const guestCount = Math.min(Math.max(0, parseInt(guests, 10) || 0), 2)
     const safeGuestPositions = Array.isArray(guestPositions) ? guestPositions.slice(0, guestCount) : []
@@ -140,6 +140,14 @@ export default async function handler(req, res) {
           const { data: profile } = await db.from('players').select('avatar_url, year_of_birth').eq('id', playerId).maybeSingle()
           avatarUrl = profile?.avatar_url || null
           resolvedBirthYear = profile?.year_of_birth || null
+          // Auto-save birth year to player profile if they didn't have one
+          if (!resolvedBirthYear && yearOfBirth) {
+            const parsed = parseInt(yearOfBirth, 10)
+            if (parsed >= 1940 && parsed <= new Date().getFullYear() - 10) {
+              resolvedBirthYear = parsed
+              await db.from('players').update({ year_of_birth: parsed }).eq('id', playerId)
+            }
+          }
         }
 
         let updatedPlayers

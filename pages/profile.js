@@ -688,6 +688,17 @@ export default function ProfilePage() {
       (Date.now() - new Date(player.skill_rating_updated_at).getTime()) / 86400000 > SKILL_RATING_STALE_DAYS
     return (
       <Layout title="My Profile — PitchUp">
+        {!player.year_of_birth && (
+          <div style={{ background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.4)', borderRadius: 12, padding: '12px 16px', marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <p style={{ color: '#f59e0b', fontSize: 13, fontWeight: 600, margin: 0 }}>🎂 Add your birth year to help balance team ages</p>
+            <button
+              onClick={() => { setEditName(player.name); setEditPhone(player.phone || ''); setEditBirthYear(''); setEditingInfo(true) }}
+              style={{ background: '#f59e0b', color: '#000', border: 'none', borderRadius: 8, padding: '6px 14px', fontWeight: 700, fontSize: 13, cursor: 'pointer', flexShrink: 0 }}
+            >
+              Add
+            </button>
+          </div>
+        )}
         <Card>
           <Label>My profile</Label>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: editingInfo ? 12 : 16 }}>

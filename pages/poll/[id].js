@@ -1098,6 +1098,7 @@ export default function PollPage({ poll: initialPoll, error }) {
   const [pollGroups, setPollGroups] = useState([])
   const [showLeaveModal, setShowLeaveModal] = useState(false)
   const [isTentative, setIsTentative] = useState(false)
+  const [birthYear, setBirthYear] = useState('')
 
   useEffect(() => {
     const saved = localStorage.getItem('pitchup_player')
@@ -1284,6 +1285,7 @@ export default function PollPage({ poll: initialPoll, error }) {
           guests: isTentative ? 0 : guests,
           guestPositions: isTentative ? [] : guestPositions.slice(0, guests),
           note: note.trim() || undefined,
+          yearOfBirth: birthYear ? parseInt(birthYear, 10) : undefined,
         }),
       })
       const data = await res.json()
@@ -1497,10 +1499,24 @@ export default function PollPage({ poll: initialPoll, error }) {
       <Card>
         <Label>{myEntry ? 'Update your availability' : poll.game_type === 'watch_party' ? 'RSVP for the watch party' : 'Join the game'}</Label>
         {profile ? (
-          <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 10px' }}>
-            Voting as <strong style={{ color: colors.white }}>{profile.name}</strong> ({profile.positions?.length ? profile.positions.join(', ') : 'Any'}) ·{' '}
-            <Link href="/profile" style={{ color: colors.accent, textDecoration: 'underline' }}>Not you?</Link>
-          </p>
+          <>
+            <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 10px' }}>
+              Voting as <strong style={{ color: colors.white }}>{profile.name}</strong> ({profile.positions?.length ? profile.positions.join(', ') : 'Any'}) ·{' '}
+              <Link href="/profile" style={{ color: colors.accent, textDecoration: 'underline' }}>Not you?</Link>
+            </p>
+            {!profile.year_of_birth && (
+              <div style={{ marginBottom: 12 }}>
+                <p style={{ color: '#f59e0b', fontSize: 13, fontWeight: 600, margin: '0 0 6px' }}>🎂 One-time: what year were you born?</p>
+                <Input
+                  value={birthYear}
+                  onChange={e => setBirthYear(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                  placeholder="e.g. 1990"
+                  inputMode="numeric"
+                />
+                <p style={{ color: colors.muted, fontSize: 11, margin: '4px 0 0' }}>Helps balance team ages — saved to your profile.</p>
+              </div>
+            )}
+          </>
         ) : (
           <>
             <p style={{ color: colors.white, fontSize: 13, fontWeight: 600, margin: '0 0 6px' }}>👋 First, who are you?</p>
@@ -1716,7 +1732,7 @@ export default function PollPage({ poll: initialPoll, error }) {
         <div style={{ marginTop: 16 }}>
           <button
             onClick={handleVote}
-            disabled={!name.trim() || (!isTentative && selectedSlots.length === 0) || loading || kicking || (matchedPlayer && !/^\d{4,6}$/.test(pin)) || (poll.visibility === 'groups' && hasAccess === false) || (!profile && !guestTerms)}
+            disabled={!name.trim() || (!isTentative && selectedSlots.length === 0) || loading || kicking || (matchedPlayer && !/^\d{4,6}$/.test(pin)) || (poll.visibility === 'groups' && hasAccess === false) || (!profile && !guestTerms) || (profile && !profile.year_of_birth && birthYear.length !== 4)}
             style={{
               width: '100%',
               background: (isTentative || selectedSlots.length > 0) && name.trim()
