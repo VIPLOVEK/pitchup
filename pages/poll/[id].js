@@ -1026,6 +1026,41 @@ function AdminBar({ poll, onUpdate }) {
             </button>
           )}
 
+          {/* Pitch fee tracker */}
+          {isConfirmed && poll.pitch_fee && (() => {
+            const active = getActivePlayers(poll)
+            const perPerson = (poll.pitch_fee / Math.max(1, getTotalSpots(active))).toFixed(2)
+            const paidCount = active.filter(p => p.paid).length
+            return (
+              <div style={{ marginTop: 4 }}>
+                <div style={{ height: 1, background: 'rgba(255,255,255,0.07)', margin: '4px 0 8px' }} />
+                <div style={{ fontSize: 10, fontWeight: 700, color: colors.accent, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 6 }}>
+                  💷 Pitch Fee · £{poll.pitch_fee} total · £{perPerson}/person
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 6 }}>
+                  {active.map((p, i) => (
+                    <button
+                      key={i}
+                      onClick={() => doAction('togglePaid', { playerName: p.name })}
+                      disabled={loading}
+                      style={{
+                        background: p.paid ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.05)',
+                        border: `1px solid ${p.paid ? 'rgba(34,197,94,0.4)' : 'rgba(255,255,255,0.1)'}`,
+                        borderRadius: 20, padding: '3px 10px', fontSize: 12, fontWeight: 600,
+                        color: p.paid ? '#22c55e' : colors.muted, cursor: 'pointer',
+                      }}
+                    >
+                      {p.paid ? '✓' : '○'} {p.name.split(' ')[0]}
+                    </button>
+                  ))}
+                </div>
+                <div style={{ fontSize: 11, color: colors.muted }}>
+                  {paidCount}/{active.length} paid · £{(paidCount * parseFloat(perPerson)).toFixed(2)} collected
+                </div>
+              </div>
+            )
+          })()}
+
           <div style={{ height: 1, background: 'rgba(255,255,255,0.07)', margin: '4px 0' }} />
 
           <Link
