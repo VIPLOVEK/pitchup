@@ -38,6 +38,30 @@ export default function GroundPage({ poll: initialPoll }) {
   const [passwordInput, setPasswordInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [toast, setToast] = useState('')
+  const [editingTeams, setEditingTeams] = useState(false)
+  const [editTeamA, setEditTeamA] = useState([])
+  const [editTeamB, setEditTeamB] = useState([])
+
+  const startEditTeams = () => {
+    setEditTeamA([...(poll.teams?.teamA || [])])
+    setEditTeamB([...(poll.teams?.teamB || [])])
+    setEditingTeams(true)
+  }
+
+  const movePlayer = (player, fromTeam) => {
+    if (fromTeam === 'A') {
+      setEditTeamA(prev => prev.filter(x => x.name !== player.name))
+      setEditTeamB(prev => [...prev, player])
+    } else {
+      setEditTeamB(prev => prev.filter(x => x.name !== player.name))
+      setEditTeamA(prev => [...prev, player])
+    }
+  }
+
+  const saveTeams = async () => {
+    await doAction({ action: 'setTeams', teamA: editTeamA, teamB: editTeamB, noShows: [] })
+    setEditingTeams(false)
+  }
 
   useEffect(() => {
     try {
@@ -159,27 +183,84 @@ export default function GroundPage({ poll: initialPoll }) {
         {/* Team split */}
         {poll.teams && (poll.teams.teamA?.length > 0 || poll.teams.teamB?.length > 0) && (
           <div style={{ background: colors.pitchCard, borderRadius: 12, padding: '16px', marginBottom: 16 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: colors.muted, marginBottom: 12 }}>
-              🏟️ Teams
-            </div>
-            <div style={{ display: 'flex', gap: 12 }}>
-              {[
-                { key: 'A', list: poll.teams.teamA || [], label: poll.team_a_name || 'Team A', color: '#63b3ed' },
-                { key: 'B', list: poll.teams.teamB || [], label: poll.team_b_name || 'Team B', color: '#f687b3' },
-              ].map(({ key, list, label, color }) => (
-                <div key={key} style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
-                    {label} ({list.filter(p => !p.isGuest).length})
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: colors.muted }}>
+                🏟️ Teams
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {!editingTeams && (
+                  <button
+                    onClick={() => doAction({ action: 'shuffle' })}
+                    disabled={loading}
+                    style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, color: colors.white, fontSize: 12, fontWeight: 700, padding: '5px 10px', cursor: 'pointer' }}
+                  >
+                    🔀 Reshuffle
+                  </button>
+                )}
+                {!editingTeams ? (
+                  <button
+                    onClick={startEditTeams}
+                    style={{ background: `${colors.accent}22`, border: `1px solid ${colors.accent}44`, borderRadius: 8, color: colors.accent, fontSize: 12, fontWeight: 700, padding: '5px 10px', cursor: 'pointer' }}
+                  >
+                    ✏️ Edit
+                  </button>
+                ) : (
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button onClick={() => setEditingTeams(false)} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, color: colors.muted, fontSize: 12, fontWeight: 700, padding: '5px 10px', cursor: 'pointer' }}>
+                      Cancel
+                    </button>
+                    <button onClick={saveTeams} disabled={loading} style={{ background: colors.grassLight, border: 'none', borderRadius: 8, color: '#000', fontSize: 12, fontWeight: 700, padding: '5px 12px', cursor: 'pointer' }}>
+                      Save
+                    </button>
                   </div>
-                  {list.filter(p => !p.isGuest).map((p, i) => (
-                    <div key={i} style={{ fontSize: 14, fontWeight: 600, color: colors.white, padding: '3px 0', borderBottom: `1px solid ${colors.grass}11` }}>
-                      {p.name.split(' ')[0]}
-                      {p.positions?.[0] ? <span style={{ color: colors.muted, fontSize: 11, marginLeft: 4 }}>({p.positions[0]})</span> : null}
-                    </div>
-                  ))}
-                </div>
-              ))}
+                )}
+              </div>
             </div>
+
+            {editingTeams ? (
+              <div style={{ display: 'flex', gap: 12 }}>
+                {[
+                  { key: 'A', list: editTeamA, label: poll.team_a_name || 'Team A', color: '#63b3ed', from: 'A' },
+                  { key: 'B', list: editTeamB, label: poll.team_b_name || 'Team B', color: '#f687b3', from: 'B' },
+                ].map(({ key, list, label, color, from }) => (
+                  <div key={key} style={{ flex: 1 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+                      {label} ({list.filter(p => !p.isGuest).length})
+                    </div>
+                    {list.filter(p => !p.isGuest).map((p, i) => (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 0', borderBottom: `1px solid ${colors.grass}11` }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: colors.white }}>{p.name.split(' ')[0]}</span>
+                        <button
+                          onClick={() => movePlayer(p, from)}
+                          style={{ background: 'none', border: `1px solid ${color}44`, borderRadius: 6, color, fontSize: 11, fontWeight: 700, padding: '2px 7px', cursor: 'pointer' }}
+                        >
+                          → {from === 'A' ? 'B' : 'A'}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ display: 'flex', gap: 12 }}>
+                {[
+                  { key: 'A', list: poll.teams.teamA || [], label: poll.team_a_name || 'Team A', color: '#63b3ed' },
+                  { key: 'B', list: poll.teams.teamB || [], label: poll.team_b_name || 'Team B', color: '#f687b3' },
+                ].map(({ key, list, label, color }) => (
+                  <div key={key} style={{ flex: 1 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+                      {label} ({list.filter(p => !p.isGuest).length})
+                    </div>
+                    {list.filter(p => !p.isGuest).map((p, i) => (
+                      <div key={i} style={{ fontSize: 14, fontWeight: 600, color: colors.white, padding: '3px 0', borderBottom: `1px solid ${colors.grass}11` }}>
+                        {p.name.split(' ')[0]}
+                        {p.positions?.[0] ? <span style={{ color: colors.muted, fontSize: 11, marginLeft: 4 }}>({p.positions[0]})</span> : null}
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
