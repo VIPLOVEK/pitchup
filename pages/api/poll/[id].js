@@ -91,7 +91,7 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'POST') {
-    const { name, slots: votedSlots, playerId, positions, guests, note, guestPositions } = req.body
+    const { name, slots: votedSlots, playerId, positions, guests, note, guestPositions, tentative } = req.body
     if (!name) return res.status(400).json({ error: 'name is required' })
     const guestCount = Math.min(Math.max(0, parseInt(guests, 10) || 0), 2)
     const safeGuestPositions = Array.isArray(guestPositions) ? guestPositions.slice(0, guestCount) : []
@@ -109,7 +109,7 @@ export default async function handler(req, res) {
           return res.status(400).json({ error: 'Poll has been cancelled' })
         }
         // Confirmed polls are full — slot selection not needed; new player joins the waitlist
-        if (current.status === 'open' && (!Array.isArray(votedSlots) || votedSlots.length === 0)) {
+        if (!tentative && current.status === 'open' && (!Array.isArray(votedSlots) || votedSlots.length === 0)) {
           return res.status(400).json({ error: 'slots are required' })
         }
 
@@ -145,13 +145,13 @@ export default async function handler(req, res) {
           // Update existing entry — player is changing their slot selection
           updatedPlayers = players.map((p, idx) =>
             idx === existingIdx
-              ? { ...p, slots: votedSlots || [], guests: guestCount, guestPositions: safeGuestPositions, note: noteText, ...(avatarUrl ? { avatar_url: avatarUrl } : {}) }
+              ? { ...p, slots: votedSlots || [], tentative: tentative || false, guests: guestCount, guestPositions: safeGuestPositions, note: noteText, ...(avatarUrl ? { avatar_url: avatarUrl } : {}) }
               : p
           )
         } else {
           updatedPlayers = [
             ...players,
-            { name: name.trim(), slots: votedSlots || [], playerId: playerId || null, positions: positions || [], guests: guestCount, guestPositions: safeGuestPositions, note: noteText, avatar_url: avatarUrl },
+            { name: name.trim(), slots: votedSlots || [], tentative: tentative || false, playerId: playerId || null, positions: positions || [], guests: guestCount, guestPositions: safeGuestPositions, note: noteText, avatar_url: avatarUrl },
           ]
         }
 
@@ -200,6 +200,11 @@ export default async function handler(req, res) {
 
       const entry = (poll.players || []).find(p => p.name?.toLowerCase() === name.trim().toLowerCase())
       if (!entry) return res.status(404).json({ error: 'You are not in this poll' })
+
+      // Prevent self-removal when teams are locked (tentative players can still leave)
+      if (poll.teams_locked && poll.status === 'confirmed' && !entry.tentative) {
+        return res.status(403).json({ error: 'Teams are locked — speak to the admin if you can\'t make it' })
+      }
 
       if (entry.playerId) {
         if (!pin) return res.status(400).json({ error: 'PIN is required' })

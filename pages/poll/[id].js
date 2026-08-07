@@ -5,7 +5,7 @@ import Layout from '../../components/Layout'
 import { Card, Label, ProgressBar, Btn, Input, Pill, PlayerChip, Avatar, Toast, GoalCelebration, WeatherBadge } from '../../components/UI'
 import { supabase } from '../../lib/supabase'
 import { colors, radius } from '../../lib/tokens'
-import { formatSlot, getActivePlayers, getWaitlist, getTotalSpots, expandWithGuests } from '../../lib/teams'
+import { formatSlot, getActivePlayers, getWaitlist, getTotalSpots, expandWithGuests, getTentativePlayers } from '../../lib/teams'
 import { findLocation } from '../../lib/locations'
 
 // ── Venue info (map link + boot type) ──────────────────────────────────────────
@@ -324,9 +324,15 @@ function WaitlistCard({ poll, waitlist, myEntry, onWaitlist, name, setName, prof
               </div>
             )}
           </div>
+          {poll.teams_locked && !onWaitlist && !myEntry?.tentative ? (
+            <p style={{ color: colors.muted, fontSize: 13, textAlign: 'center', margin: 0 }}>
+              🔐 Teams are locked — contact the admin if you can't make it.
+            </p>
+          ) : (
           <Btn small variant="ghost" onClick={() => setShowLeaveModal(true)} disabled={loading}>
             {onWaitlist ? 'Leave waitlist' : "Can't make it — leave game"}
           </Btn>
+          )}
         </Card>
       ) : (
         <Card>
@@ -671,6 +677,7 @@ function GameConfirmed({ poll, profile }) {
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <Pill color={colors.accent}>📅 {gameTime}</Pill>
           <Pill color={colors.grassLight}>👥 {(poll.players || []).length} players</Pill>
+          {poll.teams_locked && <Pill color={colors.grassLight}>🔐 Locked</Pill>}
         </div>
         {poll.notes && (
           <div style={{ background: colors.pitchMid, borderRadius: 8, padding: '8px 12px', marginTop: 12, fontSize: 13, color: colors.white }}>
@@ -1090,6 +1097,7 @@ export default function PollPage({ poll: initialPoll, error }) {
   const [hasAccess, setHasAccess] = useState(null)
   const [pollGroups, setPollGroups] = useState([])
   const [showLeaveModal, setShowLeaveModal] = useState(false)
+  const [isTentative, setIsTentative] = useState(false)
 
   useEffect(() => {
     const saved = localStorage.getItem('pitchup_player')
@@ -1182,6 +1190,7 @@ export default function PollPage({ poll: initialPoll, error }) {
   const active = getActivePlayers(poll)
   const waitlist = getWaitlist(poll)
   const totalSpots = getTotalSpots(active)
+  const tentatives = getTentativePlayers(poll)
   const venue = findLocation(poll.location)
   const myEntry = (poll.players || []).find(p => profile
     ? p.playerId === profile.id
@@ -1238,7 +1247,8 @@ export default function PollPage({ poll: initialPoll, error }) {
   }
 
   const handleVote = async () => {
-    if (!name.trim() || selectedSlots.length === 0) return
+    if (!name.trim()) return
+    if (!isTentative && selectedSlots.length === 0) return
     if (matchedPlayer && !/^\d{4,6}$/.test(pin)) {
       setToast(`"${matchedPlayer.name}" already has a profile — enter their PIN to confirm it's you`)
       return
@@ -1267,11 +1277,12 @@ export default function PollPage({ poll: initialPoll, error }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: name.trim(),
-          slots: selectedSlots,
+          slots: isTentative ? [] : selectedSlots,
+          tentative: isTentative,
           playerId,
           positions,
-          guests,
-          guestPositions: guestPositions.slice(0, guests),
+          guests: isTentative ? 0 : guests,
+          guestPositions: isTentative ? [] : guestPositions.slice(0, guests),
           note: note.trim() || undefined,
         }),
       })
@@ -1281,7 +1292,7 @@ export default function PollPage({ poll: initialPoll, error }) {
       // Persist the voted name for anonymous players so they can find their
       // entry (and leave) when they return to the page without a profile.
       if (!playerId) localStorage.setItem(`pitchup_vote_${poll.id}`, name.trim())
-      setKicking(true)
+      if (!isTentative) setKicking(true)
       setTimeout(() => setSubmitted(true), 400)
     } catch (e) {
       setToast(e.message || 'Something went wrong')
@@ -1298,18 +1309,20 @@ export default function PollPage({ poll: initialPoll, error }) {
         <Card className="vote-success">
           <div style={{ textAlign: 'center', padding: '20px 0' }}>
             {!onWaitlist && totalSpots >= poll.min_players && <GoalCelebration />}
-            <div style={{ fontSize: 40, marginBottom: 10 }} className={!onWaitlist && totalSpots >= poll.min_players ? 'progress-ball' : ''}>
-              {onWaitlist ? '⏳' : '✅'}
+            <div style={{ fontSize: 40, marginBottom: 10 }} className={!myEntry?.tentative && !onWaitlist && totalSpots >= poll.min_players ? 'progress-ball' : ''}>
+              {myEntry?.tentative ? '⚡' : onWaitlist ? '⏳' : '✅'}
             </div>
             <h2 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 8px' }}>
-              {onWaitlist ? "You're on the waiting list" : totalSpots >= poll.min_players ? "You're in — game is on! ⚽" : "You're in!"}
+              {myEntry?.tentative ? "You're marked as tentative" : onWaitlist ? "You're on the waiting list" : totalSpots >= poll.min_players ? "You're in — game is on! ⚽" : "You're in!"}
             </h2>
             <p style={{ color: colors.muted, fontSize: 13 }}>
-              {onWaitlist
-                ? `All ${poll.max_players} spots are taken — you're next in line and will be moved up automatically if someone drops out.`
-                : totalSpots >= poll.min_players
-                  ? `The squad is full! The organiser will lock in the time and you'll get a notification with all the details.`
-                  : `Still filling up. Once ${poll.min_players}+ players join, the organiser gets notified and confirms the time — you'll hear back!`}
+              {myEntry?.tentative
+                ? "We've noted you as tentative. When you know for sure, come back and select a time slot to confirm your spot."
+                : onWaitlist
+                  ? `All ${poll.max_players} spots are taken — you're next in line and will be moved up automatically if someone drops out.`
+                  : totalSpots >= poll.min_players
+                    ? `The squad is full! The organiser will lock in the time and you'll get a notification with all the details.`
+                    : `Still filling up. Once ${poll.min_players}+ players join, the organiser gets notified and confirms the time — you'll hear back!`}
             </p>
             <ProgressBar value={totalSpots} max={poll.min_players} />
             <p style={{ color: colors.muted, fontSize: 13, textAlign: 'center', marginBottom: 16 }}>
@@ -1417,6 +1430,16 @@ export default function PollPage({ poll: initialPoll, error }) {
         <div style={{ display: 'flex', flexWrap: 'wrap' }}>
           {active.map((p, i) => <PlayerChip key={i} name={p.name} avatar={p.avatar_url} meta={p.note || (p.guests ? `+${p.guests} guest${p.guests > 1 ? 's' : ''}` : p.positions?.length ? p.positions.join(', ') : undefined)} />)}
         </div>
+        {tentatives.length > 0 && (
+          <div style={{ marginTop: 10 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#f59e0b', margin: '0 0 6px' }}>
+              ⚡ Tentative ({tentatives.length})
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap' }}>
+              {tentatives.map((p, i) => <PlayerChip key={i} name={p.name} color="#f59e0b" avatar={p.avatar_url} />)}
+            </div>
+          </div>
+        )}
         {waitlist.length > 0 && (
           <>
             <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.muted, margin: '10px 0 6px' }}>
@@ -1509,8 +1532,37 @@ export default function PollPage({ poll: initialPoll, error }) {
             )}
           </>
         )}
-        <p style={{ color: colors.white, fontSize: 13, fontWeight: 600, margin: '16px 0 6px' }}>Bringing anyone?</p>
-        <div style={{ display: 'flex', gap: 8, marginBottom: guests > 0 ? 10 : 14 }}>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+          <button
+            onClick={() => setIsTentative(false)}
+            style={{
+              flex: 1, padding: '10px 0', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: 14, transition: 'all 0.15s',
+              border: `2px solid ${!isTentative ? colors.grassLight : colors.grass + '33'}`,
+              background: !isTentative ? colors.grassLight + '18' : 'transparent',
+              color: !isTentative ? colors.grassLight : colors.muted,
+            }}
+          >
+            ⚽ I can make it
+          </button>
+          <button
+            onClick={() => setIsTentative(true)}
+            style={{
+              flex: 1, padding: '10px 0', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: 14, transition: 'all 0.15s',
+              border: `2px solid ${isTentative ? '#f59e0b' : colors.grass + '33'}`,
+              background: isTentative ? 'rgba(245,158,11,0.12)' : 'transparent',
+              color: isTentative ? '#f59e0b' : colors.muted,
+            }}
+          >
+            ⚡ Tentative
+          </button>
+        </div>
+        {isTentative && (
+          <p style={{ color: '#f59e0b', fontSize: 13, margin: '0 0 16px', background: 'rgba(245,158,11,0.08)', borderRadius: 8, padding: '10px 12px' }}>
+            You'll be listed as tentative — no time slot needed. Come back to confirm once you're sure.
+          </p>
+        )}
+        {!isTentative && <p style={{ color: colors.white, fontSize: 13, fontWeight: 600, margin: '0 0 6px' }}>Bringing anyone?</p>}
+        {!isTentative && <div style={{ display: 'flex', gap: 8, marginBottom: guests > 0 ? 10 : 14 }}>
           {[0, 1, 2].map(n => (
             <button
               key={n}
@@ -1537,8 +1589,8 @@ export default function PollPage({ poll: initialPoll, error }) {
               {n === 0 ? 'Just me' : `+${n} guest${n > 1 ? 's' : ''}`}
             </button>
           ))}
-        </div>
-        {guests > 0 && (
+        </div>}
+        {!isTentative && guests > 0 && (
           <div style={{ marginBottom: 14 }}>
             {Array.from({ length: guests }, (_, i) => (
               <div key={i} style={{ marginBottom: 10 }}>
@@ -1570,9 +1622,9 @@ export default function PollPage({ poll: initialPoll, error }) {
             ))}
           </div>
         )}
-        <p style={{ color: colors.white, fontSize: 13, fontWeight: 600, margin: '16px 0 2px' }}>📅 Pick your time</p>
-        <p style={{ color: colors.muted, fontSize: 12, margin: '0 0 10px' }}>👆 Tap a slot to join — select all times that work for you.</p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {!isTentative && <p style={{ color: colors.white, fontSize: 13, fontWeight: 600, margin: '16px 0 2px' }}>📅 Pick your time</p>}
+        {!isTentative && <p style={{ color: colors.muted, fontSize: 12, margin: '0 0 10px' }}>👆 Tap a slot to join — select all times that work for you.</p>}
+        {!isTentative && <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {(() => {
             return poll.slots.map((slot, i) => {
               const voters = (poll.players || []).filter(p => (p.slots || []).includes(i))
@@ -1636,7 +1688,7 @@ export default function PollPage({ poll: initialPoll, error }) {
               )
             })
           })()}
-        </div>
+        </div>}
         <Input
           value={note}
           onChange={e => setNote(e.target.value)}
@@ -1664,24 +1716,24 @@ export default function PollPage({ poll: initialPoll, error }) {
         <div style={{ marginTop: 16 }}>
           <button
             onClick={handleVote}
-            disabled={!name.trim() || selectedSlots.length === 0 || loading || kicking || (matchedPlayer && !/^\d{4,6}$/.test(pin)) || (poll.visibility === 'groups' && hasAccess === false) || (!profile && !guestTerms)}
+            disabled={!name.trim() || (!isTentative && selectedSlots.length === 0) || loading || kicking || (matchedPlayer && !/^\d{4,6}$/.test(pin)) || (poll.visibility === 'groups' && hasAccess === false) || (!profile && !guestTerms)}
             style={{
               width: '100%',
-              background: selectedSlots.length > 0 && name.trim()
-                ? `linear-gradient(135deg, ${colors.grassLight} 0%, ${colors.grass} 100%)`
+              background: (isTentative || selectedSlots.length > 0) && name.trim()
+                ? isTentative ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' : `linear-gradient(135deg, ${colors.grassLight} 0%, ${colors.grass} 100%)`
                 : colors.pitchMid,
-              color: selectedSlots.length > 0 && name.trim() ? '#0a1628' : colors.muted,
-              border: `2px solid ${selectedSlots.length > 0 && name.trim() ? colors.grassLight : colors.grass + '22'}`,
+              color: (isTentative || selectedSlots.length > 0) && name.trim() ? '#0a1628' : colors.muted,
+              border: `2px solid ${(isTentative || selectedSlots.length > 0) && name.trim() ? (isTentative ? '#f59e0b' : colors.grassLight) : colors.grass + '22'}`,
               borderRadius: 14,
               padding: '17px 20px',
               fontSize: 17,
               fontWeight: 800,
-              cursor: selectedSlots.length > 0 ? 'pointer' : 'default',
+              cursor: (isTentative || selectedSlots.length > 0) ? 'pointer' : 'default',
               transition: 'all 0.2s',
-              boxShadow: selectedSlots.length > 0 && name.trim() ? `0 4px 20px ${colors.grassLight}33` : 'none',
+              boxShadow: (isTentative || selectedSlots.length > 0) && name.trim() ? `0 4px 20px ${isTentative ? '#f59e0b' : colors.grassLight}33` : 'none',
             }}
           >
-            {kicking ? <>Joining <span className="kick-ball">{poll.game_type === 'watch_party' ? '📺' : '⚽'}</span></> : loading ? 'Joining...' : poll.game_type === 'watch_party' ? "I'm in — count me 📺" : "I'm in — count me ⚽"}
+            {kicking ? <>Joining <span className="kick-ball">{poll.game_type === 'watch_party' ? '📺' : '⚽'}</span></> : loading ? 'Saving...' : isTentative ? '⚡ Mark me as tentative' : poll.game_type === 'watch_party' ? "I'm in — count me 📺" : "I'm in — count me ⚽"}
           </button>
         </div>
         {name.trim() && !myEntry && (() => {

@@ -220,6 +220,33 @@ export default async function handler(req, res) {
         return res.status(200).json(data)
       }
 
+      if (action === 'lockTeams') {
+        if (poll.status !== 'confirmed') return res.status(400).json({ error: 'Game must be confirmed first' })
+        const { data, error } = await db
+          .from('polls')
+          .update({ teams_locked: true, version: poll.version + 1 })
+          .eq('id', id).select().single()
+        if (error) throw error
+        try {
+          await sendPushToAll({
+            title: '🔐 Teams locked!',
+            body: `${data.title} — teams are set, see you at ${data.location}!`,
+            url: `/poll/${data.id}`,
+          })
+        } catch (e) { console.error('Lock push failed:', e.message) }
+        return res.status(200).json(data)
+      }
+
+      if (action === 'unlockTeams') {
+        if (poll.status !== 'confirmed') return res.status(400).json({ error: 'Game must be confirmed first' })
+        const { data, error } = await db
+          .from('polls')
+          .update({ teams_locked: false, version: poll.version + 1 })
+          .eq('id', id).select().single()
+        if (error) throw error
+        return res.status(200).json(data)
+      }
+
       if (action === 'setGoals') {
         const { goals } = req.body
         if (poll.status !== 'confirmed') return res.status(400).json({ error: 'Game must be confirmed first' })
