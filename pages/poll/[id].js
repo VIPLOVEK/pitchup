@@ -6,6 +6,7 @@ import { Card, Label, ProgressBar, Btn, Input, Pill, PlayerChip, Avatar, Toast, 
 import { supabase } from '../../lib/supabase'
 import { colors, radius } from '../../lib/tokens'
 import { formatSlot, getActivePlayers, getWaitlist, getTotalSpots, expandWithGuests, getTentativePlayers } from '../../lib/teams'
+import { getCutoffTime } from '../../lib/pollStatus'
 import { findLocation } from '../../lib/locations'
 
 // ── Venue info (map link + boot type) ──────────────────────────────────────────
@@ -1193,6 +1194,29 @@ export default function PollPage({ poll: initialPoll, error }) {
   const totalSpots = getTotalSpots(active)
   const tentatives = getTentativePlayers(poll)
   const venue = findLocation(poll.location)
+
+  // Cutoff countdown — updates every minute
+  const cutoffTime = poll.status === 'open' ? getCutoffTime(poll.slots, poll.cutoff_hours) : null
+  const [cutoffLabel, setCutoffLabel] = useState(() => {
+    if (!cutoffTime) return null
+    const mins = Math.round((cutoffTime - Date.now()) / 60000)
+    if (mins <= 0) return null
+    if (mins < 60) return `Voting closes in ${mins}m`
+    const h = Math.floor(mins / 60), m = mins % 60
+    return `Voting closes in ${h}h${m > 0 ? ` ${m}m` : ''}`
+  })
+  useEffect(() => {
+    if (!cutoffTime) return
+    const tick = () => {
+      const mins = Math.round((cutoffTime - Date.now()) / 60000)
+      if (mins <= 0) { setCutoffLabel(null); return }
+      if (mins < 60) setCutoffLabel(`Voting closes in ${mins}m`)
+      else { const h = Math.floor(mins / 60), m = mins % 60; setCutoffLabel(`Voting closes in ${h}h${m > 0 ? ` ${m}m` : ''}`) }
+    }
+    tick()
+    const id = setInterval(tick, 60000)
+    return () => clearInterval(id)
+  }, [cutoffTime])
   const myEntry = (poll.players || []).find(p => profile
     ? p.playerId === profile.id
     : (name.trim() && p.name.toLowerCase() === name.trim().toLowerCase()))
@@ -1319,12 +1343,12 @@ export default function PollPage({ poll: initialPoll, error }) {
             </h2>
             <p style={{ color: colors.muted, fontSize: 13 }}>
               {myEntry?.tentative
-                ? "We've noted you as tentative. When you know for sure, come back and select a time slot to confirm your spot."
+                ? "You're listed as tentative — no slot needed yet. Come back and tap ⚽ I can make it once you're sure."
                 : onWaitlist
-                  ? `All ${poll.max_players} spots are taken — you're next in line and will be moved up automatically if someone drops out.`
+                  ? `All ${poll.max_players} spots are taken — you're next in line. You'll get a push notification if a spot opens up.`
                   : totalSpots >= poll.min_players
-                    ? `The squad is full! The organiser will lock in the time and you'll get a notification with all the details.`
-                    : `Still filling up. Once ${poll.min_players}+ players join, the organiser gets notified and confirms the time — you'll hear back!`}
+                    ? `The squad is full! The organiser will confirm the time and lock the teams — you'll get notified.`
+                    : `Still filling up. Once ${poll.min_players}+ players join, teams get set and you'll get a notification.`}
             </p>
             <ProgressBar value={totalSpots} max={poll.min_players} />
             <p style={{ color: colors.muted, fontSize: 13, textAlign: 'center', marginBottom: 16 }}>
@@ -1425,10 +1449,22 @@ export default function PollPage({ poll: initialPoll, error }) {
           </div>
         )}
         <ProgressBar value={totalSpots} max={poll.min_players} />
-        <p style={{ color: colors.muted, fontSize: 13, margin: '4px 0 16px' }}>
-          {totalSpots} / {poll.min_players}+ confirmed · {poll.max_players} max
-          {waitlist.length > 0 ? ` · ${waitlist.length} waiting` : ''}
-        </p>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6, margin: '4px 0 16px' }}>
+          <p style={{ color: colors.muted, fontSize: 13, margin: 0 }}>
+            {totalSpots} / {poll.min_players}+ confirmed · {poll.max_players} max
+            {waitlist.length > 0 ? ` · ${waitlist.length} waiting` : ''}
+          </p>
+          {cutoffLabel && (
+            <span style={{
+              fontSize: 11, fontWeight: 700, color: cutoffLabel.includes('m') && !cutoffLabel.includes('h') ? '#ef4444' : '#f59e0b',
+              background: cutoffLabel.includes('m') && !cutoffLabel.includes('h') ? 'rgba(239,68,68,0.1)' : 'rgba(245,158,11,0.1)',
+              border: `1px solid ${cutoffLabel.includes('m') && !cutoffLabel.includes('h') ? 'rgba(239,68,68,0.3)' : 'rgba(245,158,11,0.3)'}`,
+              borderRadius: 20, padding: '3px 10px', whiteSpace: 'nowrap',
+            }}>
+              ⏱ {cutoffLabel}
+            </span>
+          )}
+        </div>
         <div style={{ display: 'flex', flexWrap: 'wrap' }}>
           {active.map((p, i) => <PlayerChip key={i} name={p.name} avatar={p.avatar_url} meta={p.note || (p.guests ? `+${p.guests} guest${p.guests > 1 ? 's' : ''}` : p.positions?.length ? p.positions.join(', ') : undefined)} />)}
         </div>
@@ -1464,7 +1500,7 @@ export default function PollPage({ poll: initialPoll, error }) {
             display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, color: colors.accent,
           }}>
             <span className="floating-ball" style={{ fontSize: 18 }}>⚽</span>
-            Game is on! {totalSpots} players confirmed — waiting for the time to be set.
+            Game is on! {totalSpots} players confirmed — organiser is confirming the time and teams.
           </div>
         )}
       </Card>

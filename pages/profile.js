@@ -762,11 +762,11 @@ export default function ProfilePage() {
             </div>
           )}
           <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 8px' }}>
-            Preferred positions <span style={{ color: colors.muted, fontWeight: 400 }}>(pick as many as you like — leave blank for "Any")</span>
+            Preferred positions <span style={{ color: colors.muted, fontWeight: 400 }}>(pick as many as you like — leave blank for "Any position")</span>
           </p>
           <PositionPicker positions={positions} onToggle={togglePosition} />
           <p style={{ color: colors.muted, fontSize: 13, margin: '12px 0 8px' }}>
-            Skill level <span style={{ color: colors.muted, fontWeight: 400 }}>(used to balance teams — an admin can adjust this too)</span>
+            Skill level <span style={{ color: colors.muted, fontWeight: 400 }}>(used to build balanced teams — skill, position and age are all factored in)</span>
           </p>
           {skillRatingStale && (
             <p style={{ color: colors.accent, fontSize: 12, margin: '0 0 8px' }}>
@@ -890,13 +890,13 @@ export default function ProfilePage() {
           <>
             <Input value={phone} onChange={e => setPhone(e.target.value)} placeholder="Phone number (optional)" />
             <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 8px' }}>
-              Preferred positions <span style={{ color: colors.muted, fontWeight: 400 }}>(pick as many as you like — leave blank for "Any")</span>
+              Preferred positions <span style={{ color: colors.muted, fontWeight: 400 }}>(pick as many as you like — leave blank for "Any position")</span>
             </p>
             <div style={{ marginBottom: 12 }}>
               <PositionPicker positions={positions} onToggle={togglePosition} />
             </div>
             <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 8px' }}>
-              Skill level <span style={{ color: colors.muted, fontWeight: 400 }}>(used to balance teams — an admin can adjust this too)</span>
+              Skill level <span style={{ color: colors.muted, fontWeight: 400 }}>(used to build balanced teams — skill, position and age are all factored in)</span>
             </p>
             <div style={{ marginBottom: 12 }}>
               <PositionSkillsEditor
