@@ -1,5 +1,6 @@
-import { formatSlot } from '../../../lib/teams'
+import { formatSlot, getActivePlayers, expandWithGuests, generateTeams } from '../../../lib/teams'
 import { colors } from '../../../lib/tokens'
+import { supabaseAdmin, isSupabaseConfigured } from '../../../lib/supabase'
 
 function AvatarShare({ name, src }) {
   const initials = (name || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase()
@@ -86,13 +87,35 @@ export default function SharePage({ poll, error }) {
 }
 
 export async function getServerSideProps({ params }) {
+  if (!isSupabaseConfigured()) return { props: { error: true } }
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-    const res = await fetch(`${baseUrl}/api/poll/${params.id}`)
-    if (!res.ok) return { props: { error: true } }
-    const poll = await res.json()
-    if (poll.error) return { props: { error: true } }
-    return { props: { poll } }
+    const db = supabaseAdmin()
+    const { data: poll, error } = await db.from('polls').select('*').eq('id', params.id).single()
+    if (error || !poll || poll.status !== 'confirmed') return { props: { error: true } }
+
+    // Rebuild teams from current active players so the share page always
+    // reflects who's actually in the game, not a potentially stale snapshot.
+    const active = getActivePlayers(poll)
+    const teams = poll.teams && poll.teams.teamA?.length > 0
+      ? poll.teams  // use stored teams (preserves any manual edits)
+      : generateTeams(expandWithGuests(active))
+
+    // Cross-reference stored teams against current active list so players who
+    // dropped out after confirmation don't appear on the share card.
+    const activeNames = new Set(active.map(p => p.name.toLowerCase()))
+    const filterStale = list => list.filter(p => p.isGuest || activeNames.has(p.name.toLowerCase()))
+
+    return {
+      props: {
+        poll: {
+          ...poll,
+          teams: {
+            teamA: filterStale(teams.teamA || []),
+            teamB: filterStale(teams.teamB || []),
+          },
+        },
+      },
+    }
   } catch {
     return { props: { error: true } }
   }
