@@ -22,9 +22,21 @@ export default function SharePage({ poll, error }) {
     )
   }
 
+  const noSplit = poll.no_team_split || false
   const { teamA = [], teamB = [] } = poll.teams || {}
   const nameA = poll.team_a_name || 'Team A'
   const nameB = poll.team_b_name || 'Team B'
+  // For no-split games, collect all players in a single squad list
+  const squad = noSplit
+    ? [...teamA, ...teamB].filter(p => !p.isGuest)
+    : []
+
+  const playerRow = (p, i, list, borderColor) => (
+    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: colors.white, padding: '5px 0', borderBottom: i < list.length - 1 ? `1px solid ${borderColor}` : 'none' }}>
+      <AvatarShare name={p.name} src={p.avatar_url} />
+      {p.name}
+    </div>
+  )
 
   return (
     <div style={{
@@ -40,6 +52,9 @@ export default function SharePage({ poll, error }) {
       <div style={{ textAlign: 'center', marginBottom: 28, paddingTop: 16 }}>
         <div style={{ fontSize: 36, marginBottom: 8 }}>⚽</div>
         <h1 style={{ fontSize: 22, fontWeight: 900, color: colors.white, margin: '0 0 4px', letterSpacing: '-0.5px' }}>{poll.title}</h1>
+        {poll.opponent && (
+          <p style={{ fontSize: 15, fontWeight: 700, color: colors.accent, margin: '2px 0 4px' }}>vs {poll.opponent}</p>
+        )}
         <p style={{ color: colors.muted, fontSize: 13, margin: 0 }}>📅 {formatSlot(poll.game_time)} · 📍 {poll.location}</p>
         {poll.score_a != null && (
           <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
@@ -50,34 +65,31 @@ export default function SharePage({ poll, error }) {
         )}
       </div>
 
-      {/* Teams */}
-      <div style={{ display: 'flex', gap: 16, width: '100%', maxWidth: 480 }}>
-        {/* Team A */}
-        <div style={{ flex: 1, background: `${colors.teamA}18`, border: `2px solid ${colors.teamA}44`, borderRadius: 16, padding: 16 }}>
-          <div style={{ fontSize: 13, fontWeight: 900, color: colors.teamA, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>
-            🟦 {nameA}
+      {noSplit ? (
+        /* Single squad list for practice / competition vs external opponent */
+        <div style={{ width: '100%', maxWidth: 480, background: `${colors.grassLight}18`, border: `2px solid ${colors.grassLight}44`, borderRadius: 16, padding: 16 }}>
+          <div style={{ fontSize: 13, fontWeight: 900, color: colors.grassLight, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>
+            ⚽ Squad ({squad.length})
           </div>
-          {teamA.filter(p => !p.isGuest).map((p, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: colors.white, padding: '5px 0', borderBottom: i < teamA.filter(x=>!x.isGuest).length - 1 ? `1px solid ${colors.teamA}22` : 'none' }}>
-              <AvatarShare name={p.name} src={p.avatar_url} />
-              {p.name}
-            </div>
-          ))}
+          {squad.map((p, i) => playerRow(p, i, squad, `${colors.grassLight}22`))}
         </div>
-
-        {/* Team B */}
-        <div style={{ flex: 1, background: `${colors.teamB}18`, border: `2px solid ${colors.teamB}44`, borderRadius: 16, padding: 16 }}>
-          <div style={{ fontSize: 13, fontWeight: 900, color: colors.teamB, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>
-            🟥 {nameB}
+      ) : (
+        /* Two-team split for internal pickup games */
+        <div style={{ display: 'flex', gap: 16, width: '100%', maxWidth: 480 }}>
+          <div style={{ flex: 1, background: `${colors.teamA}18`, border: `2px solid ${colors.teamA}44`, borderRadius: 16, padding: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 900, color: colors.teamA, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>
+              🟦 {nameA}
+            </div>
+            {teamA.filter(p => !p.isGuest).map((p, i, arr) => playerRow(p, i, arr, `${colors.teamA}22`))}
           </div>
-          {teamB.filter(p => !p.isGuest).map((p, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: colors.white, padding: '5px 0', borderBottom: i < teamB.filter(x=>!x.isGuest).length - 1 ? `1px solid ${colors.teamB}22` : 'none' }}>
-              <AvatarShare name={p.name} src={p.avatar_url} />
-              {p.name}
+          <div style={{ flex: 1, background: `${colors.teamB}18`, border: `2px solid ${colors.teamB}44`, borderRadius: 16, padding: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 900, color: colors.teamB, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>
+              🟥 {nameB}
             </div>
-          ))}
+            {teamB.filter(p => !p.isGuest).map((p, i, arr) => playerRow(p, i, arr, `${colors.teamB}22`))}
+          </div>
         </div>
-      </div>
+      )}
 
       <div style={{ marginTop: 28, fontSize: 12, color: colors.muted, textAlign: 'center' }}>
         pitchup.app · screenshot &amp; share ⚽
