@@ -321,6 +321,15 @@ export default async function handler(req, res) {
         return res.status(200).json(data)
       }
 
+      if (action === 'toggleClubSplit') {
+        const { data, error } = await db
+          .from('polls')
+          .update({ split_by_club: !poll.split_by_club, version: poll.version + 1 })
+          .eq('id', id).select().single()
+        if (error) throw error
+        return res.status(200).json(data)
+      }
+
       if (action === 'updateDetails') {
         const { title, location, slots, minPlayers, maxPlayers, notes, gameType, opponent, noTeamSplit, cutoffHours } = req.body
         if (poll.status !== 'open') return res.status(400).json({ error: 'Poll is no longer open' })

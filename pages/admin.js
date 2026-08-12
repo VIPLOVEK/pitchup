@@ -1046,6 +1046,11 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
             🎲 New team names
           </Btn>
         )}
+        {!noTeamSplit && isOpen && (
+          <Btn small variant="ghost" onClick={() => doAction('toggleClubSplit')} disabled={loading}>
+            {poll.split_by_club ? '🏷️ Club split: ON' : '🏷️ Club split: OFF'}
+          </Btn>
+        )}
         {isConfirmed && (
           <Btn small variant="ghost" onClick={() => window.open(`/ground/${poll.id}`, '_blank')} disabled={loading}>
             📍 Ground
