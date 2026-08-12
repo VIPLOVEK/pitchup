@@ -29,6 +29,18 @@ const skillSelectStyle = {
   fontWeight: 600,
 }
 
+const inputStyle = {
+  background: colors.pitchMid,
+  border: `1px solid ${colors.grass}44`,
+  borderRadius: 6,
+  color: colors.white,
+  padding: '8px 12px',
+  fontSize: 13,
+  outline: 'none',
+  width: '100%',
+  boxSizing: 'border-box',
+}
+
 function CreatePollForm({ onCreated, groups, prefill }) {
   const [title, setTitle] = useState(prefill?.title || 'Weekend Pickup ⚽')
   const [location, setLocation] = useState(() => {
@@ -390,6 +402,8 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
   const [editNoShows, setEditNoShows] = useState([])
   const [editingDetails, setEditingDetails] = useState(false)
   const [detailsError, setDetailsError] = useState('')
+  const [clubNameAEdit, setClubNameAEdit] = useState(poll.team_a_name || '')
+  const [clubNameBEdit, setClubNameBEdit] = useState(poll.team_b_name || '')
   const [editTitle, setEditTitle] = useState(poll.title)
   const [editLocation, setEditLocation] = useState(poll.location)
   const [editMinPlayers, setEditMinPlayers] = useState(poll.min_players)
@@ -1075,17 +1089,13 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
             {poll.split_by_club ? '🏷️ Club split: ON' : '🏷️ Club split: OFF'}
           </Btn>
         )}
-        {poll.split_by_club && (() => {
-          const [na, setNa] = React.useState(poll.team_a_name || '')
-          const [nb, setNb] = React.useState(poll.team_b_name || '')
-          return (
-            <div style={{ display: 'flex', gap: 6, marginTop: 4, width: '100%' }}>
-              <input value={na} onChange={e => setNa(e.target.value)} placeholder="Club A name" style={{ flex: 1, background: colors.pitchMid, border: `1px solid ${colors.grass}44`, borderRadius: 6, color: colors.white, padding: '5px 8px', fontSize: 12 }} />
-              <input value={nb} onChange={e => setNb(e.target.value)} placeholder="Club B name" style={{ flex: 1, background: colors.pitchMid, border: `1px solid ${colors.grass}44`, borderRadius: 6, color: colors.white, padding: '5px 8px', fontSize: 12 }} />
-              <Btn small onClick={() => doAction('setTeamNames', 'PATCH', { teamAName: na, teamBName: nb })} disabled={loading || !na.trim() || !nb.trim()}>Save</Btn>
-            </div>
-          )
-        })()}
+        {poll.split_by_club && (
+          <div style={{ display: 'flex', gap: 6, marginTop: 4, width: '100%' }}>
+            <input value={clubNameAEdit} onChange={e => setClubNameAEdit(e.target.value)} placeholder="Club A name" style={{ flex: 1, background: colors.pitchMid, border: `1px solid ${colors.grass}44`, borderRadius: 6, color: colors.white, padding: '5px 8px', fontSize: 12 }} />
+            <input value={clubNameBEdit} onChange={e => setClubNameBEdit(e.target.value)} placeholder="Club B name" style={{ flex: 1, background: colors.pitchMid, border: `1px solid ${colors.grass}44`, borderRadius: 6, color: colors.white, padding: '5px 8px', fontSize: 12 }} />
+            <Btn small onClick={() => doAction('setTeamNames', 'PATCH', { teamAName: clubNameAEdit, teamBName: clubNameBEdit })} disabled={loading || !clubNameAEdit.trim() || !clubNameBEdit.trim()}>Save</Btn>
+          </div>
+        )}
         {isConfirmed && (
           <Btn small variant="ghost" onClick={() => window.open(`/ground/${poll.id}`, '_blank')} disabled={loading}>
             📍 Ground
