@@ -264,7 +264,7 @@ export default function Home({ polls, groupPolls = [], groups, announcement, tod
     // If so, quietly add the polls they can see into the list.
     if (!groupPolls.length) return
     try {
-      const profile = JSON.parse(localStorage.getItem('pitchup_profile') || 'null')
+      const profile = JSON.parse(localStorage.getItem('pitchup_player') || 'null')
       const playerId = profile?.id
       if (!playerId) return
       fetch(`/api/players/${playerId}/groups`)
