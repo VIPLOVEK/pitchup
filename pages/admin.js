@@ -49,6 +49,8 @@ function CreatePollForm({ onCreated, groups, prefill }) {
   const [autoLockHours, setAutoLockHours] = useState(prefill?.auto_lock_hours ?? null)
   const [pitchFee, setPitchFee] = useState(prefill?.pitch_fee ? String(prefill.pitch_fee) : '')
   const [splitByClub, setSplitByClub] = useState(prefill?.split_by_club || false)
+  const [clubNameA, setClubNameA] = useState(prefill?.team_a_name || '')
+  const [clubNameB, setClubNameB] = useState(prefill?.team_b_name || '')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -98,6 +100,8 @@ function CreatePollForm({ onCreated, groups, prefill }) {
           opponent: opponent || undefined,
           noTeamSplit,
           splitByClub,
+          clubNameA: splitByClub && clubNameA.trim() ? clubNameA.trim() : undefined,
+          clubNameB: splitByClub && clubNameB.trim() ? clubNameB.trim() : undefined,
           cutoffHours,
           autoLockHours: autoLockHours ?? undefined,
           pitchFee: pitchFee ? Number(pitchFee) : undefined,
@@ -111,6 +115,8 @@ function CreatePollForm({ onCreated, groups, prefill }) {
       setCustomLocation('')
       setNotes('')
       setSplitByClub(false)
+      setClubNameA('')
+      setClubNameB('')
     } catch (e) {
       setError(e.message)
     } finally {
@@ -148,18 +154,36 @@ function CreatePollForm({ onCreated, groups, prefill }) {
             </span>
           </label>
           {!noTeamSplit && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10 }}>
-              <input
-                type="checkbox"
-                id="splitByClub"
-                checked={splitByClub}
-                onChange={e => setSplitByClub(e.target.checked)}
-                style={{ width: 16, height: 16, cursor: 'pointer' }}
-              />
-              <label htmlFor="splitByClub" style={{ color: colors.muted, fontSize: 13, cursor: 'pointer' }}>
-                Split teams by club affiliation (players pick their club when voting)
-              </label>
-            </div>
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10 }}>
+                <input
+                  type="checkbox"
+                  id="splitByClub"
+                  checked={splitByClub}
+                  onChange={e => setSplitByClub(e.target.checked)}
+                  style={{ width: 16, height: 16, cursor: 'pointer' }}
+                />
+                <label htmlFor="splitByClub" style={{ color: colors.muted, fontSize: 13, cursor: 'pointer' }}>
+                  Split teams by club affiliation (players pick their club when voting)
+                </label>
+              </div>
+              {splitByClub && (
+                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                  <input
+                    value={clubNameA}
+                    onChange={e => setClubNameA(e.target.value)}
+                    placeholder="Your club (e.g. Aldie FC)"
+                    style={{ ...inputStyle, flex: 1 }}
+                  />
+                  <input
+                    value={clubNameB}
+                    onChange={e => setClubNameB(e.target.value)}
+                    placeholder="Opponent club (e.g. Pesto Curry)"
+                    style={{ ...inputStyle, flex: 1 }}
+                  />
+                </div>
+              )}
+            </>
           )}
         </>
       )}
@@ -1051,6 +1075,17 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
             {poll.split_by_club ? '🏷️ Club split: ON' : '🏷️ Club split: OFF'}
           </Btn>
         )}
+        {poll.split_by_club && (() => {
+          const [na, setNa] = React.useState(poll.team_a_name || '')
+          const [nb, setNb] = React.useState(poll.team_b_name || '')
+          return (
+            <div style={{ display: 'flex', gap: 6, marginTop: 4, width: '100%' }}>
+              <input value={na} onChange={e => setNa(e.target.value)} placeholder="Club A name" style={{ flex: 1, background: colors.pitchMid, border: `1px solid ${colors.grass}44`, borderRadius: 6, color: colors.white, padding: '5px 8px', fontSize: 12 }} />
+              <input value={nb} onChange={e => setNb(e.target.value)} placeholder="Club B name" style={{ flex: 1, background: colors.pitchMid, border: `1px solid ${colors.grass}44`, borderRadius: 6, color: colors.white, padding: '5px 8px', fontSize: 12 }} />
+              <Btn small onClick={() => doAction('setTeamNames', 'PATCH', { teamAName: na, teamBName: nb })} disabled={loading || !na.trim() || !nb.trim()}>Save</Btn>
+            </div>
+          )
+        })()}
         {isConfirmed && (
           <Btn small variant="ghost" onClick={() => window.open(`/ground/${poll.id}`, '_blank')} disabled={loading}>
             📍 Ground

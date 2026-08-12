@@ -321,6 +321,17 @@ export default async function handler(req, res) {
         return res.status(200).json(data)
       }
 
+      if (action === 'setTeamNames') {
+        const { teamAName, teamBName } = req.body
+        if (!teamAName?.trim() || !teamBName?.trim()) return res.status(400).json({ error: 'Both club names are required' })
+        const { data, error } = await db
+          .from('polls')
+          .update({ team_a_name: teamAName.trim(), team_b_name: teamBName.trim(), version: poll.version + 1 })
+          .eq('id', id).select().single()
+        if (error) throw error
+        return res.status(200).json(data)
+      }
+
       if (action === 'toggleClubSplit') {
         const { data, error } = await db
           .from('polls')
