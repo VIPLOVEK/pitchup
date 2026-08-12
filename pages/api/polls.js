@@ -15,7 +15,7 @@ export default async function handler(req, res) {
     return res.status(503).json({ error: 'Database not configured yet. Add Supabase env vars in Vercel.' })
   }
 
-  const { title, location, slots, minPlayers, maxPlayers, visibility, groupIds, notes, gameType, opponent, noTeamSplit, cutoffHours, autoLockHours, pitchFee } = req.body
+  const { title, location, slots, minPlayers, maxPlayers, visibility, groupIds, notes, gameType, opponent, noTeamSplit, cutoffHours, autoLockHours, pitchFee, splitByClub } = req.body
 
   if (!title || !location || !Array.isArray(slots) || slots.length === 0 || !minPlayers || !maxPlayers) {
     return res.status(400).json({ error: 'Missing required fields' })
@@ -57,6 +57,7 @@ export default async function handler(req, res) {
         cutoff_hours: [1, 1.5, 2, 3, 6, 12, 24].includes(Number(cutoffHours)) ? Number(cutoffHours) : 1.5,
         auto_lock_hours: autoLockHours ?? null,
         pitch_fee: pitchFee ?? null,
+        split_by_club: splitByClub === true,
         team_a_name: teamAName,
         team_b_name: teamBName,
       })

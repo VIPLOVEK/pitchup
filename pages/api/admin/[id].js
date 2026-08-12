@@ -1,7 +1,7 @@
 // PATCH /api/admin/[id] — close poll, shuffle teams
 // DELETE /api/admin/[id] — delete poll
 import { supabaseAdmin, isSupabaseConfigured } from '../../../lib/supabase'
-import { generateTeams, pickBestSlot, formatSlot, getActivePlayers, expandWithGuests, getWaitlist, getTotalSpots } from '../../../lib/teams'
+import { generateTeams, generateTeamsByAffiliation, pickBestSlot, formatSlot, getActivePlayers, expandWithGuests, getWaitlist, getTotalSpots } from '../../../lib/teams'
 import { sendWhatsAppAnnouncement } from '../../../lib/whatsapp'
 import { sendPushToAll, sendPushToPlayer } from '../../../lib/push'
 import { pickTeamNames } from '../../../lib/teamNames'
@@ -78,7 +78,9 @@ export default async function handler(req, res) {
         const expanded = expandWithGuests(refreshedActive)
         const teams = poll.no_team_split
           ? { teamA: expanded, teamB: [] }
-          : generateTeams(expanded)
+          : poll.split_by_club
+            ? generateTeamsByAffiliation(refreshedActive)
+            : generateTeams(expanded)
         const { data, error } = await db
           .from('polls').update({ status: 'confirmed', teams, game_time: gameTime, version: poll.version + 1 }).eq('id', id).select().single()
         if (error) throw error
@@ -141,7 +143,10 @@ export default async function handler(req, res) {
 
       if (action === 'shuffle') {
         if (poll.no_team_split) return res.status(400).json({ error: 'Cannot reshuffle a no-split game' })
-        const teams = generateTeams(await withSkillRatings(db, getActivePlayers(poll)))
+        const active = await withSkillRatings(db, getActivePlayers(poll))
+        const teams = poll.split_by_club
+          ? generateTeamsByAffiliation(active)
+          : generateTeams(active)
         const { teamAName, teamBName } = pickTeamNames()
         const { data, error } = await db
           .from('polls').update({ teams, team_a_name: teamAName, team_b_name: teamBName, version: poll.version + 1 }).eq('id', id).select().single()
@@ -272,8 +277,9 @@ export default async function handler(req, res) {
         }).filter(p => !noShows.includes(p.name))
 
         const active = getActivePlayers({ ...pollData, players })
-        const expanded = expandWithGuests(active)
-        const teams = generateTeams(expanded)
+        const teams = pollData.split_by_club
+          ? generateTeamsByAffiliation(active)
+          : generateTeams(expandWithGuests(active))
 
         const { data, error } = await db.from('polls')
           .update({ players, teams, version: pollData.version + 1 })

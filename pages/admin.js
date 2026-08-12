@@ -48,6 +48,7 @@ function CreatePollForm({ onCreated, groups, prefill }) {
   const [cutoffHours, setCutoffHours] = useState(prefill?.cutoff_hours ?? 1.5)
   const [autoLockHours, setAutoLockHours] = useState(prefill?.auto_lock_hours ?? null)
   const [pitchFee, setPitchFee] = useState(prefill?.pitch_fee ? String(prefill.pitch_fee) : '')
+  const [splitByClub, setSplitByClub] = useState(prefill?.split_by_club || false)
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -96,6 +97,7 @@ function CreatePollForm({ onCreated, groups, prefill }) {
           gameType,
           opponent: opponent || undefined,
           noTeamSplit,
+          splitByClub,
           cutoffHours,
           autoLockHours: autoLockHours ?? undefined,
           pitchFee: pitchFee ? Number(pitchFee) : undefined,
@@ -108,6 +110,7 @@ function CreatePollForm({ onCreated, groups, prefill }) {
       setTitle('Weekend Pickup ⚽')
       setCustomLocation('')
       setNotes('')
+      setSplitByClub(false)
     } catch (e) {
       setError(e.message)
     } finally {
@@ -136,13 +139,29 @@ function CreatePollForm({ onCreated, groups, prefill }) {
       )}
 
       {gameType !== 'watch_party' && (
-        <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: colors.white, padding: '6px 0 10px', cursor: 'pointer' }}>
-          <input type="checkbox" checked={noTeamSplit} onChange={e => setNoTeamSplit(e.target.checked)} />
-          <span>
-            <strong>No team split</strong>
-            <span style={{ color: colors.muted, marginLeft: 6 }}>— whole squad plays together (e.g. vs external team)</span>
-          </span>
-        </label>
+        <>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: colors.white, padding: '6px 0 10px', cursor: 'pointer' }}>
+            <input type="checkbox" checked={noTeamSplit} onChange={e => setNoTeamSplit(e.target.checked)} />
+            <span>
+              <strong>No team split</strong>
+              <span style={{ color: colors.muted, marginLeft: 6 }}>— whole squad plays together (e.g. vs external team)</span>
+            </span>
+          </label>
+          {!noTeamSplit && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10 }}>
+              <input
+                type="checkbox"
+                id="splitByClub"
+                checked={splitByClub}
+                onChange={e => setSplitByClub(e.target.checked)}
+                style={{ width: 16, height: 16, cursor: 'pointer' }}
+              />
+              <label htmlFor="splitByClub" style={{ color: colors.muted, fontSize: 13, cursor: 'pointer' }}>
+                Split teams by club affiliation (players pick their club when voting)
+              </label>
+            </div>
+          )}
+        </>
       )}
 
       <select value={location} onChange={e => setLocation(e.target.value)} style={selectStyle}>

@@ -91,7 +91,7 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'POST') {
-    const { name, slots: votedSlots, playerId, positions, guests, note, guestPositions, tentative, yearOfBirth } = req.body
+    const { name, slots: votedSlots, playerId, positions, guests, note, guestPositions, tentative, yearOfBirth, clubTeam } = req.body
     if (!name) return res.status(400).json({ error: 'name is required' })
     const guestCount = Math.min(Math.max(0, parseInt(guests, 10) || 0), 2)
     const safeGuestPositions = Array.isArray(guestPositions) ? guestPositions.slice(0, guestCount) : []
@@ -155,13 +155,13 @@ export default async function handler(req, res) {
           // Update existing entry — player is changing their slot selection
           updatedPlayers = players.map((p, idx) =>
             idx === existingIdx
-              ? { ...p, slots: votedSlots || [], tentative: tentative || false, guests: guestCount, guestPositions: safeGuestPositions, note: noteText, ...(avatarUrl ? { avatar_url: avatarUrl } : {}), ...(resolvedBirthYear ? { year_of_birth: resolvedBirthYear } : {}) }
+              ? { ...p, slots: votedSlots || [], tentative: tentative || false, guests: guestCount, guestPositions: safeGuestPositions, note: noteText, ...(avatarUrl ? { avatar_url: avatarUrl } : {}), ...(resolvedBirthYear ? { year_of_birth: resolvedBirthYear } : {}), ...(clubTeam !== undefined ? { club_team: clubTeam || null } : {}) }
               : p
           )
         } else {
           updatedPlayers = [
             ...players,
-            { name: name.trim(), slots: votedSlots || [], tentative: tentative || false, playerId: playerId || null, positions: positions || [], guests: guestCount, guestPositions: safeGuestPositions, note: noteText, avatar_url: avatarUrl, year_of_birth: resolvedBirthYear },
+            { name: name.trim(), slots: votedSlots || [], tentative: tentative || false, playerId: playerId || null, positions: positions || [], guests: guestCount, guestPositions: safeGuestPositions, note: noteText, avatar_url: avatarUrl, year_of_birth: resolvedBirthYear, club_team: clubTeam || null },
           ]
         }
 

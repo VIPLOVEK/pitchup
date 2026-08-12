@@ -1135,6 +1135,7 @@ export default function PollPage({ poll: initialPoll, error }) {
   const [showLeaveModal, setShowLeaveModal] = useState(false)
   const [isTentative, setIsTentative] = useState(false)
   const [birthYear, setBirthYear] = useState('')
+  const [clubTeam, setClubTeam] = useState(null)
 
   useEffect(() => {
     const saved = localStorage.getItem('pitchup_player')
@@ -1193,6 +1194,9 @@ export default function PollPage({ poll: initialPoll, error }) {
     if (entry?.slots?.length) {
       setSelectedSlots(entry.slots)
       slotsSeededRef.current = true
+    }
+    if (entry?.club_team) {
+      setClubTeam(entry.club_team)
     }
   }, [poll?.players, profile?.id, name])
 
@@ -1345,6 +1349,7 @@ export default function PollPage({ poll: initialPoll, error }) {
           guestPositions: isTentative ? [] : guestPositions.slice(0, guests),
           note: note.trim() || undefined,
           yearOfBirth: birthYear ? parseInt(birthYear, 10) : undefined,
+          clubTeam: poll.split_by_club ? clubTeam : undefined,
         }),
       })
       const data = await res.json()
@@ -1709,6 +1714,37 @@ export default function PollPage({ poll: initialPoll, error }) {
             ))}
           </div>
         )}
+        {poll.split_by_club && !isTentative && (
+          <div style={{ marginBottom: 16 }}>
+            <p style={{ fontWeight: 700, fontSize: 14, color: colors.white, margin: '0 0 8px' }}>
+              ⚽ Which team are you playing for?
+            </p>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {[
+                { key: 'A', label: poll.team_a_name || 'Team A', color: '#63b3ed' },
+                { key: 'B', label: poll.team_b_name || 'Team B', color: '#f687b3' },
+              ].map(({ key, label, color }) => (
+                <button
+                  key={key}
+                  onClick={() => setClubTeam(key)}
+                  style={{
+                    flex: 1,
+                    padding: '10px 0',
+                    borderRadius: 10,
+                    border: `2px solid ${clubTeam === key ? color : color + '44'}`,
+                    background: clubTeam === key ? color + '22' : 'transparent',
+                    color: clubTeam === key ? color : colors.muted,
+                    fontWeight: 700,
+                    fontSize: 14,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         {!isTentative && <p style={{ color: colors.white, fontSize: 13, fontWeight: 600, margin: '16px 0 2px' }}>📅 Pick your time</p>}
         {!isTentative && <p style={{ color: colors.muted, fontSize: 12, margin: '0 0 10px' }}>👆 Tap a slot to join — select all times that work for you.</p>}
         {!isTentative && <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -1803,7 +1839,7 @@ export default function PollPage({ poll: initialPoll, error }) {
         <div style={{ marginTop: 16 }}>
           <button
             onClick={handleVote}
-            disabled={!name.trim() || (!isTentative && selectedSlots.length === 0) || loading || kicking || (matchedPlayer && !/^\d{4,6}$/.test(pin)) || (poll.visibility === 'groups' && hasAccess === false) || (!profile && !guestTerms) || (profile && !profile.year_of_birth && birthYear.length !== 4)}
+            disabled={!name.trim() || (!isTentative && selectedSlots.length === 0) || loading || kicking || (matchedPlayer && !/^\d{4,6}$/.test(pin)) || (poll.visibility === 'groups' && hasAccess === false) || (!profile && !guestTerms) || (profile && !profile.year_of_birth && birthYear.length !== 4) || (poll.split_by_club && !clubTeam && !isTentative)}
             style={{
               width: '100%',
               background: (isTentative || selectedSlots.length > 0) && name.trim()
