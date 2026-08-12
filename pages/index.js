@@ -248,14 +248,46 @@ function TodayWCMatches({ matches }) {
   )
 }
 
-export default function Home({ polls, groups, announcement, todayWcMatches }) {
+export default function Home({ polls, groupPolls = [], groups, announcement, todayWcMatches }) {
   const [showRequest, setShowRequest] = useState(false)
   const [myName, setMyName] = useState('')
+  const [visiblePolls, setVisiblePolls] = useState(polls)
   const now = new Date()
   const today = now.toDateString()
 
   useEffect(() => {
-    try { setMyName(JSON.parse(localStorage.getItem('pitchup_player') || '{}').name || '') } catch {}
+    let name = ''
+    try { name = JSON.parse(localStorage.getItem('pitchup_player') || '{}').name || '' } catch {}
+    setMyName(name)
+
+    // After mount, check if the player is a member of any restricted groups.
+    // If so, quietly add the polls they can see into the list.
+    if (!groupPolls.length) return
+    try {
+      const profile = JSON.parse(localStorage.getItem('pitchup_profile') || 'null')
+      const playerId = profile?.id
+      if (!playerId) return
+      fetch(`/api/players/${playerId}/groups`)
+        .then(r => r.ok ? r.json() : { groupIds: [] })
+        .then(({ groupIds }) => {
+          if (!groupIds.length) return
+          const accessible = groupPolls.filter(p =>
+            (p.group_ids || []).some(gid => groupIds.includes(gid))
+          )
+          if (!accessible.length) return
+          setVisiblePolls(prev => {
+            const existing = new Set(prev.map(p => p.id))
+            const merged = [...prev, ...accessible.filter(p => !existing.has(p.id))]
+            merged.sort((a, b) => {
+              const da = a.game_time ? new Date(a.game_time) : new Date(Math.min(...(a.slots || []).map(s => new Date(s))))
+              const db2 = b.game_time ? new Date(b.game_time) : new Date(Math.min(...(b.slots || []).map(s => new Date(s))))
+              return da - db2
+            })
+            return merged
+          })
+        })
+        .catch(() => {})
+    } catch {}
   }, [])
 
   function effectiveDate(poll) {
@@ -294,7 +326,7 @@ export default function Home({ polls, groups, announcement, todayWcMatches }) {
     return `Kickoff in ${mins}m`
   }
 
-  const activePolls = polls
+  const activePolls = visiblePolls
     .filter(p => {
       if (p.status !== 'open' && p.status !== 'confirmed') return false
       // confirmed with no date → keep (date TBD)
@@ -304,7 +336,7 @@ export default function Home({ polls, groups, announcement, todayWcMatches }) {
     })
     .sort((a, b) => effectiveDate(a) - effectiveDate(b))
 
-  const pastPolls = polls.filter(p =>
+  const pastPolls = visiblePolls.filter(p =>
     p.status === 'cancelled' || p.status === 'finished' ||
     (p.status === 'confirmed' && p.game_time && new Date(p.game_time) <= now) ||
     (p.status === 'open' && effectiveDate(p) <= now)
@@ -514,7 +546,7 @@ export default function Home({ polls, groups, announcement, todayWcMatches }) {
         </div>
       )}
 
-      {polls.length === 0 && (
+      {visiblePolls.length === 0 && (
         <div style={{ textAlign: 'center', marginTop: 20 }}>
           <Link href="/admin" style={{
             display: 'inline-block',
@@ -542,15 +574,21 @@ export async function getServerSideProps() {
       fetch(`${baseUrl}/api/announcement`),
       fetch(`${baseUrl}/api/worldcup/matches?noSync=1`).catch(() => null),
     ])
-    if (!pollsRes.ok) return { props: { polls: [], groups: [], announcement: null, todayWcMatches: [] } }
-    const polls = await pollsRes.json()
+    if (!pollsRes.ok) return { props: { polls: [], groupPolls: [], groups: [], announcement: null, todayWcMatches: [] } }
+    const allPolls = await pollsRes.json()
     const groups = groupsRes.ok ? await groupsRes.json() : []
     const announcement = announcementRes.ok ? await announcementRes.json() : null
     const today = new Date().toISOString().split('T')[0]
     const allWcMatches = wcRes?.ok ? await wcRes.json() : []
     const todayWcMatches = allWcMatches.filter(m => m.match_date && m.match_date.startsWith(today))
-    return { props: { polls, groups, announcement, todayWcMatches } }
+
+    // Group-restricted polls are hidden from SSR — only added back client-side
+    // for players who are approved members, so non-members never see them at all.
+    const polls = allPolls.filter(p => p.visibility !== 'groups')
+    const groupPolls = allPolls.filter(p => p.visibility === 'groups')
+
+    return { props: { polls, groupPolls, groups, announcement, todayWcMatches } }
   } catch {
-    return { props: { polls: [], groups: [], announcement: null, todayWcMatches: [] } }
+    return { props: { polls: [], groupPolls: [], groups: [], announcement: null, todayWcMatches: [] } }
   }
 }
