@@ -300,14 +300,41 @@ function WaitlistCard({ poll, waitlist, myEntry, onWaitlist, name, setName, prof
       {myEntry ? (
         <Card>
           <div style={{ textAlign: 'center', padding: '10px 0 14px' }}>
-            <div style={{ fontSize: 28, marginBottom: 8 }}>{onWaitlist ? '⏳' : '✅'}</div>
+            <div style={{ fontSize: 28, marginBottom: 8 }}>{myEntry.tentative ? '⚡' : onWaitlist ? '⏳' : '✅'}</div>
             <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>
-              {onWaitlist ? "You're on the waitlist" : "You're in the squad!"}
+              {myEntry.tentative ? "You're listed as tentative" : onWaitlist ? "You're on the waitlist" : "You're in the squad!"}
             </div>
             <p style={{ color: colors.muted, fontSize: 13 }}>
-              {onWaitlist ? "We'll notify you if a spot opens up." : 'See you on the pitch!'}
+              {myEntry.tentative ? "Tap below to confirm you can make it." : onWaitlist ? "We'll notify you if a spot opens up." : 'See you on the pitch!'}
             </p>
-            {!onWaitlist && myTeam && (
+            {myEntry.tentative && (
+              <button
+                onClick={async () => {
+                  setLoading(true)
+                  try {
+                    const res = await fetch(`/api/poll/${poll.id}`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ name: myEntry.name, slots: [], tentative: false, playerId: profile?.id || myEntry.playerId || null, positions: profile?.positions || [], guests: 0 }),
+                    })
+                    const data = await res.json()
+                    if (!res.ok) throw new Error(data.error)
+                    setPoll(data)
+                    setToast("You're confirmed! See you on the pitch ⚽")
+                    setTimeout(() => setToast(''), 3000)
+                  } catch (e) {
+                    setToast(e.message || 'Something went wrong')
+                  } finally {
+                    setLoading(false)
+                  }
+                }}
+                disabled={loading}
+                style={{ background: '#22c55e', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 20px', fontWeight: 700, fontSize: 14, cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.7 : 1, width: '100%', marginBottom: 8 }}
+              >
+                ⚽ I can make it — confirm me
+              </button>
+            )}
+            {!myEntry.tentative && !onWaitlist && myTeam && (
               <div style={{
                 display: 'inline-flex', alignItems: 'center', gap: 6,
                 background: myTeam === 'A' ? 'rgba(96,165,250,0.1)' : 'rgba(248,113,113,0.1)',
@@ -638,12 +665,13 @@ function ConfirmedOptOut({ poll, loading, setLoading, setToast, setPoll }) {
 function GameConfirmed({ poll, profile }) {
   const noSplit = poll.no_team_split || false
   const { teamA = [], teamB = [] } = poll.teams || {}
-  const squad = noSplit ? teamA : []
+  const squad = noSplit ? [...teamA, ...teamB].filter(p => !p.isGuest) : []
   const nameA = poll.team_a_name || 'Team A'
   const nameB = poll.team_b_name || 'Team B'
   const gameTime = formatSlot(poll.game_time)
+  const confirmedCount = getActivePlayers(poll).reduce((sum, p) => sum + 1 + (p.guests || 0), 0)
   const whatsappText = noSplit ? [
-    `⚽ *Game is ON!* ${(poll.players || []).length} players confirmed.`,
+    `⚽ *Game is ON!* ${confirmedCount} players confirmed.`,
     ``,
     `📅 ${gameTime}`,
     `📍 ${poll.location}`,
@@ -653,7 +681,7 @@ function GameConfirmed({ poll, profile }) {
     ``,
     `See you on the pitch! 🏃`,
   ].filter(l => l !== undefined).join('\n') : [
-    `⚽ *Game is ON!* ${(poll.players || []).length} players confirmed.`,
+    `⚽ *Game is ON!* ${confirmedCount} players confirmed.`,
     ``,
     `📅 ${gameTime}`,
     `📍 ${poll.location}`,
@@ -866,7 +894,7 @@ function DraftTeams({ poll, active }) {
   const isConfirmed = poll.status === 'confirmed'
 
   if (noSplit) {
-    const squad = isConfirmed ? teamA : expanded
+    const squad = isConfirmed ? [...teamA, ...teamB].filter(p => !p.isGuest) : expanded
     return (
       <Card>
         <Label>Squad</Label>
