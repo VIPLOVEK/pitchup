@@ -1101,6 +1101,11 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
             📍 Ground
           </Btn>
         )}
+        {isCancelled && (
+          <Btn small variant="ghost" onClick={() => doAction('reopen')} disabled={loading}>
+            ♻️ Reopen poll
+          </Btn>
+        )}
         <Btn small variant="ghost" onClick={() => onDuplicate(poll)} disabled={loading}>
           🔁 Repeat
         </Btn>
