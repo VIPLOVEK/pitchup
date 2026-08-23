@@ -69,8 +69,8 @@ export function Card({ children, highlight, style = {}, className }) {
       padding: 20,
       marginBottom: 16,
       boxShadow: highlight
-        ? `0 8px 40px rgba(0,0,0,0.45), 0 0 0 1px rgba(240,192,48,0.08), inset 0 1px 0 rgba(255,255,255,0.08)`
-        : `0 4px 24px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05)`,
+        ? `0 8px 40px rgba(0,0,0,0.45), 0 0 0 1px rgba(240,192,48,0.08), inset 0 1px 0 rgba(255,255,255,0.12)`
+        : `0 4px 24px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.08)`,
       backdropFilter: 'blur(8px)',
       WebkitBackdropFilter: 'blur(8px)',
       ...style,
@@ -96,7 +96,7 @@ export function Label({ children }) {
     <div style={{
       fontSize: 11,
       fontWeight: 700,
-      letterSpacing: '0.12em',
+      letterSpacing: '0.08em',
       textTransform: 'uppercase',
       color: colors.accent,
       marginBottom: 10,
@@ -156,8 +156,8 @@ export function Input({ value, onChange, placeholder, type = 'text', style = {},
       {...rest}
       style={{
         width: '100%',
-        background: 'rgba(6, 13, 24, 0.6)',
-        border: '1px solid rgba(255, 255, 255, 0.1)',
+        background: 'rgba(6, 13, 24, 0.7)',
+        border: '1px solid rgba(255, 255, 255, 0.12)',
         borderRadius: radius.md,
         color: colors.white,
         padding: '11px 14px',
@@ -178,8 +178,8 @@ export function Select({ value, onChange, children, style = {} }) {
       onChange={onChange}
       style={{
         width: '100%',
-        background: 'rgba(6, 13, 24, 0.6)',
-        border: '1px solid rgba(255, 255, 255, 0.1)',
+        background: 'rgba(6, 13, 24, 0.7)',
+        border: '1px solid rgba(255, 255, 255, 0.12)',
         borderRadius: radius.md,
         color: colors.white,
         padding: '11px 14px',

@@ -18,8 +18,15 @@ body {
   color: #f8f4ea;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
+  line-height: 1.5;
+  font-size: 15px;
 }
+
+p { color: rgba(248,244,234,0.78); line-height: 1.6; }
+
+::placeholder { color: rgba(136,153,184,0.45); }
 
 button { cursor: pointer; font-family: inherit; transition: filter 0.15s ease, transform 0.1s ease; }
 button:disabled { opacity: 0.4; cursor: not-allowed; }
