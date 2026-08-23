@@ -13,6 +13,22 @@ function AvatarShare({ name, src }) {
   )
 }
 
+const POS_ORDER = ['Goalkeeper', 'Defender', 'Midfielder', 'Forward']
+const POS_ABBR = { Goalkeeper: 'GK', Defender: 'DEF', Midfielder: 'MID', Forward: 'FWD' }
+
+function groupByPosition(players) {
+  const groups = {}
+  players.forEach(p => {
+    const pos = p.positions?.[0]
+    const key = POS_ORDER.includes(pos) ? pos : 'Any'
+    ;(groups[key] = groups[key] || []).push(p)
+  })
+  const result = []
+  POS_ORDER.forEach(pos => { if (groups[pos]?.length) result.push({ label: POS_ABBR[pos], players: groups[pos] }) })
+  if (groups['Any']?.length) result.push({ label: '⚽', players: groups['Any'] })
+  return result
+}
+
 export default function SharePage({ poll, error }) {
   if (error || !poll || poll.status !== 'confirmed') {
     return (
@@ -37,6 +53,16 @@ export default function SharePage({ poll, error }) {
       {p.name}
     </div>
   )
+
+  const posGroupedBlock = (players, borderColor) => {
+    const grouped = groupByPosition(players)
+    return grouped.map(({ label, players: grp }) => (
+      <div key={label} style={{ marginBottom: 10 }}>
+        <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.12em', color: borderColor, opacity: 0.7, textTransform: 'uppercase', marginBottom: 4 }}>{label}</div>
+        {grp.map((p, i) => playerRow(p, i, grp, borderColor))}
+      </div>
+    ))
+  }
 
   return (
     <div style={{
@@ -71,7 +97,7 @@ export default function SharePage({ poll, error }) {
           <div style={{ fontSize: 13, fontWeight: 900, color: colors.grassLight, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>
             ⚽ Squad ({squad.length})
           </div>
-          {squad.map((p, i) => playerRow(p, i, squad, `${colors.grassLight}22`))}
+          {posGroupedBlock(squad, colors.grassLight)}
         </div>
       ) : (
         /* Two-team split for internal pickup games */
@@ -80,13 +106,13 @@ export default function SharePage({ poll, error }) {
             <div style={{ fontSize: 13, fontWeight: 900, color: colors.teamA, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>
               🟦 {nameA}
             </div>
-            {teamA.filter(p => !p.isGuest).map((p, i, arr) => playerRow(p, i, arr, `${colors.teamA}22`))}
+            {posGroupedBlock(teamA.filter(p => !p.isGuest), colors.teamA)}
           </div>
           <div style={{ flex: 1, background: `${colors.teamB}18`, border: `2px solid ${colors.teamB}44`, borderRadius: 16, padding: 16 }}>
             <div style={{ fontSize: 13, fontWeight: 900, color: colors.teamB, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>
               🟥 {nameB}
             </div>
-            {teamB.filter(p => !p.isGuest).map((p, i, arr) => playerRow(p, i, arr, `${colors.teamB}22`))}
+            {posGroupedBlock(teamB.filter(p => !p.isGuest), colors.teamB)}
           </div>
         </div>
       )}

@@ -2226,6 +2226,7 @@ export default function AdminPage() {
   const [password, setPassword] = useState('')
   const [authed, setAuthed] = useState(false)
   const [tab, setTab] = useState('create')
+  const [manageFilter, setManageFilter] = useState('open')
   const [prefill, setPrefill] = useState(null)
   const [toast, setToast] = useState('')
   const [loading, setLoading] = useState(false)
@@ -2384,6 +2385,30 @@ export default function AdminPage() {
           {polls.filter(p => p.status === 'pending').map(poll => (
             <PendingPollCard key={poll.id} poll={poll} password={password} onAction={handleAction} />
           ))}
+
+          {/* Sub-tabs: Open / Confirmed / Past */}
+          {polls.filter(p => p.status !== 'pending').length > 0 && (
+            <div style={{ display: 'flex', gap: 6, marginBottom: 14, background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: 4 }}>
+              {[
+                { key: 'open', label: '🟢 Open', count: polls.filter(p => p.status === 'open').length },
+                { key: 'confirmed', label: '✅ Confirmed', count: polls.filter(p => p.status === 'confirmed').length },
+                { key: 'past', label: '📁 Past', count: polls.filter(p => p.status === 'cancelled' || p.status === 'finished').length },
+              ].map(({ key, label, count }) => (
+                <button
+                  key={key}
+                  onClick={() => setManageFilter(key)}
+                  style={{
+                    flex: 1, background: manageFilter === key ? colors.pitchCard : 'transparent',
+                    border: 'none', borderRadius: 8, padding: '7px 4px', fontSize: 12, fontWeight: 700,
+                    color: manageFilter === key ? colors.white : colors.muted, cursor: 'pointer',
+                  }}
+                >
+                  {label}{count > 0 ? ` (${count})` : ''}
+                </button>
+              ))}
+            </div>
+          )}
+
           {polls.filter(p => p.status !== 'pending').length === 0 && polls.filter(p => p.status === 'pending').length === 0 && (
             <Card>
               <div style={{ textAlign: 'center', color: colors.muted, padding: '20px 0', fontSize: 14 }}>
@@ -2391,7 +2416,13 @@ export default function AdminPage() {
               </div>
             </Card>
           )}
-          {polls.filter(p => p.status !== 'pending').map(poll => (
+          {polls.filter(p => {
+            if (p.status === 'pending') return false
+            if (manageFilter === 'open') return p.status === 'open'
+            if (manageFilter === 'confirmed') return p.status === 'confirmed'
+            if (manageFilter === 'past') return p.status === 'cancelled' || p.status === 'finished'
+            return true
+          }).map(poll => (
             <PollCard
               key={poll.id}
               poll={poll}

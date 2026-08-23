@@ -1419,10 +1419,28 @@ export default function PollPage({ poll: initialPoll, error }) {
                     : `Still filling up. Once ${poll.min_players}+ players join, teams get set and you'll get a notification.`}
             </p>
             <ProgressBar value={totalSpots} max={poll.min_players} />
-            <p style={{ color: colors.muted, fontSize: 13, textAlign: 'center', marginBottom: 16 }}>
+            <p style={{ color: colors.muted, fontSize: 13, textAlign: 'center', marginBottom: 8 }}>
               {totalSpots} / {poll.min_players}+ confirmed · {poll.max_players} max
               {waitlist.length > 0 ? ` · ${waitlist.length} waiting` : ''}
             </p>
+            {!onWaitlist && !myEntry?.tentative && (() => {
+              const cutoff = getCutoffTime(poll.slots, poll.cutoff_hours)
+              if (!cutoff) return null
+              const diffMs = cutoff - new Date()
+              if (diffMs <= 0) return null
+              const hours = Math.floor(diffMs / 3600000)
+              const mins = Math.floor((diffMs % 3600000) / 60000)
+              const label = hours > 48 ? `in ${Math.ceil(diffMs / 86400000)} days` : hours > 0 ? `in ${hours}h ${mins}m` : `in ${mins}m`
+              return (
+                <div style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 10, padding: '10px 14px', marginBottom: 16, textAlign: 'left' }}>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: '#f59e0b', marginBottom: 4 }}>⏰ Voting closes {label}</div>
+                  <div style={{ fontSize: 12, color: colors.muted, lineHeight: 1.5 }}>
+                    Once voting closes, the organiser confirms the game time and locks the teams. You'll get a push notification.
+                  </div>
+                </div>
+              )
+            })()}
+            <div style={{ marginBottom: 16 }}></div>
             <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center' }}>
               {active.map((p, i) => <PlayerChip key={i} name={p.name} avatar={p.avatar_url} meta={p.note || (p.guests ? `+${p.guests} guest${p.guests > 1 ? 's' : ''}` : p.positions?.length ? p.positions.join(', ') : undefined)} />)}
             </div>

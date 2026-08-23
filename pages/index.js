@@ -4,6 +4,7 @@ import Layout from '../components/Layout'
 import { Card, Label, ProgressBar, Pill } from '../components/UI'
 import { colors, radius } from '../lib/tokens'
 import { getActivePlayers, getTotalSpots } from '../lib/teams'
+import { getCutoffTime } from '../lib/pollStatus'
 import { LOCATIONS } from '../lib/locations'
 
 function RequestGameModal({ onClose }) {
@@ -248,8 +249,99 @@ function TodayWCMatches({ matches }) {
   )
 }
 
+function formatVotingCountdown(cutoff, now) {
+  const diffMs = cutoff - now
+  if (diffMs <= 0) return null
+  const hours = Math.floor(diffMs / 3600000)
+  const mins = Math.floor((diffMs % 3600000) / 60000)
+  if (hours >= 72) return null
+  if (hours >= 24) return `Voting closes in ${Math.ceil(diffMs / 86400000)}d`
+  if (hours > 0) return `Voting closes in ${hours}h ${mins}m`
+  return `Voting closes in ${mins}m`
+}
+
+function QuickRSVPSheet({ poll, onClose, onDone }) {
+  const [name, setName] = useState(() => {
+    if (typeof window === 'undefined') return ''
+    try { return JSON.parse(localStorage.getItem('pitchup_player') || '{}').name || '' } catch { return '' }
+  })
+  const [selectedSlots, setSelectedSlots] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const isMultiSlot = (poll.slots || []).length > 1
+  const now = new Date()
+
+  const toggleSlot = (i) => setSelectedSlots(s => s.includes(i) ? s.filter(x => x !== i) : [...s, i])
+
+  const handleJoin = async () => {
+    if (!name.trim()) { setError('Enter your name to join'); return }
+    if (isMultiSlot && selectedSlots.length === 0) { setError('Pick at least one time slot'); return }
+    setLoading(true)
+    setError('')
+    try {
+      let profile = null
+      try { profile = JSON.parse(localStorage.getItem('pitchup_player') || 'null') } catch {}
+      const slots = isMultiSlot ? selectedSlots : []
+      const res = await fetch(`/api/poll/${poll.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.trim(), slots, playerId: profile?.id || null, positions: profile?.positions || [] }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      if (!profile?.id) localStorage.setItem(`pitchup_vote_${poll.id}`, name.trim())
+      onDone(data)
+    } catch (e) {
+      setError(e.message || 'Something went wrong')
+      setLoading(false)
+    }
+  }
+
+  const inputStyle = { width: '100%', background: '#1a2e1a', border: '1px solid rgba(134,239,172,0.3)', borderRadius: 8, color: '#fff', padding: '11px 14px', fontSize: 15, outline: 'none', boxSizing: 'border-box', marginBottom: 10 }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'flex-end' }} onClick={e => e.target === e.currentTarget && onClose()}>
+      <div style={{ background: '#0d1f0d', borderRadius: '18px 18px 0 0', width: '100%', maxHeight: '85vh', overflowY: 'auto', padding: '24px 20px 32px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>⚽ Quick join</h2>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#6b7280', fontSize: 22, cursor: 'pointer' }}>×</button>
+        </div>
+        <p style={{ color: '#6b7280', fontSize: 13, margin: '0 0 16px' }}>{poll.title} · {poll.location}</p>
+
+        <input style={inputStyle} placeholder="Your name" value={name} onChange={e => setName(e.target.value)} autoFocus />
+
+        {isMultiSlot && (
+          <>
+            <p style={{ color: '#6b7280', fontSize: 12, margin: '0 0 8px' }}>Which times work for you?</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
+              {(poll.slots || []).map((slot, i) => {
+                const slotDate = new Date(slot)
+                const label = slotDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) + ' · ' + slotDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+                const active = selectedSlots.includes(i)
+                return (
+                  <button key={i} onClick={() => toggleSlot(i)} style={{ background: active ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.04)', border: `1.5px solid ${active ? 'rgba(34,197,94,0.5)' : 'rgba(255,255,255,0.1)'}`, borderRadius: 10, padding: '11px 14px', color: active ? '#22c55e' : '#fff', fontWeight: active ? 700 : 400, fontSize: 14, cursor: 'pointer', textAlign: 'left' }}>
+                    {active ? '✓ ' : ''}{label}
+                  </button>
+                )
+              })}
+            </div>
+          </>
+        )}
+
+        {error && <p style={{ color: '#ef4444', fontSize: 13, marginBottom: 10 }}>{error}</p>}
+        <button onClick={handleJoin} disabled={loading} style={{ width: '100%', background: '#22c55e', color: '#052e16', border: 'none', borderRadius: 10, padding: '14px', fontWeight: 800, fontSize: 15, cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.7 : 1 }}>
+          {loading ? 'Joining...' : "I'm in ⚽"}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function Home({ polls, groupPolls = [], groups, announcement, todayWcMatches }) {
   const [showRequest, setShowRequest] = useState(false)
+  const [rsvpPoll, setRsvpPoll] = useState(null)
+  const [rsvpToast, setRsvpToast] = useState('')
   const [myName, setMyName] = useState('')
   const [visiblePolls, setVisiblePolls] = useState(polls)
   const now = new Date()
@@ -351,6 +443,23 @@ export default function Home({ polls, groupPolls = [], groups, announcement, tod
   return (
     <Layout title="PitchUp — Pickup Soccer">
       {showRequest && <RequestGameModal onClose={() => setShowRequest(false)} />}
+      {rsvpPoll && (
+        <QuickRSVPSheet
+          poll={rsvpPoll}
+          onClose={() => setRsvpPoll(null)}
+          onDone={(updatedPoll) => {
+            setVisiblePolls(prev => prev.map(p => p.id === updatedPoll.id ? updatedPoll : p))
+            setRsvpPoll(null)
+            setRsvpToast("You're in! ⚽")
+            setTimeout(() => setRsvpToast(''), 3000)
+          }}
+        />
+      )}
+      {rsvpToast && (
+        <div style={{ position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)', background: '#22c55e', color: '#052e16', borderRadius: 20, padding: '10px 20px', fontWeight: 700, fontSize: 14, zIndex: 900, whiteSpace: 'nowrap', boxShadow: '0 4px 20px rgba(0,0,0,0.4)' }}>
+          {rsvpToast}
+        </div>
+      )}
       <AnnouncementBanner announcement={announcement} />
 
       {/* World Cup today's matches */}
@@ -408,9 +517,12 @@ export default function Home({ polls, groupPolls = [], groups, announcement, tod
           const activePlayers = getActivePlayers(poll)
           const amIn = myName && activePlayers.some(p => p.name?.toLowerCase() === myName.toLowerCase())
           const spotsNeeded = poll.min_players - activePlayers.length
+          const spotsLeft = poll.max_players - getTotalSpots(activePlayers)
           const countdownText = todayGame && gameDate ? countdown(gameDate) : null
           const previewNames = activePlayers.slice(0, 3).map(p => p.name?.split(' ')[0]).filter(Boolean)
           const extraCount = activePlayers.length - previewNames.length
+          const cutoff = !confirmed ? getCutoffTime(poll.slots, poll.cutoff_hours) : null
+          const votingCountdown = cutoff ? formatVotingCountdown(cutoff, now) : null
 
           return (
             <Link key={poll.id} href={`/poll/${poll.id}`} style={{ textDecoration: 'none' }}>
@@ -458,6 +570,11 @@ export default function Home({ polls, groupPolls = [], groups, announcement, tod
                   <div style={{ fontSize: 12, fontWeight: 700, color: '#f97316', marginBottom: 8 }}>⏱ {countdownText}</div>
                 )}
 
+                {/* Voting cutoff countdown for open polls */}
+                {votingCountdown && (
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#f59e0b', marginBottom: 8 }}>⏰ {votingCountdown}</div>
+                )}
+
                 {confirmed ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ fontSize: 13, fontWeight: 700, color: '#22c55e' }}>⚽ {activePlayers.length} players confirmed</span>
@@ -472,19 +589,31 @@ export default function Home({ polls, groupPolls = [], groups, announcement, tod
                           🔥 Just {spotsNeeded} more player{spotsNeeded > 1 ? 's' : ''} needed to confirm!
                         </span>
                       </div>
+                    ) : spotsLeft <= 3 && spotsLeft > 0 ? (
+                      <>
+                        <ProgressBar value={activePlayers.length} max={poll.min_players} />
+                        <div style={{ fontSize: 12, fontWeight: 700, color: '#ef4444', marginTop: 4, marginBottom: 2 }}>🔴 Only {spotsLeft} spot{spotsLeft > 1 ? 's' : ''} left!</div>
+                      </>
                     ) : (
                       <ProgressBar value={activePlayers.length} max={poll.min_players} />
                     )}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: spotsNeeded > 0 && spotsNeeded <= 3 ? 0 : 4 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
                       <span style={{ color: colors.muted, fontSize: 12 }}>
                         {previewNames.length > 0
                           ? <>{previewNames.join(', ')}{extraCount > 0 ? ` +${extraCount} more` : ''}</>
                           : `${activePlayers.length} / ${poll.min_players}+ players`
                         }
                       </span>
-                      <span style={{ color: amIn ? '#63b3ed' : colors.accent, fontSize: 13, fontWeight: 700 }}>
-                        {amIn ? '✓ Joined' : 'Join ⚽'}
-                      </span>
+                      {amIn ? (
+                        <span style={{ color: '#63b3ed', fontSize: 13, fontWeight: 700 }}>✓ Joined</span>
+                      ) : (
+                        <button
+                          onClick={e => { e.preventDefault(); e.stopPropagation(); setRsvpPoll(poll) }}
+                          style={{ background: colors.accent, color: colors.pitch, border: 'none', borderRadius: 20, padding: '5px 14px', fontSize: 13, fontWeight: 800, cursor: 'pointer', flexShrink: 0 }}
+                        >
+                          Join ⚽
+                        </button>
+                      )}
                     </div>
                   </>
                 )}
