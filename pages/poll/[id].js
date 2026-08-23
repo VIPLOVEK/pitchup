@@ -187,8 +187,8 @@ function LeaveModal({ label, needsPin, onConfirm, onCancel, loading }) {
         <div style={{ fontWeight: 800, fontSize: 17, marginBottom: 8 }}>{label}</div>
         {needsPin ? (
           <>
-            <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 14px' }}>
-              Enter your PIN to confirm it's you.
+            <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 10px' }}>
+              Your account has a PIN set — enter it to confirm it's you.
             </p>
             <Input
               type="password"
@@ -200,7 +200,7 @@ function LeaveModal({ label, needsPin, onConfirm, onCancel, loading }) {
             />
             {err && <p style={{ color: colors.danger, fontSize: 13, margin: '-6px 0 10px' }}>{err}</p>}
             <p style={{ color: colors.muted, fontSize: 12, margin: '0 0 16px' }}>
-              Forgot your PIN? Ask the admin to reset it for you.
+              Don't know your PIN? Ask the admin to reset it, or contact them directly to remove you.
             </p>
           </>
         ) : (
@@ -212,12 +212,17 @@ function LeaveModal({ label, needsPin, onConfirm, onCancel, loading }) {
             onClick={submit}
             disabled={loading || (needsPin && pin.length < 4)}
             style={{
-              flex: 1, background: loading ? colors.pitchMid : colors.danger,
-              color: '#fff', border: 'none', borderRadius: 10, padding: '13px 0',
-              fontWeight: 700, fontSize: 15, cursor: loading ? 'default' : 'pointer',
+              flex: 1,
+              background: loading || (needsPin && pin.length < 4) ? colors.pitchMid : colors.danger,
+              color: loading || (needsPin && pin.length < 4) ? colors.muted : '#fff',
+              border: 'none', borderRadius: 10, padding: '13px 0',
+              fontWeight: 700, fontSize: 15,
+              cursor: loading || (needsPin && pin.length < 4) ? 'not-allowed' : 'pointer',
+              opacity: needsPin && pin.length < 4 ? 0.5 : 1,
+              transition: 'all 0.2s',
             }}
           >
-            {loading ? 'Leaving…' : 'Leave'}
+            {loading ? 'Leaving…' : needsPin && pin.length < 4 ? 'Enter PIN first' : 'Leave'}
           </button>
         </div>
       </div>
