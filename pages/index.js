@@ -282,7 +282,7 @@ function QuickRSVPSheet({ poll, onClose, onDone }) {
     try {
       let profile = null
       try { profile = JSON.parse(localStorage.getItem('pitchup_player') || 'null') } catch {}
-      const slots = isMultiSlot ? selectedSlots : []
+      const slots = isMultiSlot ? selectedSlots : (poll.slots?.length === 1 ? [0] : [])
       const res = await fetch(`/api/poll/${poll.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
