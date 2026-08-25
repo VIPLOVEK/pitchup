@@ -452,6 +452,10 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
     else setEditTeamB(p => p.filter(x => x.name !== player.name))
     setEditNoShows(p => p.includes(player.name) ? p : [...p, player.name])
   }
+  const removeGuest = (player, team) => {
+    if (team === 'A') setEditTeamA(p => p.filter(x => x.name !== player.name))
+    else setEditTeamB(p => p.filter(x => x.name !== player.name))
+  }
   const restorePlayer = (name) => {
     setEditNoShows(p => p.filter(n => n !== name))
     const orig = [...(poll.teams?.teamA || []), ...(poll.teams?.teamB || [])].find(p => p.name === name)
@@ -653,11 +657,13 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
           {noTeamSplit ? (
             <div style={{ marginBottom: 10 }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: colors.grassLight, marginBottom: 6 }}>👥 Squad</div>
-              {editTeamA.filter(p => !p.isGuest).length === 0 && <p style={{ color: colors.muted, fontSize: 12, margin: 0 }}>Empty</p>}
-              {editTeamA.filter(p => !p.isGuest).map((p, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 0' }}>
-                  <span style={{ fontSize: 12, color: colors.white, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
-                  <button onClick={() => markNoShow(p, 'A')} title="Didn't show up" style={{ background: 'none', border: 'none', color: colors.danger, cursor: 'pointer', fontSize: 16, padding: '0 2px', lineHeight: 1, flexShrink: 0 }}>×</button>
+              {editTeamA.length === 0 && <p style={{ color: colors.muted, fontSize: 12, margin: 0 }}>Empty</p>}
+              {editTeamA.map((p, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 0', marginLeft: p.isGuest ? 14 : 0 }}>
+                  <span style={{ fontSize: 12, color: p.isGuest ? colors.muted : colors.white, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {p.isGuest ? `↳ ${p.name}` : p.name}
+                  </span>
+                  <button onClick={() => p.isGuest ? removeGuest(p, 'A') : markNoShow(p, 'A')} title="Remove" style={{ background: 'none', border: 'none', color: colors.danger, cursor: 'pointer', fontSize: 16, padding: '0 2px', lineHeight: 1, flexShrink: 0 }}>×</button>
                 </div>
               ))}
             </div>
@@ -669,14 +675,18 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
             ].map(({ team, list, color, label, emoji }) => (
               <div key={team} style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 12, fontWeight: 700, color, marginBottom: 6 }}>{emoji} {label}</div>
-                {list.filter(p => !p.isGuest).length === 0 && <p style={{ color: colors.muted, fontSize: 12, margin: 0 }}>Empty</p>}
-                {list.filter(p => !p.isGuest).map((p, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 0' }}>
-                    <span style={{ fontSize: 12, color: colors.white, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
-                    <button onClick={() => movePlayer(p, team)} title={`Move to Team ${team === 'A' ? 'B' : 'A'}`} style={{ background: 'none', border: `1px solid ${colors.grass}33`, color: colors.muted, cursor: 'pointer', fontSize: 10, borderRadius: 4, padding: '1px 5px', flexShrink: 0 }}>
-                      {team === 'A' ? '→B' : 'A←'}
-                    </button>
-                    <button onClick={() => markNoShow(p, team)} title="Didn't show up" style={{ background: 'none', border: 'none', color: colors.danger, cursor: 'pointer', fontSize: 16, padding: '0 2px', lineHeight: 1, flexShrink: 0 }}>×</button>
+                {list.length === 0 && <p style={{ color: colors.muted, fontSize: 12, margin: 0 }}>Empty</p>}
+                {list.map((p, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 0', marginLeft: p.isGuest ? 12 : 0 }}>
+                    <span style={{ fontSize: 12, color: p.isGuest ? colors.muted : colors.white, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {p.isGuest ? `↳ ${p.name}` : p.name}
+                    </span>
+                    {!p.isGuest && (
+                      <button onClick={() => movePlayer(p, team)} title={`Move to Team ${team === 'A' ? 'B' : 'A'}`} style={{ background: 'none', border: `1px solid ${colors.grass}33`, color: colors.muted, cursor: 'pointer', fontSize: 10, borderRadius: 4, padding: '1px 5px', flexShrink: 0 }}>
+                        {team === 'A' ? '→B' : 'A←'}
+                      </button>
+                    )}
+                    <button onClick={() => p.isGuest ? removeGuest(p, team) : markNoShow(p, team)} title="Remove" style={{ background: 'none', border: 'none', color: colors.danger, cursor: 'pointer', fontSize: 16, padding: '0 2px', lineHeight: 1, flexShrink: 0 }}>×</button>
                   </div>
                 ))}
               </div>
