@@ -504,7 +504,7 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
       <ProgressBar value={getTotalSpots(active)} max={poll.min_players} />
       <div style={{ color: colors.muted, fontSize: 12, margin: '4px 0 8px' }}>
         {getTotalSpots(active)} confirmed (need {poll.min_players}+) · {poll.max_players} max
-        {waitlist.length > 0 ? ` · ${waitlist.length} waiting` : ''}
+        {(() => { const inTeams = new Set([...(poll.teams?.teamA || []), ...(poll.teams?.teamB || [])].map(p => p.name.toLowerCase())); const wl = waitlist.filter(p => !inTeams.has(p.name.toLowerCase())); return wl.length > 0 ? ` · ${wl.length} waiting` : '' })()}
       </div>
 
       {isCancelled && (
@@ -598,25 +598,30 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
         </div>
       )}
 
-      {/* Waiting list */}
-      {waitlist.length > 0 && (
-        <div style={{ marginTop: 10 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.muted, marginBottom: 6 }}>
-            Waiting list
+      {/* Waiting list — exclude anyone already added to the teams manually */}
+      {(() => {
+        const inTeams = new Set([...(poll.teams?.teamA || []), ...(poll.teams?.teamB || [])].map(p => p.name.toLowerCase()))
+        const displayWaitlist = waitlist.filter(p => !inTeams.has(p.name.toLowerCase()))
+        if (displayWaitlist.length === 0) return null
+        return (
+          <div style={{ marginTop: 10 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.muted, marginBottom: 6 }}>
+              Waiting list
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap' }}>
+              {displayWaitlist.map((p, i) => (
+                <PlayerChip
+                  key={i}
+                  name={p.name}
+                  color={colors.cardYellow}
+                  meta={p.guests ? `+${p.guests} guest${p.guests > 1 ? 's' : ''}` : undefined}
+                  onRemove={isOpen ? () => doAction('removePlayer', 'PATCH', { name: p.name }) : undefined}
+                />
+              ))}
+            </div>
           </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap' }}>
-            {waitlist.map((p, i) => (
-              <PlayerChip
-                key={i}
-                name={p.name}
-                color={colors.cardYellow}
-                meta={p.guests ? `+${p.guests} guest${p.guests > 1 ? 's' : ''}` : undefined}
-                onRemove={isOpen ? () => doAction('removePlayer', 'PATCH', { name: p.name }) : undefined}
-              />
-            ))}
-          </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* Tentative players */}
       {tentatives.length > 0 && (
