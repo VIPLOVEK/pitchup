@@ -288,20 +288,25 @@ function WaitlistCard({ poll, waitlist, myEntry, onWaitlist, name, setName, prof
 
   return (
     <>
-      {waitlist.length > 0 && (
-        <Card>
-          <Label>Waiting list ⏳</Label>
-          <p style={{ color: colors.muted, fontSize: 12, margin: '0 0 10px' }}>
-            These players will be promoted automatically if someone drops out.
-          </p>
-          <div style={{ display: 'flex', flexWrap: 'wrap' }}>
-            {waitlist.map((p, i) => (
-              <PlayerChip key={i} name={p.name} color={colors.cardYellow} avatar={p.avatar_url}
-                meta={p.guests ? `+${p.guests} guest${p.guests > 1 ? 's' : ''}` : undefined} />
-            ))}
-          </div>
-        </Card>
-      )}
+      {(() => {
+        const inTeams = new Set([...(poll.teams?.teamA || []), ...(poll.teams?.teamB || [])].map(p => p.name.toLowerCase()))
+        const displayWaitlist = waitlist.filter(p => !inTeams.has(p.name.toLowerCase()))
+        if (displayWaitlist.length === 0) return null
+        return (
+          <Card>
+            <Label>Waiting list ⏳</Label>
+            <p style={{ color: colors.muted, fontSize: 12, margin: '0 0 10px' }}>
+              These players will be promoted automatically if someone drops out.
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap' }}>
+              {displayWaitlist.map((p, i) => (
+                <PlayerChip key={i} name={p.name} color={colors.cardYellow} avatar={p.avatar_url}
+                  meta={p.guests ? `+${p.guests} guest${p.guests > 1 ? 's' : ''}` : undefined} />
+              ))}
+            </div>
+          </Card>
+        )
+      })()}
       {myEntry ? (
         <Card>
           <div style={{ textAlign: 'center', padding: '10px 0 14px' }}>
@@ -674,7 +679,7 @@ function GameConfirmed({ poll, profile }) {
   const nameA = poll.team_a_name || 'Team A'
   const nameB = poll.team_b_name || 'Team B'
   const gameTime = formatSlot(poll.game_time)
-  const confirmedCount = getActivePlayers(poll).reduce((sum, p) => sum + 1 + (p.guests || 0), 0)
+  const confirmedCount = [...teamA, ...teamB].length
   const whatsappText = noSplit ? [
     `⚽ *Game is ON!* ${confirmedCount} players confirmed.`,
     ``,
@@ -710,7 +715,7 @@ function GameConfirmed({ poll, profile }) {
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <Pill color={colors.accent}>📅 {gameTime}</Pill>
-          <Pill color={colors.grassLight}>👥 {(poll.players || []).length} players</Pill>
+          <Pill color={colors.grassLight}>👥 {[...teamA, ...teamB].length} players</Pill>
           {poll.teams_locked && <Pill color={colors.grassLight}>🔐 Locked</Pill>}
         </div>
         {poll.notes && (

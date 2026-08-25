@@ -267,7 +267,8 @@ export default async function handler(req, res) {
       // For confirmed polls, regenerate teams if an active player left
       if (poll.status === 'confirmed' && wasActive.some(p => p.name.toLowerCase() === name.trim().toLowerCase())) {
         try {
-          const nowActive = getActivePlayers(updated)
+          const noShowSet = new Set((updated.no_shows || []).map(n => n.toLowerCase()))
+          const nowActive = getActivePlayers(updated).filter(p => !noShowSet.has(p.name.toLowerCase()))
           const newTeams = generateTeams(expandWithGuests(nowActive))
           const { data: reteamed, error: teamErr } = await db
             .from('polls')

@@ -143,10 +143,11 @@ export default async function handler(req, res) {
 
       if (action === 'shuffle') {
         if (poll.no_team_split) return res.status(400).json({ error: 'Cannot reshuffle a no-split game' })
-        const active = await withSkillRatings(db, getActivePlayers(poll))
+        const noShowSet = new Set((poll.no_shows || []).map(n => n.toLowerCase()))
+        const active = await withSkillRatings(db, getActivePlayers(poll).filter(p => !noShowSet.has(p.name.toLowerCase())))
         const teams = poll.split_by_club
           ? generateTeamsByAffiliation(active)
-          : generateTeams(active)
+          : generateTeams(expandWithGuests(active))
         const { teamAName, teamBName } = pickTeamNames()
         const { data, error } = await db
           .from('polls').update({ teams, team_a_name: teamAName, team_b_name: teamBName, version: poll.version + 1 }).eq('id', id).select().single()
@@ -407,7 +408,8 @@ export default async function handler(req, res) {
         // For confirmed polls, regenerate teams if an active player was removed
         if (poll.status === 'confirmed' && getActivePlayers(poll).some(p => p.name === name)) {
           try {
-            const nowActive = getActivePlayers(updatedPoll)
+            const noShowSet = new Set((updatedPoll.no_shows || []).map(n => n.toLowerCase()))
+            const nowActive = getActivePlayers(updatedPoll).filter(p => !noShowSet.has(p.name.toLowerCase()))
             const expanded = expandWithGuests(nowActive)
             const newTeams = poll.no_team_split
               ? { teamA: expanded, teamB: [] }

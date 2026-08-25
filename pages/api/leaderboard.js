@@ -49,8 +49,8 @@ export default async function handler(req, res) {
       const { teamA = [], teamB = [] } = poll.teams || {}
       const outcomeA = poll.score_a > poll.score_b ? 'wins' : poll.score_a < poll.score_b ? 'losses' : 'draws'
       const outcomeB = poll.score_a > poll.score_b ? 'losses' : poll.score_a < poll.score_b ? 'wins' : 'draws'
-      teamA.forEach(p => record(p, outcomeA))
-      teamB.forEach(p => record(p, outcomeB))
+      teamA.filter(p => !p.isGuest).forEach(p => record(p, outcomeA))
+      teamB.filter(p => !p.isGuest).forEach(p => record(p, outcomeB))
     }
 
     const goalCounts = {}
@@ -65,7 +65,7 @@ export default async function handler(req, res) {
     const committed = {}
     for (const poll of allConfirmed) {
       const { teamA = [], teamB = [] } = poll.teams || {}
-      ;[...teamA, ...teamB].forEach(p => {
+      ;[...teamA, ...teamB].filter(p => !p.isGuest).forEach(p => {
         const key = keyFor(p)
         committed[key] = (committed[key] || 0) + 1
       })
@@ -77,7 +77,7 @@ export default async function handler(req, res) {
       let streak = 0
       for (const poll of allConfirmed) {
         const { teamA = [], teamB = [] } = poll.teams || {}
-        const attended = [...teamA, ...teamB].some(p => keyFor(p) === key)
+        const attended = [...teamA, ...teamB].filter(p => !p.isGuest).some(p => keyFor(p) === key)
         if (attended) streak++
         else break
       }
