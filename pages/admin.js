@@ -561,42 +561,50 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
       )}
 
       {/* Pitch fee tracker */}
-      {isConfirmed && poll.pitch_fee && (
-        <div style={{ marginTop: 12, background: colors.pitchMid, borderRadius: 8, padding: '10px 14px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.muted }}>
-              💵 Pitch Fee
+      {isConfirmed && poll.pitch_fee && (() => {
+        const { teamA: ta = [], teamB: tb = [] } = poll.teams || {}
+        const inTeams = new Set([...ta, ...tb].filter(p => !p.isGuest).map(p => p.name.toLowerCase()))
+        // Only show players who are actually in the teams (excludes no-shows)
+        const feeActive = active.filter(p => inTeams.has(p.name.toLowerCase()))
+        const totalHeads = [...ta, ...tb].length // real players + guest bodies
+        const perPerson = (poll.pitch_fee / Math.max(1, totalHeads)).toFixed(2)
+        const paidCount = feeActive.filter(p => p.paid).length
+        return (
+          <div style={{ marginTop: 12, background: colors.pitchMid, borderRadius: 8, padding: '10px 14px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.muted }}>
+                💵 Pitch Fee
+              </div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: colors.accent }}>
+                ${poll.pitch_fee} total · ${perPerson}/person
+              </div>
             </div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: colors.accent }}>
-              ${poll.pitch_fee} total · ${(poll.pitch_fee / Math.max(1, active.length)).toFixed(2)} per person
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {feeActive.map((p, i) => {
+                const paid = p.paid === true
+                return (
+                  <button
+                    key={i}
+                    onClick={() => doAction('togglePaid', 'PATCH', { playerName: p.name })}
+                    disabled={loading}
+                    style={{
+                      background: paid ? 'rgba(34,197,94,0.15)' : colors.pitchCard,
+                      border: `1px solid ${paid ? 'rgba(34,197,94,0.4)' : colors.grass + '33'}`,
+                      borderRadius: 20, padding: '4px 10px', fontSize: 12, fontWeight: 600,
+                      color: paid ? '#22c55e' : colors.muted, cursor: 'pointer',
+                    }}
+                  >
+                    {paid ? '✓' : '○'} {p.name.split(' ')[0]}
+                  </button>
+                )
+              })}
+            </div>
+            <div style={{ fontSize: 12, color: colors.muted, marginTop: 8 }}>
+              {paidCount}/{totalHeads} paid · ${(paidCount * parseFloat(perPerson)).toFixed(2)} collected
             </div>
           </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {active.map((p, i) => {
-              const paid = p.paid === true
-              return (
-                <button
-                  key={i}
-                  onClick={() => doAction('togglePaid', 'PATCH', { playerName: p.name })}
-                  disabled={loading}
-                  style={{
-                    background: paid ? 'rgba(34,197,94,0.15)' : colors.pitchCard,
-                    border: `1px solid ${paid ? 'rgba(34,197,94,0.4)' : colors.grass + '33'}`,
-                    borderRadius: 20, padding: '4px 10px', fontSize: 12, fontWeight: 600,
-                    color: paid ? '#22c55e' : colors.muted, cursor: 'pointer',
-                  }}
-                >
-                  {paid ? '✓' : '○'} {p.name.split(' ')[0]}
-                </button>
-              )
-            })}
-          </div>
-          <div style={{ fontSize: 12, color: colors.muted, marginTop: 8 }}>
-            {active.filter(p => p.paid).length}/{active.length} paid
-            {' · '}${(active.filter(p => p.paid).length * (poll.pitch_fee / Math.max(1, active.length))).toFixed(2)} collected
-          </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* Waiting list — exclude anyone already added to the teams manually */}
       {(() => {

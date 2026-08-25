@@ -592,8 +592,13 @@ function ConfirmedOptOut({ poll, loading, setLoading, setToast, setPoll }) {
   const [inputName, setInputName] = useState('')
 
   const active = getActivePlayers(poll)
+  // Use poll.teams membership for confirmed games so no-shows (removed from teams
+  // but still in poll.players) can't trigger a leave + team regen
+  const teamMembers = poll.status === 'confirmed' && poll.teams
+    ? [...(poll.teams.teamA || []), ...(poll.teams.teamB || [])].filter(p => !p.isGuest)
+    : active
   const match = inputName.trim()
-    ? active.find(p => p.name.toLowerCase() === inputName.trim().toLowerCase())
+    ? teamMembers.find(p => p.name.toLowerCase() === inputName.trim().toLowerCase())
     : null
   const notFound = inputName.trim().length > 1 && !match
 
@@ -1066,9 +1071,13 @@ function AdminBar({ poll, onUpdate }) {
 
           {/* Pitch fee tracker */}
           {isConfirmed && poll.pitch_fee && (() => {
-            const active = getActivePlayers(poll)
-            const perPerson = (poll.pitch_fee / Math.max(1, getTotalSpots(active))).toFixed(2)
-            const paidCount = active.filter(p => p.paid).length
+            const { teamA: ta = [], teamB: tb = [] } = poll.teams || {}
+            const inTeams = new Set([...ta, ...tb].filter(p => !p.isGuest).map(p => p.name.toLowerCase()))
+            const rawActive = getActivePlayers(poll)
+            const feeActive = rawActive.filter(p => inTeams.has(p.name.toLowerCase()))
+            const totalHeads = [...ta, ...tb].length
+            const perPerson = (poll.pitch_fee / Math.max(1, totalHeads)).toFixed(2)
+            const paidCount = feeActive.filter(p => p.paid).length
             return (
               <div style={{ marginTop: 4 }}>
                 <div style={{ height: 1, background: 'rgba(255,255,255,0.07)', margin: '4px 0 8px' }} />
@@ -1076,7 +1085,7 @@ function AdminBar({ poll, onUpdate }) {
                   💵 Pitch Fee · ${poll.pitch_fee} total · ${perPerson}/person
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 6 }}>
-                  {active.map((p, i) => (
+                  {feeActive.map((p, i) => (
                     <button
                       key={i}
                       onClick={() => doAction('togglePaid', { playerName: p.name })}
@@ -1093,7 +1102,7 @@ function AdminBar({ poll, onUpdate }) {
                   ))}
                 </div>
                 <div style={{ fontSize: 11, color: colors.muted }}>
-                  {paidCount}/{active.length} paid · ${(paidCount * parseFloat(perPerson)).toFixed(2)} collected
+                  {paidCount}/{totalHeads} paid · ${(paidCount * parseFloat(perPerson)).toFixed(2)} collected
                 </div>
               </div>
             )
