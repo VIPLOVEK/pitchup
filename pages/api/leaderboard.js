@@ -55,10 +55,17 @@ export default async function handler(req, res) {
 
     const goalCounts = {}
     const assistCounts = {}
+    const tackleCounts = {}
+    const saveCounts = {}
     for (const poll of polls) {
       ;(poll.goals || []).forEach(g => {
         goalCounts[g.name.toLowerCase()] = (goalCounts[g.name.toLowerCase()] || 0) + 1
         if (g.assist) assistCounts[g.assist.toLowerCase()] = (assistCounts[g.assist.toLowerCase()] || 0) + 1
+      })
+      ;(poll.defensive || []).forEach(d => {
+        const key = d.name.toLowerCase()
+        if (d.type === 'tackle') tackleCounts[key] = (tackleCounts[key] || 0) + 1
+        else if (d.type === 'save') saveCounts[key] = (saveCounts[key] || 0) + 1
       })
     }
 
@@ -107,7 +114,7 @@ export default async function handler(req, res) {
         const gamesCommitted = committed[key] || gamesPlayed
         const noShows = noShowCounts[r.name.toLowerCase()] || 0
         const reliability = gamesPlayed + noShows > 0 ? Math.round((gamesPlayed / (gamesPlayed + noShows)) * 100) : null
-        return { ...r, gamesPlayed, gamesCommitted, winPct: gamesPlayed ? r.wins / gamesPlayed : 0, goals: goalCounts[r.name.toLowerCase()] || 0, assists: assistCounts[r.name.toLowerCase()] || 0, streak: streaks[key] || 0, noShows, reliability }
+        return { ...r, gamesPlayed, gamesCommitted, winPct: gamesPlayed ? r.wins / gamesPlayed : 0, goals: goalCounts[r.name.toLowerCase()] || 0, assists: assistCounts[r.name.toLowerCase()] || 0, tackles: tackleCounts[r.name.toLowerCase()] || 0, saves: saveCounts[r.name.toLowerCase()] || 0, streak: streaks[key] || 0, noShows, reliability }
       })
       .sort((a, b) => b.winPct - a.winPct || b.wins - a.wins || b.gamesPlayed - a.gamesPlayed)
 

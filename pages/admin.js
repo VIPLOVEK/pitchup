@@ -393,6 +393,8 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
   const [goalPlayer, setGoalPlayer] = useState('')
   const [goalTeam, setGoalTeam] = useState('A')
   const [assistPlayer, setAssistPlayer] = useState('')
+  const [defPlayer, setDefPlayer] = useState('')
+  const [defType, setDefType] = useState('tackle')
   const [editingAudience, setEditingAudience] = useState(false)
   const [audienceVisibility, setAudienceVisibility] = useState(poll.visibility)
   const [audienceGroupIds, setAudienceGroupIds] = useState(poll.group_ids)
@@ -845,6 +847,56 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
               }}
               disabled={!goalPlayer || loading}
               style={{ background: colors.accent, color: colors.pitch, border: 'none', borderRadius: 6, padding: '6px 12px', fontSize: 12, fontWeight: 700, cursor: goalPlayer ? 'pointer' : 'default', opacity: goalPlayer ? 1 : 0.5 }}
+            >
+              + Add
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Tackles & Saves */}
+      {isConfirmed && poll.score_a != null && (
+        <div style={{ marginTop: 12 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.muted, marginBottom: 8 }}>
+            🛡️ Tackles &amp; Saves
+          </div>
+          {(poll.defensive || []).length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
+              {(poll.defensive || []).map((d, i) => (
+                <span key={i} style={{ background: 'rgba(99,179,237,0.15)', color: '#63b3ed', borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  {d.type === 'save' ? '🧤' : '🦵'} {d.name}
+                  <button onClick={() => doAction('setDefensive', 'PATCH', { defensive: (poll.defensive || []).filter((_, j) => j !== i) })} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0, fontSize: 12, opacity: 0.7 }}>×</button>
+                </span>
+              ))}
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+            <select
+              value={defPlayer}
+              onChange={e => setDefPlayer(e.target.value)}
+              style={{ flex: 1, minWidth: 100, background: colors.pitchMid, border: `1px solid ${colors.grass}33`, color: defPlayer ? colors.white : colors.muted, borderRadius: 6, padding: '6px 8px', fontSize: 12 }}
+            >
+              <option value="">Player...</option>
+              {[...(poll.teams?.teamA || []), ...(poll.teams?.teamB || [])].filter(p => !p.isGuest).map((p, i) => (
+                <option key={i} value={p.name}>{p.name}</option>
+              ))}
+            </select>
+            <select
+              value={defType}
+              onChange={e => setDefType(e.target.value)}
+              style={{ background: colors.pitchMid, border: `1px solid ${colors.grass}33`, color: colors.white, borderRadius: 6, padding: '6px 8px', fontSize: 12 }}
+            >
+              <option value="tackle">🦵 Tackle</option>
+              <option value="save">🧤 Save</option>
+            </select>
+            <button
+              onClick={() => {
+                if (!defPlayer) return
+                doAction('setDefensive', 'PATCH', { defensive: [...(poll.defensive || []), { name: defPlayer, type: defType }] })
+                setDefPlayer('')
+              }}
+              disabled={!defPlayer || loading}
+              style={{ background: '#63b3ed', color: '#0a1628', border: 'none', borderRadius: 6, padding: '6px 12px', fontSize: 12, fontWeight: 700, cursor: defPlayer ? 'pointer' : 'default', opacity: defPlayer ? 1 : 0.5 }}
             >
               + Add
             </button>
