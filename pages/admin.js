@@ -858,7 +858,7 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
       {isConfirmed && poll.score_a != null && (
         <div style={{ marginTop: 12 }}>
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.muted, marginBottom: 8 }}>
-            🛡️ Tackles &amp; Saves
+            🛡️ Critical Tackles &amp; Saves
           </div>
           {(poll.defensive || []).length > 0 && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
@@ -886,8 +886,8 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
               onChange={e => setDefType(e.target.value)}
               style={{ background: colors.pitchMid, border: `1px solid ${colors.grass}33`, color: colors.white, borderRadius: 6, padding: '6px 8px', fontSize: 12 }}
             >
-              <option value="tackle">🦵 Tackle</option>
-              <option value="save">🧤 Save</option>
+              <option value="tackle">🦵 Critical Tackle</option>
+              <option value="save">🧤 Critical Save</option>
             </select>
             <button
               onClick={() => {

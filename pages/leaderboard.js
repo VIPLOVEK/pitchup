@@ -113,8 +113,8 @@ export default function Leaderboard({ initialLeaderboard }) {
                     {p.wins}W - {p.losses}L - {p.draws}D · {p.gamesPlayed}/{p.gamesCommitted} game{p.gamesCommitted === 1 ? '' : 's'}
                     {p.goals > 0 && <span style={{ color: colors.grassLight, fontSize: 12, marginLeft: 6 }}>⚽ {p.goals}g</span>}
                     {p.assists > 0 && <span style={{ color: colors.grassLight, fontSize: 12, marginLeft: 4 }}>↗ {p.assists}a</span>}
-                    {p.tackles > 0 && <span style={{ color: '#63b3ed', fontSize: 12, marginLeft: 4 }}>🦵 {p.tackles}t</span>}
-                    {p.saves > 0 && <span style={{ color: '#63b3ed', fontSize: 12, marginLeft: 4 }}>🧤 {p.saves}s</span>}
+                    {p.tackles > 0 && <span style={{ color: '#63b3ed', fontSize: 12, marginLeft: 4 }}>🦵 {p.tackles} crit</span>}
+                    {p.saves > 0 && <span style={{ color: '#63b3ed', fontSize: 12, marginLeft: 4 }}>🧤 {p.saves} crit</span>}
                     {p.noShows > 0 && <span style={{ fontSize: 12, marginLeft: 6, color: p.reliability >= 90 ? colors.grassLight : p.reliability >= 70 ? colors.cardYellow : colors.danger }}>· {p.reliability}% show</span>}
                   </div>
                 </div>
