@@ -445,7 +445,8 @@ export default function Home({ polls, groupPolls = [], groups, announcement, tod
       if (p.status === 'confirmed' && !p.game_time) return true
       // confirmed games stay active until end of the day they're played
       if (p.status === 'confirmed' && p.game_time) return endOfDay(p.game_time) > now
-      // open polls: use effectiveDate so slot-based polls are also filtered by date
+      // open polls: keep if voting is still open (close_time in future), or slot time is in future
+      if (p.close_time && new Date(p.close_time) > now) return true
       return effectiveDate(p) > now
     })
     .sort((a, b) => effectiveDate(a) - effectiveDate(b))
@@ -453,7 +454,7 @@ export default function Home({ polls, groupPolls = [], groups, announcement, tod
   const pastPolls = visiblePolls.filter(p =>
     p.status === 'cancelled' || p.status === 'finished' ||
     (p.status === 'confirmed' && p.game_time && endOfDay(p.game_time) <= now) ||
-    (p.status === 'open' && effectiveDate(p) <= now)
+    (p.status === 'open' && (!p.close_time || new Date(p.close_time) <= now) && effectiveDate(p) <= now)
   )
 
   function isToday(poll) {
