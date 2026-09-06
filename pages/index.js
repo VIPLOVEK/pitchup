@@ -432,19 +432,27 @@ export default function Home({ polls, groupPolls = [], groups, announcement, tod
     return `Kickoff in ${mins}m`
   }
 
+  const endOfDay = (date) => {
+    const d = new Date(date)
+    d.setHours(23, 59, 59, 999)
+    return d
+  }
+
   const activePolls = visiblePolls
     .filter(p => {
       if (p.status !== 'open' && p.status !== 'confirmed') return false
       // confirmed with no date → keep (date TBD)
       if (p.status === 'confirmed' && !p.game_time) return true
-      // use effectiveDate so slot-based polls (no game_time) are also filtered by date
+      // confirmed games stay active until end of the day they're played
+      if (p.status === 'confirmed' && p.game_time) return endOfDay(p.game_time) > now
+      // open polls: use effectiveDate so slot-based polls are also filtered by date
       return effectiveDate(p) > now
     })
     .sort((a, b) => effectiveDate(a) - effectiveDate(b))
 
   const pastPolls = visiblePolls.filter(p =>
     p.status === 'cancelled' || p.status === 'finished' ||
-    (p.status === 'confirmed' && p.game_time && new Date(p.game_time) <= now) ||
+    (p.status === 'confirmed' && p.game_time && endOfDay(p.game_time) <= now) ||
     (p.status === 'open' && effectiveDate(p) <= now)
   )
 
