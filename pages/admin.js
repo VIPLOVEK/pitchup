@@ -608,25 +608,29 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
         )
       })()}
 
-      {/* Waiting list — exclude anyone already added to the teams manually */}
+      {/* Waiting list / Standby queue — exclude anyone already added to the teams manually */}
       {(() => {
         const inTeams = new Set([...(poll.teams?.teamA || []), ...(poll.teams?.teamB || [])].map(p => p.name.toLowerCase()))
         const displayWaitlist = waitlist.filter(p => !inTeams.has(p.name.toLowerCase()))
         if (displayWaitlist.length === 0) return null
         return (
           <div style={{ marginTop: 10 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.muted, marginBottom: 6 }}>
-              Waiting list
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: isConfirmed ? colors.cardYellow : colors.muted, marginBottom: 6 }}>
+              {isConfirmed ? '🟡 Standby queue' : 'Waiting list'}
             </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               {displayWaitlist.map((p, i) => (
-                <PlayerChip
-                  key={i}
-                  name={p.name}
-                  color={colors.cardYellow}
-                  meta={p.guests ? `+${p.guests} guest${p.guests > 1 ? 's' : ''}` : undefined}
-                  onRemove={isOpen ? () => doAction('removePlayer', 'PATCH', { name: p.name }) : undefined}
-                />
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {isConfirmed && (
+                    <span style={{ fontSize: 11, fontWeight: 800, color: colors.muted, background: 'rgba(255,255,255,0.06)', borderRadius: 5, padding: '1px 6px', minWidth: 22, textAlign: 'center' }}>#{i + 1}</span>
+                  )}
+                  <PlayerChip
+                    name={p.name}
+                    color={colors.cardYellow}
+                    meta={p.guests ? `+${p.guests} guest${p.guests > 1 ? 's' : ''}` : undefined}
+                    onRemove={isOpen ? () => doAction('removePlayer', 'PATCH', { name: p.name }) : undefined}
+                  />
+                </div>
               ))}
             </div>
           </div>
@@ -724,24 +728,46 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
 
           {(() => {
             const inTeams = new Set([...editTeamA, ...editTeamB].map(p => p.name.toLowerCase()))
-            const addable = (poll.players || []).filter(p => !inTeams.has(p.name.toLowerCase()) && !editNoShows.some(n => n.toLowerCase() === p.name.toLowerCase()))
-            if (addable.length === 0) return null
+            const noShowSet = new Set(editNoShows.map(n => n.toLowerCase()))
+            const standby = waitlist.filter(p => !inTeams.has(p.name.toLowerCase()) && !noShowSet.has(p.name.toLowerCase()))
+            const walkins = (poll.players || []).filter(p => {
+              const key = p.name.toLowerCase()
+              return !inTeams.has(key) && !noShowSet.has(key) && !standby.some(s => s.name.toLowerCase() === key)
+            })
+            const AddButtons = ({ p }) => noTeamSplit ? (
+              <button onClick={() => addToTeam(p, 'A')} style={{ fontSize: 11, background: colors.grassLight + '22', border: `1px solid ${colors.grassLight}44`, color: colors.grassLight, borderRadius: 6, padding: '2px 8px', cursor: 'pointer' }}>+ Add to squad</button>
+            ) : (
+              <>
+                <button onClick={() => addToTeam(p, 'A')} style={{ fontSize: 11, background: colors.teamA + '22', border: `1px solid ${colors.teamA}44`, color: colors.teamA, borderRadius: 6, padding: '2px 8px', cursor: 'pointer' }}>+⚪ A</button>
+                <button onClick={() => addToTeam(p, 'B')} style={{ fontSize: 11, background: colors.teamB + '22', border: `1px solid ${colors.teamB}44`, color: colors.teamB, borderRadius: 6, padding: '2px 8px', cursor: 'pointer' }}>+🎨 B</button>
+              </>
+            )
+            if (standby.length === 0 && walkins.length === 0) return null
             return (
               <div style={{ marginBottom: 10 }}>
-                <div style={{ fontSize: 11, color: colors.muted, fontWeight: 700, marginBottom: 6 }}>Add a walk-in</div>
-                {addable.map((p, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '2px 0' }}>
-                    <span style={{ fontSize: 12, color: colors.muted, flex: 1 }}>{p.name}</span>
-                    {noTeamSplit ? (
-                      <button onClick={() => addToTeam(p, 'A')} style={{ fontSize: 11, background: colors.grassLight + '22', border: `1px solid ${colors.grassLight}44`, color: colors.grassLight, borderRadius: 6, padding: '2px 8px', cursor: 'pointer' }}>+ Add to squad</button>
-                    ) : (
-                      <>
-                        <button onClick={() => addToTeam(p, 'A')} style={{ fontSize: 11, background: colors.teamA + '22', border: `1px solid ${colors.teamA}44`, color: colors.teamA, borderRadius: 6, padding: '2px 8px', cursor: 'pointer' }}>+⚪ A</button>
-                        <button onClick={() => addToTeam(p, 'B')} style={{ fontSize: 11, background: colors.teamB + '22', border: `1px solid ${colors.teamB}44`, color: colors.teamB, borderRadius: 6, padding: '2px 8px', cursor: 'pointer' }}>+🎨 B</button>
-                      </>
-                    )}
-                  </div>
-                ))}
+                {standby.length > 0 && (
+                  <>
+                    <div style={{ fontSize: 11, color: colors.cardYellow, fontWeight: 700, marginBottom: 6 }}>🟡 Standby queue — pick in order</div>
+                    {standby.map((p, i) => (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 0' }}>
+                        <span style={{ fontSize: 11, fontWeight: 800, color: colors.muted, background: 'rgba(255,255,255,0.06)', borderRadius: 5, padding: '1px 6px', minWidth: 22, textAlign: 'center' }}>#{i + 1}</span>
+                        <span style={{ fontSize: 12, color: colors.white, flex: 1 }}>{p.name}{p.guests ? ` +${p.guests}` : ''}</span>
+                        <AddButtons p={p} />
+                      </div>
+                    ))}
+                  </>
+                )}
+                {walkins.length > 0 && (
+                  <>
+                    <div style={{ fontSize: 11, color: colors.muted, fontWeight: 700, marginBottom: 6, marginTop: standby.length > 0 ? 10 : 0 }}>Add a walk-in</div>
+                    {walkins.map((p, i) => (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '2px 0' }}>
+                        <span style={{ fontSize: 12, color: colors.muted, flex: 1 }}>{p.name}</span>
+                        <AddButtons p={p} />
+                      </div>
+                    ))}
+                  </>
+                )}
               </div>
             )
           })()}

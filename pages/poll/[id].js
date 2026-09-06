@@ -292,16 +292,26 @@ function WaitlistCard({ poll, waitlist, myEntry, onWaitlist, name, setName, prof
         const inTeams = new Set([...(poll.teams?.teamA || []), ...(poll.teams?.teamB || [])].map(p => p.name.toLowerCase()))
         const displayWaitlist = waitlist.filter(p => !inTeams.has(p.name.toLowerCase()))
         if (displayWaitlist.length === 0) return null
+        const isConfirmedGame = poll.status === 'confirmed'
         return (
           <Card>
-            <Label>Waiting list ⏳</Label>
+            <Label>{isConfirmedGame ? '🟡 Standby Queue' : 'Waiting list ⏳'}</Label>
             <p style={{ color: colors.muted, fontSize: 12, margin: '0 0 10px' }}>
-              These players will be promoted automatically if someone drops out.
+              {isConfirmedGame
+                ? 'Admin will add you to the team if a spot opens. Priority goes in order below.'
+                : 'These players will be promoted automatically if someone drops out.'}
             </p>
-            <div style={{ display: 'flex', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {displayWaitlist.map((p, i) => (
-                <PlayerChip key={i} name={p.name} color={colors.cardYellow} avatar={p.avatar_url}
-                  meta={p.guests ? `+${p.guests} guest${p.guests > 1 ? 's' : ''}` : undefined} />
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {isConfirmedGame && (
+                    <span style={{ fontSize: 11, fontWeight: 800, color: colors.muted, background: 'rgba(255,255,255,0.06)', borderRadius: 6, padding: '1px 6px', minWidth: 24, textAlign: 'center' }}>
+                      #{i + 1}
+                    </span>
+                  )}
+                  <PlayerChip name={p.name} color={colors.cardYellow} avatar={p.avatar_url}
+                    meta={p.guests ? `+${p.guests} guest${p.guests > 1 ? 's' : ''}` : undefined} />
+                </div>
               ))}
             </div>
           </Card>
@@ -312,10 +322,16 @@ function WaitlistCard({ poll, waitlist, myEntry, onWaitlist, name, setName, prof
           <div style={{ textAlign: 'center', padding: '10px 0 14px' }}>
             <div style={{ fontSize: 28, marginBottom: 8 }}>{myEntry.tentative ? '⚡' : onWaitlist ? '⏳' : '✅'}</div>
             <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>
-              {myEntry.tentative ? "You're listed as tentative" : onWaitlist ? "You're on the waitlist" : "You're in the squad!"}
+              {myEntry.tentative ? "You're listed as tentative" : onWaitlist
+                ? poll.status === 'confirmed'
+                  ? `You're on standby (#${(() => { const inTeams = new Set([...(poll.teams?.teamA || []), ...(poll.teams?.teamB || [])].map(p => p.name.toLowerCase())); return waitlist.filter(p => !inTeams.has(p.name.toLowerCase())).findIndex(p => p.name.toLowerCase() === myEntry.name.toLowerCase()) + 1 })()})`
+                  : "You're on the waitlist"
+                : "You're in the squad!"}
             </div>
             <p style={{ color: colors.muted, fontSize: 13 }}>
-              {myEntry.tentative ? "Tap below to confirm you can make it." : onWaitlist ? "We'll notify you if a spot opens up." : 'See you on the pitch!'}
+              {myEntry.tentative ? "Tap below to confirm you can make it." : onWaitlist
+                ? poll.status === 'confirmed' ? "Admin will add you to the team if a spot opens." : "We'll notify you if a spot opens up."
+                : 'See you on the pitch!'}
             </p>
             {myEntry.tentative && (
               <button
@@ -374,9 +390,11 @@ function WaitlistCard({ poll, waitlist, myEntry, onWaitlist, name, setName, prof
         </Card>
       ) : (
         <Card>
-          <Label>Join the waitlist</Label>
+          <Label>{poll.status === 'confirmed' ? '🟡 Join the standby queue' : 'Join the waitlist'}</Label>
           <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 12px' }}>
-            The game is full, but you can join the waitlist — you'll be promoted automatically if a spot opens up.
+            {poll.status === 'confirmed'
+              ? "Game is confirmed — join the standby queue and admin will add you to the team if a spot opens."
+              : "The game is full, but you can join the waitlist — you'll be promoted automatically if a spot opens up."}
           </p>
           {profile ? (
             <p style={{ color: colors.muted, fontSize: 13, marginBottom: 12 }}>
