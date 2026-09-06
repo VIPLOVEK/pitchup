@@ -338,7 +338,7 @@ function QuickRSVPSheet({ poll, onClose, onDone }) {
   )
 }
 
-export default function Home({ polls, groupPolls = [], groups, announcement, todayWcMatches }) {
+export default function Home({ polls, groupPolls = [], groups, announcement, todayWcMatches, sunsetTimes = {} }) {
   const [showRequest, setShowRequest] = useState(false)
   const [rsvpPoll, setRsvpPoll] = useState(null)
   const [rsvpToast, setRsvpToast] = useState('')
@@ -547,6 +547,11 @@ export default function Home({ polls, groupPolls = [], groups, announcement, tod
           const extraCount = activePlayers.length - previewNames.length
           const cutoff = !confirmed ? getCutoffTime(poll.slots, poll.cutoff_hours) : null
           const votingCountdown = cutoff ? formatVotingCountdown(cutoff, now) : null
+          const gameDateKey = gameDate ? gameDate.toLocaleDateString('en-CA') : null
+          const sunsetInfo = gameDateKey ? sunsetTimes[gameDateKey] : null
+          const sunsetTs = sunsetInfo ? new Date(sunsetInfo.utc) : null
+          const sunsetStr = sunsetInfo ? sunsetInfo.display : null
+          const nearDark = sunsetTs && gameDate && gameDate.getTime() >= sunsetTs.getTime() - 60 * 60 * 1000
 
           return (
             <Link key={poll.id} href={`/poll/${poll.id}`} style={{ textDecoration: 'none' }}>
@@ -587,7 +592,12 @@ export default function Home({ polls, groupPolls = [], groups, announcement, tod
                 {poll.opponent && (
                   <p style={{ fontSize: 13, fontWeight: 700, margin: '0 0 4px', color: poll.game_type === 'competition' ? '#facc15' : '#fb923c' }}>vs {poll.opponent}</p>
                 )}
-                <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 8px' }}>{poll.location}{gameDateLabel ? ` · ${gameDateLabel}` : ''}</p>
+                <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 4px' }}>{poll.location}{gameDateLabel ? ` · ${gameDateLabel}` : ''}</p>
+                {sunsetStr && (
+                  <p style={{ fontSize: 12, margin: '0 0 8px', color: nearDark ? '#f97316' : colors.muted }}>
+                    {nearDark ? '🌑' : '🌇'} Sunset {sunsetStr}{nearDark ? ' · Low light' : ''}
+                  </p>
+                )}
 
                 {/* Countdown for today's games */}
                 {countdownText && (
@@ -740,8 +750,34 @@ export async function getServerSideProps() {
     const polls = allPolls.filter(p => p.visibility !== 'groups')
     const groupPolls = allPolls.filter(p => p.visibility === 'groups')
 
-    return { props: { polls, groupPolls, groups, announcement, todayWcMatches } }
+    // Fetch sunset times for all upcoming poll dates (Loudoun County, VA)
+    const LOUDOUN_LAT = 39.1157
+    const LOUDOUN_LNG = -77.5636
+    const uniqueDates = [...new Set(
+      allPolls
+        .filter(p => p.status === 'open' || p.status === 'confirmed')
+        .flatMap(p => {
+          if (p.game_time) return [new Date(p.game_time).toLocaleDateString('en-CA')]
+          return (p.slots || []).map(s => new Date(s).toLocaleDateString('en-CA'))
+        })
+        .filter(Boolean)
+    )]
+    const sunsetTimes = {}
+    await Promise.all(uniqueDates.map(async date => {
+      try {
+        const r = await fetch(`https://api.sunrise-sunset.org/json?lat=${LOUDOUN_LAT}&lng=${LOUDOUN_LNG}&date=${date}&formatted=0`, { signal: AbortSignal.timeout(3000) })
+        if (!r.ok) return
+        const data = await r.json()
+        if (data.status !== 'OK') return
+        sunsetTimes[date] = {
+          utc: data.results.sunset,
+          display: new Date(data.results.sunset).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' }),
+        }
+      } catch {}
+    }))
+
+    return { props: { polls, groupPolls, groups, announcement, todayWcMatches, sunsetTimes } }
   } catch {
-    return { props: { polls: [], groupPolls: [], groups: [], announcement: null, todayWcMatches: [] } }
+    return { props: { polls: [], groupPolls: [], groups: [], announcement: null, todayWcMatches: [], sunsetTimes: {} } }
   }
 }
