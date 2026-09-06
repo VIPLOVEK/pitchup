@@ -355,6 +355,30 @@ export default function Home({ polls, groupPolls = [], groups, announcement, tod
     // After mount, check if the player is a member of any restricted groups.
     // If so, quietly add the polls they can see into the list.
     if (!groupPolls.length) return
+
+    const mergePolls = (accessible) => {
+      if (!accessible.length) return
+      setVisiblePolls(prev => {
+        const existing = new Set(prev.map(p => p.id))
+        const merged = [...prev, ...accessible.filter(p => !existing.has(p.id))]
+        merged.sort((a, b) => {
+          const da = a.game_time ? new Date(a.game_time) : new Date(Math.min(...(a.slots || []).map(s => new Date(s))))
+          const db2 = b.game_time ? new Date(b.game_time) : new Date(Math.min(...(b.slots || []).map(s => new Date(s))))
+          return da - db2
+        })
+        return merged
+      })
+    }
+
+    try {
+      // Admins see all group polls regardless of membership
+      const adminData = JSON.parse(localStorage.getItem('pitchup_admin') || 'null')
+      if (adminData?.password) {
+        mergePolls(groupPolls)
+        return
+      }
+    } catch {}
+
     try {
       const profile = JSON.parse(localStorage.getItem('pitchup_player') || 'null')
       const playerId = profile?.id
@@ -366,17 +390,7 @@ export default function Home({ polls, groupPolls = [], groups, announcement, tod
           const accessible = groupPolls.filter(p =>
             (p.group_ids || []).some(gid => groupIds.includes(gid))
           )
-          if (!accessible.length) return
-          setVisiblePolls(prev => {
-            const existing = new Set(prev.map(p => p.id))
-            const merged = [...prev, ...accessible.filter(p => !existing.has(p.id))]
-            merged.sort((a, b) => {
-              const da = a.game_time ? new Date(a.game_time) : new Date(Math.min(...(a.slots || []).map(s => new Date(s))))
-              const db2 = b.game_time ? new Date(b.game_time) : new Date(Math.min(...(b.slots || []).map(s => new Date(s))))
-              return da - db2
-            })
-            return merged
-          })
+          mergePolls(accessible)
         })
         .catch(() => {})
     } catch {}
