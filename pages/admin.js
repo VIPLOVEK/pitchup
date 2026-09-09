@@ -2284,6 +2284,28 @@ function RecurringTab({ password, groups, showToast }) {
       {error && <Card><p style={{ color: colors.danger, fontSize: 13 }}>{error}</p></Card>}
       {templates === null && !error && <Card><Spinner /></Card>}
 
+      {templates && templates.length > 0 && (
+        <Card>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 2 }}>Run now</div>
+              <div style={{ color: colors.muted, fontSize: 12 }}>Force-create any polls that are due now (runs the daily cron immediately)</div>
+            </div>
+            <Btn small onClick={async () => {
+              try {
+                const res = await fetch('/api/cron/recurring-polls', { headers: { authorization: `Bearer ${password}` } })
+                const data = await res.json()
+                if (!res.ok) throw new Error(data.error)
+                showToast(data.created > 0 ? `✅ Created ${data.created} poll${data.created === 1 ? '' : 's'}` : 'No polls due yet — check lead_days setting')
+                load()
+              } catch (e) {
+                showToast(e.message || 'Failed to run')
+              }
+            }}>▶ Run now</Btn>
+          </div>
+        </Card>
+      )}
+
       {templates && templates.map(t => {
         const templateGroups = t.visibility === 'groups' ? t.group_ids.map(id => groups.find(g => g.id === id)).filter(Boolean) : []
         return (

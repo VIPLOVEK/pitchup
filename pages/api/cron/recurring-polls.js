@@ -9,7 +9,9 @@ import { pickTeamNames } from '../../../lib/teamNames'
 import { sendPushToAll } from '../../../lib/push'
 
 export default async function handler(req, res) {
-  if (process.env.CRON_SECRET && req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
+  const validCron = process.env.CRON_SECRET && req.headers.authorization === `Bearer ${process.env.CRON_SECRET}`
+  const validAdmin = process.env.ADMIN_PASSWORD && req.headers.authorization === `Bearer ${process.env.ADMIN_PASSWORD}`
+  if (process.env.CRON_SECRET && !validCron && !validAdmin) {
     return res.status(401).json({ error: 'Unauthorized' })
   }
   if (!isSupabaseConfigured()) return res.status(200).json({ created: 0 })
