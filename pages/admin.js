@@ -1310,6 +1310,26 @@ function RosterTab({ password, showToast }) {
     }
   }
 
+  const togglePosition = async (player, position) => {
+    const current = player.positions || []
+    const positions = current.includes(position)
+      ? current.filter(p => p !== position)
+      : [...current, position]
+    try {
+      const res = await fetch(`/api/admin/players/${player.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', authorization: `Bearer ${password}` },
+        body: JSON.stringify({ action: 'setPositions', positions }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setPlayers(ps => ps.map(p => p.id === player.id ? { ...p, positions: data.positions, position_skills: data.position_skills, skill_rating: data.skill_rating } : p))
+      showToast(`${player.name}'s positions updated ✓`)
+    } catch (e) {
+      showToast(e.message)
+    }
+  }
+
   if (error) return <Card><p style={{ color: colors.danger, fontSize: 13 }}>{error}</p></Card>
   if (players === null) return <Card><Spinner label="Loading roster..." /></Card>
 
@@ -1365,38 +1385,63 @@ function RosterTab({ password, showToast }) {
               )}
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-            {p.positions?.length
-              ? p.positions.map(pos => (
-                <div key={pos} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <Pill color={colors.grassLight}>{pos}</Pill>
-                  <select
-                    value={p.position_skills?.[pos] || DEFAULT_SKILL_RATING}
-                    onChange={e => setPositionSkill(p, pos, Number(e.target.value))}
-                    style={skillSelectStyle}
-                  >
-                    {Object.entries(SKILL_LABELS).map(([value, label]) => (
-                      <option key={value} value={value}>{value} · {label}</option>
-                    ))}
-                  </select>
-                </div>
-              ))
-              : (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <Pill color={colors.grassLight}>Any</Pill>
-                  <select
-                    value={p.skill_rating || DEFAULT_SKILL_RATING}
-                    onChange={e => setSkillRating(p, Number(e.target.value))}
-                    style={skillSelectStyle}
-                  >
-                    {Object.entries(SKILL_LABELS).map(([value, label]) => (
-                      <option key={value} value={value}>{value} · {label}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-            <Btn small variant="ghost" onClick={() => resetPin(p)}>Reset PIN</Btn>
-            <Btn small variant="danger" onClick={() => deletePlayer(p)}>Delete</Btn>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+            {/* Position toggles */}
+            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              {POSITIONS.map(pos => {
+                const active = (p.positions || []).includes(pos)
+                const posLabel = pos === 'Goalkeeper' ? 'GK' : pos === 'Defender' ? 'DEF' : pos === 'Midfielder' ? 'MID' : 'FWD'
+                return (
+                  <button
+                    key={pos}
+                    onClick={() => togglePosition(p, pos)}
+                    title={pos}
+                    style={{
+                      fontSize: 11, fontWeight: 700, borderRadius: 6, padding: '2px 7px', cursor: 'pointer', border: 'none',
+                      background: active ? colors.grassLight + '33' : 'rgba(255,255,255,0.06)',
+                      color: active ? colors.grassLight : colors.muted,
+                      outline: active ? `1px solid ${colors.grassLight}55` : '1px solid transparent',
+                    }}
+                  >{posLabel}</button>
+                )
+              })}
+            </div>
+            {/* Skill rating per position */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              {p.positions?.length
+                ? p.positions.map(pos => (
+                  <div key={pos} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ fontSize: 11, color: colors.muted }}>{pos === 'Goalkeeper' ? 'GK' : pos === 'Defender' ? 'DEF' : pos === 'Midfielder' ? 'MID' : 'FWD'}</span>
+                    <select
+                      value={p.position_skills?.[pos] || DEFAULT_SKILL_RATING}
+                      onChange={e => setPositionSkill(p, pos, Number(e.target.value))}
+                      style={skillSelectStyle}
+                    >
+                      {Object.entries(SKILL_LABELS).map(([value, label]) => (
+                        <option key={value} value={value}>{value} · {label}</option>
+                      ))}
+                    </select>
+                  </div>
+                ))
+                : (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ fontSize: 11, color: colors.muted }}>Any</span>
+                    <select
+                      value={p.skill_rating || DEFAULT_SKILL_RATING}
+                      onChange={e => setSkillRating(p, Number(e.target.value))}
+                      style={skillSelectStyle}
+                    >
+                      {Object.entries(SKILL_LABELS).map(([value, label]) => (
+                        <option key={value} value={value}>{value} · {label}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+            </div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <Btn small variant="ghost" onClick={() => resetPin(p)}>Reset PIN</Btn>
+              <Btn small variant="danger" onClick={() => deletePlayer(p)}>Delete</Btn>
+            </div>
           </div>
         </div>
       ))}

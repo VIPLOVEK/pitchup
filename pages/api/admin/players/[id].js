@@ -85,6 +85,32 @@ export default async function handler(req, res) {
       }
     }
 
+    if (action === 'setPositions') {
+      const { positions } = req.body
+      if (!Array.isArray(positions) || positions.some(p => !POSITIONS.includes(p))) {
+        return res.status(400).json({ error: 'Invalid positions' })
+      }
+      try {
+        const { data: player, error: fetchErr } = await db.from('players').select('position_skills').eq('id', id).maybeSingle()
+        if (fetchErr) throw fetchErr
+        if (!player) return res.status(404).json({ error: 'Player not found' })
+
+        // Drop skill entries for removed positions
+        const oldSkills = player.position_skills || {}
+        const positionSkills = Object.fromEntries(positions.map(pos => [pos, oldSkills[pos] || 3]))
+        const { data, error } = await db
+          .from('players')
+          .update({ positions, position_skills: positionSkills, skill_rating: positions.length ? deriveSkillRating(positionSkills) : (player.skill_rating || 3) })
+          .eq('id', id)
+          .select('id, name, positions, skill_rating, position_skills')
+          .single()
+        if (error) throw error
+        return res.status(200).json(data)
+      } catch (e) {
+        return res.status(500).json({ error: e.message })
+      }
+    }
+
     return res.status(400).json({ error: 'Unknown action' })
   }
 
