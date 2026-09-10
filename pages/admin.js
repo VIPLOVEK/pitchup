@@ -1288,6 +1288,7 @@ function RosterTab({ password, showToast }) {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
       setPlayers(ps => ps.map(p => p.id === player.id ? { ...p, skill_rating: data.skill_rating } : p))
+      showToast(`${player.name}'s skill updated ✓`)
     } catch (e) {
       showToast(e.message)
     }
@@ -1303,6 +1304,7 @@ function RosterTab({ password, showToast }) {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
       setPlayers(ps => ps.map(p => p.id === player.id ? { ...p, skill_rating: data.skill_rating, position_skills: data.position_skills } : p))
+      showToast(`${player.name} · ${position} skill updated ✓`)
     } catch (e) {
       showToast(e.message)
     }
