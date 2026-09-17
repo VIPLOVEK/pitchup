@@ -230,16 +230,86 @@ function LeaveModal({ label, needsPin, onConfirm, onCancel, loading }) {
   )
 }
 
-// ── Waitlist card (shown below confirmed game) ────────────────────────────────
-function WaitlistCard({ poll, waitlist, myEntry, onWaitlist, name, setName, profile, loading, setLoading, setToast, setPoll }) {
+// ── Player status banner (shown at TOP of confirmed game page) ───────────────
+function PlayerStatusBanner({ poll, myEntry, onWaitlist, profile, name, loading, setLoading, setToast, setPoll }) {
   const { teamA = [], teamB = [] } = poll.teams || {}
   const myName = myEntry?.name || profile?.name || name
   const noSplit = poll.no_team_split || false
-  const myTeam = !noSplit && poll.status === 'confirmed' && myName
+  const myTeam = !noSplit && myName
     ? teamA.some(p => p.name === myName) ? 'A' : teamB.some(p => p.name === myName) ? 'B' : null
     : null
   const nameA = poll.team_a_name || 'Team A'
   const nameB = poll.team_b_name || 'Team B'
+
+  if (!myEntry) return null
+
+  return (
+    <Card>
+      <div style={{ textAlign: 'center', padding: '10px 0 4px' }}>
+        <div style={{ fontSize: 32, marginBottom: 8 }}>{myEntry.tentative ? '⚡' : onWaitlist ? '⏳' : '✅'}</div>
+        <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 4 }}>
+          {myEntry.tentative ? "You're listed as tentative" : onWaitlist ? "You're on the standby queue" : "You're in the squad!"}
+        </div>
+        <p style={{ color: colors.muted, fontSize: 13 }}>
+          {myEntry.tentative ? "Tap below to confirm you can make it." : onWaitlist ? "You'll be notified if a spot opens." : 'See you on the pitch!'}
+        </p>
+        {myEntry.tentative && (
+          <button
+            onClick={async () => {
+              setLoading(true)
+              try {
+                const res = await fetch(`/api/poll/${poll.id}`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ name: myEntry.name, slots: [], tentative: false, playerId: profile?.id || myEntry.playerId || null, positions: profile?.positions || [], guests: 0 }),
+                })
+                const data = await res.json()
+                if (!res.ok) throw new Error(data.error)
+                setPoll(data)
+                setToast("You're confirmed! See you on the pitch ⚽")
+                setTimeout(() => setToast(''), 3000)
+              } catch (e) {
+                setToast(e.message || 'Something went wrong')
+              } finally {
+                setLoading(false)
+              }
+            }}
+            disabled={loading}
+            style={{ background: '#22c55e', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 20px', fontWeight: 700, fontSize: 14, cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.7 : 1, width: '100%', marginTop: 10 }}
+          >
+            ⚽ I can make it — confirm me
+          </button>
+        )}
+        {!myEntry.tentative && !onWaitlist && myTeam && (
+          <div style={{
+            margin: '12px -4px 4px',
+            borderRadius: 12,
+            padding: '14px 16px',
+            background: myTeam === 'A'
+              ? 'linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.06) 100%)'
+              : 'linear-gradient(135deg, rgba(239,68,68,0.22) 0%, rgba(239,68,68,0.10) 100%)',
+            border: `2px solid ${myTeam === 'A' ? 'rgba(255,255,255,0.35)' : 'rgba(239,68,68,0.5)'}`,
+            textAlign: 'center',
+          }}>
+            <div style={{ fontSize: 28, marginBottom: 4 }}>{myTeam === 'A' ? '⚪' : '🎨'}</div>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: myTeam === 'A' ? 'rgba(255,255,255,0.6)' : 'rgba(239,68,68,0.8)', marginBottom: 2 }}>
+              Your team
+            </div>
+            <div style={{ fontSize: 20, fontWeight: 900, letterSpacing: '-0.5px', color: myTeam === 'A' ? '#fff' : '#ef4444' }}>
+              {myTeam === 'A' ? nameA : nameB}
+            </div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: myTeam === 'A' ? 'rgba(255,255,255,0.55)' : 'rgba(239,68,68,0.7)', marginTop: 2 }}>
+              {myTeam === 'A' ? '⚪ Wear white' : '🎨 Wear colors'}
+            </div>
+          </div>
+        )}
+      </div>
+    </Card>
+  )
+}
+
+// ── Waitlist card (shown below confirmed game) ────────────────────────────────
+function WaitlistCard({ poll, waitlist, myEntry, onWaitlist, name, setName, profile, loading, setLoading, setToast, setPoll }) {
   const handleJoinWaitlist = async () => {
     if (!name.trim()) return
     setLoading(true)
@@ -304,73 +374,14 @@ function WaitlistCard({ poll, waitlist, myEntry, onWaitlist, name, setName, prof
       )}
       {myEntry ? (
         <Card>
-          <div style={{ textAlign: 'center', padding: '10px 0 14px' }}>
-            <div style={{ fontSize: 28, marginBottom: 8 }}>{myEntry.tentative ? '⚡' : onWaitlist ? '⏳' : '✅'}</div>
-            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>
-              {myEntry.tentative ? "You're listed as tentative" : onWaitlist ? "You're on the waitlist" : "You're in the squad!"}
-            </div>
-            <p style={{ color: colors.muted, fontSize: 13 }}>
-              {myEntry.tentative ? "Tap below to confirm you can make it." : onWaitlist ? "We'll notify you if a spot opens up." : 'See you on the pitch!'}
-            </p>
-            {myEntry.tentative && (
-              <button
-                onClick={async () => {
-                  setLoading(true)
-                  try {
-                    const res = await fetch(`/api/poll/${poll.id}`, {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ name: myEntry.name, slots: [], tentative: false, playerId: profile?.id || myEntry.playerId || null, positions: profile?.positions || [], guests: 0 }),
-                    })
-                    const data = await res.json()
-                    if (!res.ok) throw new Error(data.error)
-                    setPoll(data)
-                    setToast("You're confirmed! See you on the pitch ⚽")
-                    setTimeout(() => setToast(''), 3000)
-                  } catch (e) {
-                    setToast(e.message || 'Something went wrong')
-                  } finally {
-                    setLoading(false)
-                  }
-                }}
-                disabled={loading}
-                style={{ background: '#22c55e', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 20px', fontWeight: 700, fontSize: 14, cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.7 : 1, width: '100%', marginBottom: 8 }}
-              >
-                ⚽ I can make it — confirm me
-              </button>
-            )}
-            {!myEntry.tentative && !onWaitlist && myTeam && (
-              <div style={{
-                margin: '12px -4px 4px',
-                borderRadius: 12,
-                padding: '14px 16px',
-                background: myTeam === 'A'
-                  ? 'linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.06) 100%)'
-                  : 'linear-gradient(135deg, rgba(239,68,68,0.22) 0%, rgba(239,68,68,0.10) 100%)',
-                border: `2px solid ${myTeam === 'A' ? 'rgba(255,255,255,0.35)' : 'rgba(239,68,68,0.5)'}`,
-                textAlign: 'center',
-              }}>
-                <div style={{ fontSize: 28, marginBottom: 4 }}>{myTeam === 'A' ? '⚪' : '🔴'}</div>
-                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: myTeam === 'A' ? 'rgba(255,255,255,0.6)' : 'rgba(239,68,68,0.8)', marginBottom: 2 }}>
-                  Your team
-                </div>
-                <div style={{ fontSize: 20, fontWeight: 900, letterSpacing: '-0.5px', color: myTeam === 'A' ? '#fff' : '#ef4444' }}>
-                  {myTeam === 'A' ? nameA : nameB}
-                </div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: myTeam === 'A' ? 'rgba(255,255,255,0.55)' : 'rgba(239,68,68,0.7)', marginTop: 2 }}>
-                  {myTeam === 'A' ? '⚪ Wear white' : '🔴 Wear colors'}
-                </div>
-              </div>
-            )}
-          </div>
           {poll.teams_locked && !onWaitlist && !myEntry?.tentative ? (
             <p style={{ color: colors.muted, fontSize: 13, textAlign: 'center', margin: 0 }}>
               🔐 Teams are locked — contact the admin if you can't make it.
             </p>
           ) : (
-          <Btn small variant="ghost" onClick={() => setShowLeaveModal(true)} disabled={loading}>
-            {onWaitlist ? 'Leave waitlist' : "Can't make it — leave game"}
-          </Btn>
+            <Btn small variant="ghost" onClick={() => setShowLeaveModal(true)} disabled={loading}>
+              {onWaitlist ? 'Leave waitlist' : "Can't make it — leave game"}
+            </Btn>
           )}
         </Card>
       ) : (
@@ -1309,6 +1320,9 @@ export default function PollPage({ poll: initialPoll, error }) {
   if (poll.status === 'confirmed') {
     return (
       <Layout title={poll.title} description={`Game is on at ${poll.location} — ${formatSlot(poll.game_time)}.`} ogImageUrl={ogImageUrl}>
+        <PlayerStatusBanner poll={poll} myEntry={myEntry} onWaitlist={onWaitlist}
+          profile={profile} name={name}
+          loading={loading} setLoading={setLoading} setToast={setToast} setPoll={setPoll} />
         <GameConfirmed poll={poll} profile={profile} />
         <WaitlistCard poll={poll} waitlist={waitlist} myEntry={myEntry} onWaitlist={onWaitlist}
           name={name} setName={setName} profile={profile}
