@@ -772,7 +772,7 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
               {(poll.goals || []).map((g, i) => (
                 <span key={i} style={{ background: g.team === 'A' ? colors.teamA + '22' : colors.teamB + '22', color: g.team === 'A' ? colors.teamA : colors.teamB, borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                  {g.team === 'A' ? '🟦' : '🟥'} {g.name}
+                  {g.team === 'A' ? '⚪' : '🎨'} {g.name}
                   {g.assist && <span style={{ fontWeight: 400, opacity: 0.8 }}>↗ {g.assist}</span>}
                   <button onClick={() => doAction('setGoals', 'PATCH', { goals: (poll.goals || []).filter((_, j) => j !== i) })} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0, fontSize: 12, opacity: 0.7 }}>×</button>
                 </span>
