@@ -696,6 +696,7 @@ function RainbowColors() {
 // ── Confirmed game view ───────────────────────────────────────────────────────
 function GameConfirmed({ poll, profile }) {
   const [copied, setCopied] = useState(false)
+  const [sharing, setSharing] = useState(false)
   const noSplit = poll.no_team_split || false
   const { teamA = [], teamB = [] } = poll.teams || {}
   const squad = noSplit ? [...teamA, ...teamB].filter(p => !p.isGuest) : []
@@ -724,6 +725,156 @@ function GameConfirmed({ poll, profile }) {
     ``,
     `See you on the pitch! 🏃`,
   ].join('\n')
+
+  const generateTeamCanvas = () => {
+    const W = 800
+    const playerRows = noSplit ? squad.length : Math.max(teamA.length, teamB.length)
+    const H = Math.max(420, 180 + playerRows * 34 + 60)
+    const canvas = document.createElement('canvas')
+    canvas.width = W
+    canvas.height = H
+    const ctx = canvas.getContext('2d')
+    const mid = W / 2
+
+    // Background
+    ctx.fillStyle = '#0e1a0e'
+    ctx.fillRect(0, 0, W, H)
+
+    // Header strip
+    ctx.fillStyle = 'rgba(74,222,128,0.09)'
+    ctx.fillRect(0, 0, W, 104)
+    ctx.strokeStyle = 'rgba(74,222,128,0.22)'
+    ctx.lineWidth = 1
+    ctx.beginPath(); ctx.moveTo(0, 104); ctx.lineTo(W, 104); ctx.stroke()
+
+    // Header text
+    ctx.textAlign = 'center'
+    ctx.fillStyle = '#4ade80'
+    ctx.font = 'bold 13px system-ui, sans-serif'
+    ctx.fillText('GAME DAY  ·  WHITES VS COLORS', mid, 28)
+
+    ctx.fillStyle = '#ffffff'
+    ctx.font = 'bold 30px system-ui, sans-serif'
+    ctx.fillText(poll.title, mid, 66)
+
+    ctx.fillStyle = 'rgba(255,255,255,0.48)'
+    ctx.font = '14px system-ui, sans-serif'
+    ctx.fillText(`${gameTime}   ·   ${poll.location}`, mid, 92)
+
+    if (noSplit) {
+      // Single squad column
+      ctx.textAlign = 'left'
+      ctx.fillStyle = '#4ade80'
+      ctx.font = 'bold 14px system-ui, sans-serif'
+      ctx.fillText('SQUAD', 40, 136)
+      ctx.strokeStyle = 'rgba(74,222,128,0.25)'
+      ctx.beginPath(); ctx.moveTo(40, 142); ctx.lineTo(W - 40, 142); ctx.stroke()
+      ctx.fillStyle = 'rgba(255,255,255,0.85)'
+      ctx.font = '600 16px system-ui, sans-serif'
+      squad.forEach((p, i) => {
+        const col = i < Math.ceil(squad.length / 2) ? 40 : mid + 20
+        const row = i < Math.ceil(squad.length / 2) ? i : i - Math.ceil(squad.length / 2)
+        ctx.fillText(p.name, col, 172 + row * 34)
+      })
+    } else {
+      // Two team columns
+      const pad = 40, colW = mid - pad - 16
+      ctx.fillStyle = 'rgba(255,255,255,0.05)'
+      ctx.beginPath(); roundRect(ctx, pad, 112, colW, H - 128, 8); ctx.fill()
+      ctx.fillStyle = 'rgba(239,68,68,0.07)'
+      ctx.beginPath(); roundRect(ctx, mid + 16, 112, colW, H - 128, 8); ctx.fill()
+
+      // Column divider
+      ctx.strokeStyle = 'rgba(255,255,255,0.07)'
+      ctx.lineWidth = 1
+      ctx.beginPath(); ctx.moveTo(mid, 118); ctx.lineTo(mid, H - 16); ctx.stroke()
+
+      // Team A header
+      ctx.textAlign = 'left'
+      ctx.fillStyle = '#ffffff'
+      ctx.font = 'bold 14px system-ui, sans-serif'
+      ctx.fillText(`${nameA}`, pad + 12, 138)
+      ctx.fillStyle = 'rgba(255,255,255,0.38)'
+      ctx.font = '11px system-ui, sans-serif'
+      ctx.fillText('Wear white', pad + 12, 156)
+
+      // Team B header
+      ctx.fillStyle = '#ef4444'
+      ctx.font = 'bold 14px system-ui, sans-serif'
+      ctx.fillText(`${nameB}`, mid + 28, 138)
+      ctx.fillStyle = 'rgba(239,68,68,0.55)'
+      ctx.font = '11px system-ui, sans-serif'
+      ctx.fillText('Wear colors', mid + 28, 156)
+
+      // Separator lines under headers
+      ctx.strokeStyle = 'rgba(255,255,255,0.08)'
+      ctx.beginPath(); ctx.moveTo(pad + 12, 164); ctx.lineTo(mid - 16, 164); ctx.stroke()
+      ctx.strokeStyle = 'rgba(239,68,68,0.2)'
+      ctx.beginPath(); ctx.moveTo(mid + 28, 164); ctx.lineTo(W - pad - 12, 164); ctx.stroke()
+
+      // Team A players
+      ctx.fillStyle = 'rgba(255,255,255,0.88)'
+      ctx.font = '15px system-ui, sans-serif'
+      teamA.forEach((p, i) => {
+        ctx.fillText(p.name, pad + 12, 188 + i * 34)
+      })
+
+      // Team B players
+      ctx.fillStyle = 'rgba(239,68,68,0.92)'
+      ctx.font = '15px system-ui, sans-serif'
+      teamB.forEach((p, i) => {
+        ctx.fillText(p.name, mid + 28, 188 + i * 34)
+      })
+    }
+
+    // Footer
+    ctx.fillStyle = 'rgba(74,222,128,0.1)'
+    ctx.fillRect(0, H - 38, W, 38)
+    ctx.fillStyle = 'rgba(255,255,255,0.28)'
+    ctx.textAlign = 'center'
+    ctx.font = '11px system-ui, sans-serif'
+    ctx.fillText('pitchup-soccer.vercel.app', mid, H - 14)
+
+    return canvas
+  }
+
+  const roundRect = (ctx, x, y, w, h, r) => {
+    ctx.moveTo(x + r, y)
+    ctx.lineTo(x + w - r, y)
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r)
+    ctx.lineTo(x + w, y + h - r)
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h)
+    ctx.lineTo(x + r, y + h)
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r)
+    ctx.lineTo(x, y + r)
+    ctx.quadraticCurveTo(x, y, x + r, y)
+    ctx.closePath()
+  }
+
+  const shareTeamCard = () => {
+    setSharing(true)
+    try {
+      const canvas = generateTeamCanvas()
+      canvas.toBlob(async (blob) => {
+        const file = new File([blob], 'pitchup-teams.png', { type: 'image/png' })
+        try {
+          if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({ files: [file], text: whatsappText })
+          } else {
+            await navigator.clipboard?.writeText(whatsappText)
+            setCopied(true)
+            setTimeout(() => setCopied(false), 2000)
+          }
+        } catch {
+          // user cancelled share — no-op
+        } finally {
+          setSharing(false)
+        }
+      }, 'image/png')
+    } catch {
+      setSharing(false)
+    }
+  }
 
   return (
     <div>
@@ -856,12 +1007,31 @@ function GameConfirmed({ poll, profile }) {
         </div>
         )}
 
-        {/* WhatsApp copy block */}
+        {/* Share block */}
         <div style={{ marginTop: 20, background: colors.pitchMid, borderRadius: 8, padding: '12px 14px' }}>
-          <div style={{ fontSize: 11, color: colors.muted, fontWeight: 600, marginBottom: 8 }}>💬 COPY TO WHATSAPP</div>
-          <pre style={{ fontSize: 13, color: colors.white, whiteSpace: 'pre-wrap', lineHeight: 1.7, fontFamily: 'inherit', margin: '0 0 10px' }}>
+          <div style={{ fontSize: 11, color: colors.muted, fontWeight: 600, marginBottom: 8 }}>📤 SHARE TEAMS</div>
+          <pre style={{ fontSize: 12, color: colors.muted, whiteSpace: 'pre-wrap', lineHeight: 1.6, fontFamily: 'inherit', margin: '0 0 10px', borderRadius: 6, background: colors.pitch, padding: '8px 10px' }}>
             {whatsappText}
           </pre>
+          <button
+            onClick={shareTeamCard}
+            disabled={sharing}
+            style={{
+              background: sharing ? '#128C7E' : '#25D366',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 8,
+              padding: '10px 16px',
+              fontWeight: 700,
+              fontSize: 13,
+              cursor: sharing ? 'default' : 'pointer',
+              width: '100%',
+              marginBottom: 8,
+              transition: 'background 0.2s',
+            }}
+          >
+            {sharing ? 'Opening share…' : '📤 Share image + message'}
+          </button>
           <button
             onClick={() => {
               navigator.clipboard?.writeText(whatsappText)
@@ -869,41 +1039,20 @@ function GameConfirmed({ poll, profile }) {
               setTimeout(() => setCopied(false), 2000)
             }}
             style={{
-              background: copied ? '#128C7E' : '#25D366',
-              color: '#fff',
-              border: 'none',
+              background: copied ? colors.grass : 'transparent',
+              color: copied ? colors.pitch : colors.muted,
+              border: `1px solid ${colors.grass}44`,
               borderRadius: 8,
               padding: '8px 16px',
               fontWeight: 700,
               fontSize: 13,
               cursor: 'pointer',
               width: '100%',
-              transition: 'background 0.2s',
+              transition: 'all 0.2s',
             }}
           >
-            {copied ? '✓ Copied!' : 'Copy message for WhatsApp'}
+            {copied ? '✓ Copied!' : '💬 Copy text only'}
           </button>
-          <div style={{ marginTop: 10 }}>
-            <a
-              href={`/poll/${poll.id}/share`}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: 'block',
-                textAlign: 'center',
-                background: colors.pitchMid,
-                color: colors.muted,
-                borderRadius: 8,
-                padding: '10px 16px',
-                fontSize: 13,
-                fontWeight: 600,
-                textDecoration: 'none',
-                border: `1px solid ${colors.grass}33`,
-              }}
-            >
-              📸 Open shareable teams card
-            </a>
-          </div>
         </div>
       </Card>
       <MvpVoting poll={poll} />
