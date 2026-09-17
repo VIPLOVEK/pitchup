@@ -341,19 +341,25 @@ function WaitlistCard({ poll, waitlist, myEntry, onWaitlist, name, setName, prof
             )}
             {!myEntry.tentative && !onWaitlist && myTeam && (
               <div style={{
-                display: 'inline-flex', alignItems: 'center', gap: 6,
-                background: myTeam === 'A' ? 'rgba(96,165,250,0.1)' : 'rgba(248,113,113,0.1)',
-                border: `1px solid ${myTeam === 'A' ? 'rgba(96,165,250,0.3)' : 'rgba(248,113,113,0.3)'}`,
-                borderRadius: 20, padding: '5px 12px', marginTop: 4,
+                margin: '12px -4px 4px',
+                borderRadius: 12,
+                padding: '14px 16px',
+                background: myTeam === 'A'
+                  ? 'linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.06) 100%)'
+                  : 'linear-gradient(135deg, rgba(239,68,68,0.22) 0%, rgba(239,68,68,0.10) 100%)',
+                border: `2px solid ${myTeam === 'A' ? 'rgba(255,255,255,0.35)' : 'rgba(239,68,68,0.5)'}`,
+                textAlign: 'center',
               }}>
-                <span style={{ fontSize: 13 }}>{myTeam === 'A' ? '⚪' : '🎨'}</span>
-                <span style={{ fontSize: 13, fontWeight: 700, color: myTeam === 'A' ? colors.teamA : colors.teamB }}>
+                <div style={{ fontSize: 28, marginBottom: 4 }}>{myTeam === 'A' ? '⚪' : '🔴'}</div>
+                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: myTeam === 'A' ? 'rgba(255,255,255,0.6)' : 'rgba(239,68,68,0.8)', marginBottom: 2 }}>
+                  Your team
+                </div>
+                <div style={{ fontSize: 20, fontWeight: 900, letterSpacing: '-0.5px', color: myTeam === 'A' ? '#fff' : '#ef4444' }}>
                   {myTeam === 'A' ? nameA : nameB}
-                </span>
-                <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>·</span>
-                <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', fontWeight: 600 }}>
-                  {myTeam === 'A' ? 'White' : 'Colors'}
-                </span>
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: myTeam === 'A' ? 'rgba(255,255,255,0.55)' : 'rgba(239,68,68,0.7)', marginTop: 2 }}>
+                  {myTeam === 'A' ? '⚪ Wear white' : '🔴 Wear colors'}
+                </div>
               </div>
             )}
           </div>
@@ -668,6 +674,7 @@ function ConfirmedOptOut({ poll, loading, setLoading, setToast, setPoll }) {
 
 // ── Confirmed game view ───────────────────────────────────────────────────────
 function GameConfirmed({ poll, profile }) {
+  const [copied, setCopied] = useState(false)
   const noSplit = poll.no_team_split || false
   const { teamA = [], teamB = [] } = poll.teams || {}
   const squad = noSplit ? [...teamA, ...teamB].filter(p => !p.isGuest) : []
@@ -835,9 +842,13 @@ function GameConfirmed({ poll, profile }) {
             {whatsappText}
           </pre>
           <button
-            onClick={() => navigator.clipboard?.writeText(whatsappText)}
+            onClick={() => {
+              navigator.clipboard?.writeText(whatsappText)
+              setCopied(true)
+              setTimeout(() => setCopied(false), 2000)
+            }}
             style={{
-              background: '#25D366',
+              background: copied ? '#128C7E' : '#25D366',
               color: '#fff',
               border: 'none',
               borderRadius: 8,
@@ -846,9 +857,10 @@ function GameConfirmed({ poll, profile }) {
               fontSize: 13,
               cursor: 'pointer',
               width: '100%',
+              transition: 'background 0.2s',
             }}
           >
-            Copy message for WhatsApp
+            {copied ? '✓ Copied!' : 'Copy message for WhatsApp'}
           </button>
           <div style={{ marginTop: 10 }}>
             <a
