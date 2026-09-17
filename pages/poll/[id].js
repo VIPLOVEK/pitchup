@@ -750,127 +750,134 @@ function GameConfirmed({ poll, profile }) {
 
   const generateTeamCanvas = () => {
     const W = 800
-    const playerRows = noSplit ? squad.length : Math.max(teamA.length, teamB.length)
-    const H = Math.max(420, 180 + playerRows * 34 + 60)
+    const CHIP_H = 52, CHIP_GAP = 10, COL_PAD = 24
+    const playerRows = noSplit ? Math.ceil(squad.length / 2) : Math.max(teamA.length, teamB.length)
+    const H = Math.max(480, 160 + playerRows * (CHIP_H + CHIP_GAP) + 80)
     const canvas = document.createElement('canvas')
-    canvas.width = W
-    canvas.height = H
+    canvas.width = W; canvas.height = H
     const ctx = canvas.getContext('2d')
     const mid = W / 2
+    const RAINBOW_C = ['#ef4444', '#f97316', '#fbbf24', '#4ade80', '#60a5fa', '#a78bfa']
 
-    // Background
-    ctx.fillStyle = '#0e1a0e'
-    ctx.fillRect(0, 0, W, H)
+    // helpers
+    const pill = (x, y, w, h, r, fill, stroke) => {
+      ctx.beginPath()
+      ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y)
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r)
+      ctx.lineTo(x + w, y + h - r)
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h)
+      ctx.lineTo(x + r, y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - r)
+      ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y)
+      ctx.closePath()
+      if (fill) { ctx.fillStyle = fill; ctx.fill() }
+      if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1.5; ctx.stroke() }
+    }
 
-    // Header strip
-    ctx.fillStyle = 'rgba(74,222,128,0.09)'
-    ctx.fillRect(0, 0, W, 104)
-    ctx.strokeStyle = 'rgba(74,222,128,0.22)'
-    ctx.lineWidth = 1
-    ctx.beginPath(); ctx.moveTo(0, 104); ctx.lineTo(W, 104); ctx.stroke()
+    const avatarCircle = (name, cx, cy, r) => {
+      const hue = [...(name || '')].reduce((h, c) => h + c.charCodeAt(0), 0) % 360
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2)
+      ctx.fillStyle = `hsl(${hue},40%,32%)`; ctx.fill()
+      ctx.fillStyle = '#fff'
+      ctx.font = `bold ${r * 0.78}px system-ui, sans-serif`
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+      ctx.fillText((name || '?').slice(0, 2).toUpperCase(), cx, cy)
+      ctx.textBaseline = 'alphabetic'
+    }
 
-    // Header text
-    ctx.textAlign = 'center'
-    ctx.fillStyle = '#4ade80'
-    ctx.font = 'bold 13px system-ui, sans-serif'
-    ctx.fillText('GAME DAY  ·  WHITES VS COLORS', mid, 28)
-
-    ctx.fillStyle = '#ffffff'
-    ctx.font = 'bold 30px system-ui, sans-serif'
-    ctx.fillText(poll.title, mid, 66)
-
-    ctx.fillStyle = 'rgba(255,255,255,0.48)'
-    ctx.font = '14px system-ui, sans-serif'
-    ctx.fillText(`${gameTime}   ·   ${poll.location}`, mid, 92)
-
-    if (noSplit) {
-      // Single squad column
-      ctx.textAlign = 'left'
-      ctx.fillStyle = '#4ade80'
-      ctx.font = 'bold 14px system-ui, sans-serif'
-      ctx.fillText('SQUAD', 40, 136)
-      ctx.strokeStyle = 'rgba(74,222,128,0.25)'
-      ctx.beginPath(); ctx.moveTo(40, 142); ctx.lineTo(W - 40, 142); ctx.stroke()
-      ctx.fillStyle = 'rgba(255,255,255,0.85)'
-      ctx.font = '600 16px system-ui, sans-serif'
-      squad.forEach((p, i) => {
-        const col = i < Math.ceil(squad.length / 2) ? 40 : mid + 20
-        const row = i < Math.ceil(squad.length / 2) ? i : i - Math.ceil(squad.length / 2)
-        ctx.fillText(p.name, col, 172 + row * 34)
-      })
-    } else {
-      // Two team columns
-      const pad = 40, colW = mid - pad - 16
-      ctx.fillStyle = 'rgba(255,255,255,0.05)'
-      ctx.beginPath(); roundRect(ctx, pad, 112, colW, H - 128, 8); ctx.fill()
-      ctx.fillStyle = 'rgba(239,68,68,0.07)'
-      ctx.beginPath(); roundRect(ctx, mid + 16, 112, colW, H - 128, 8); ctx.fill()
-
-      // Column divider
-      ctx.strokeStyle = 'rgba(255,255,255,0.07)'
-      ctx.lineWidth = 1
-      ctx.beginPath(); ctx.moveTo(mid, 118); ctx.lineTo(mid, H - 16); ctx.stroke()
-
-      // Team A header
-      ctx.textAlign = 'left'
-      ctx.fillStyle = '#ffffff'
-      ctx.font = 'bold 14px system-ui, sans-serif'
-      ctx.fillText(`${nameA}`, pad + 12, 138)
-      ctx.fillStyle = 'rgba(255,255,255,0.38)'
-      ctx.font = '11px system-ui, sans-serif'
-      ctx.fillText('Wear white', pad + 12, 156)
-
-      // Team B header
-      ctx.fillStyle = '#ef4444'
-      ctx.font = 'bold 14px system-ui, sans-serif'
-      ctx.fillText(`${nameB}`, mid + 28, 138)
-      ctx.fillStyle = 'rgba(239,68,68,0.55)'
-      ctx.font = '11px system-ui, sans-serif'
-      ctx.fillText('Wear colors', mid + 28, 156)
-
-      // Separator lines under headers
-      ctx.strokeStyle = 'rgba(255,255,255,0.08)'
-      ctx.beginPath(); ctx.moveTo(pad + 12, 164); ctx.lineTo(mid - 16, 164); ctx.stroke()
-      ctx.strokeStyle = 'rgba(239,68,68,0.2)'
-      ctx.beginPath(); ctx.moveTo(mid + 28, 164); ctx.lineTo(W - pad - 12, 164); ctx.stroke()
-
-      // Team A players
-      ctx.fillStyle = 'rgba(255,255,255,0.88)'
-      ctx.font = '15px system-ui, sans-serif'
-      teamA.forEach((p, i) => {
-        ctx.fillText(p.name, pad + 12, 188 + i * 34)
-      })
-
-      // Team B players
-      ctx.fillStyle = 'rgba(239,68,68,0.92)'
-      ctx.font = '15px system-ui, sans-serif'
-      teamB.forEach((p, i) => {
-        ctx.fillText(p.name, mid + 28, 188 + i * 34)
+    const rainbowText = (text, x, y, font) => {
+      ctx.font = font; ctx.textAlign = 'left'
+      let cx = x
+      ;[...text].forEach((ch, i) => {
+        ctx.fillStyle = RAINBOW_C[i % RAINBOW_C.length]
+        ctx.fillText(ch, cx, y)
+        cx += ctx.measureText(ch).width
       })
     }
 
-    // Footer
-    ctx.fillStyle = 'rgba(74,222,128,0.1)'
-    ctx.fillRect(0, H - 38, W, 38)
-    ctx.fillStyle = 'rgba(255,255,255,0.28)'
-    ctx.textAlign = 'center'
-    ctx.font = '11px system-ui, sans-serif'
-    ctx.fillText('pitchup-soccer.vercel.app', mid, H - 14)
+    // ── Background ──
+    const grad = ctx.createLinearGradient(0, 0, 0, H)
+    grad.addColorStop(0, '#0d1529'); grad.addColorStop(1, '#0a1020')
+    ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H)
+
+    // ── Header ──
+    ctx.fillStyle = 'rgba(255,255,255,0.04)'
+    ctx.fillRect(0, 0, W, 112)
+    ctx.strokeStyle = 'rgba(255,255,255,0.07)'; ctx.lineWidth = 1
+    ctx.beginPath(); ctx.moveTo(0, 112); ctx.lineTo(W, 112); ctx.stroke()
+
+    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'
+    ctx.fillStyle = '#4ade80'; ctx.font = 'bold 12px system-ui, sans-serif'
+    ctx.fillText('GAME DAY  ·  WHITES VS COLORS', mid, 26)
+
+    ctx.fillStyle = '#ffffff'; ctx.font = 'bold 32px system-ui, sans-serif'
+    ctx.fillText(poll.title, mid, 68)
+
+    ctx.fillStyle = 'rgba(255,255,255,0.42)'; ctx.font = '14px system-ui, sans-serif'
+    ctx.fillText(`${gameTime}   ·   ${poll.location}`, mid, 96)
+
+    if (noSplit) {
+      // Squad in two columns
+      const half = Math.ceil(squad.length / 2)
+      ;[0, 1].forEach(col => {
+        const players = col === 0 ? squad.slice(0, half) : squad.slice(half)
+        const colX = col === 0 ? COL_PAD : mid + COL_PAD
+        const colW = mid - COL_PAD * 2
+        players.forEach((p, i) => {
+          const cy = 128 + i * (CHIP_H + CHIP_GAP)
+          pill(colX, cy, colW, CHIP_H, CHIP_H / 2, 'rgba(255,255,255,0.06)', 'rgba(255,255,255,0.10)')
+          avatarCircle(p.name, colX + CHIP_H / 2, cy + CHIP_H / 2, CHIP_H / 2 - 6)
+          ctx.fillStyle = 'rgba(255,255,255,0.88)'; ctx.font = 'bold 14px system-ui, sans-serif'
+          ctx.textAlign = 'left'; ctx.textBaseline = 'middle'
+          ctx.fillText(p.name, colX + CHIP_H + 6, cy + CHIP_H / 2)
+          ctx.textBaseline = 'alphabetic'
+        })
+      })
+    } else {
+      // Two team columns
+      const colW = mid - COL_PAD * 2
+
+      // ── Team A column ──
+      const aX = COL_PAD
+      ctx.fillStyle = '#f5f5f5'; ctx.font = 'bold 16px system-ui, sans-serif'
+      ctx.textAlign = 'left'; ctx.fillText(nameA.toUpperCase(), aX, 136)
+      ctx.fillStyle = 'rgba(255,255,255,0.38)'; ctx.font = '12px system-ui, sans-serif'
+      ctx.fillText('⚪ Wear white', aX, 154)
+
+      teamA.forEach((p, i) => {
+        const cy = 168 + i * (CHIP_H + CHIP_GAP)
+        pill(aX, cy, colW, CHIP_H, CHIP_H / 2, 'rgba(255,255,255,0.06)', 'rgba(255,255,255,0.12)')
+        avatarCircle(p.name, aX + CHIP_H / 2, cy + CHIP_H / 2, CHIP_H / 2 - 6)
+        ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.font = 'bold 14px system-ui, sans-serif'
+        ctx.textAlign = 'left'; ctx.textBaseline = 'middle'
+        ctx.fillText(p.name, aX + CHIP_H + 6, cy + CHIP_H / 2)
+        ctx.textBaseline = 'alphabetic'
+      })
+
+      // ── Team B column ──
+      const bX = mid + COL_PAD
+      // Rainbow team name
+      ctx.font = 'bold 16px system-ui, sans-serif'
+      rainbowText(nameB.toUpperCase(), bX, 136, 'bold 16px system-ui, sans-serif')
+      ctx.fillStyle = 'rgba(255,255,255,0.38)'; ctx.font = '12px system-ui, sans-serif'
+      ctx.textAlign = 'left'; ctx.fillText('🎨 Wear colors', bX, 154)
+
+      teamB.forEach((p, i) => {
+        const cy = 168 + i * (CHIP_H + CHIP_GAP)
+        pill(bX, cy, colW, CHIP_H, CHIP_H / 2, 'rgba(255,255,255,0.04)', 'rgba(255,255,255,0.10)')
+        avatarCircle(p.name, bX + CHIP_H / 2, cy + CHIP_H / 2, CHIP_H / 2 - 6)
+        // Rainbow letters for player name
+        ctx.textBaseline = 'middle'
+        rainbowText(p.name, bX + CHIP_H + 6, cy + CHIP_H / 2, 'bold 14px system-ui, sans-serif')
+        ctx.textBaseline = 'alphabetic'
+      })
+    }
+
+    // ── Footer ──
+    ctx.fillStyle = 'rgba(255,255,255,0.04)'; ctx.fillRect(0, H - 36, W, 36)
+    ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.font = '11px system-ui, sans-serif'
+    ctx.textAlign = 'center'; ctx.fillText('pitchup-soccer.vercel.app', mid, H - 12)
 
     return canvas
-  }
-
-  const roundRect = (ctx, x, y, w, h, r) => {
-    ctx.moveTo(x + r, y)
-    ctx.lineTo(x + w - r, y)
-    ctx.quadraticCurveTo(x + w, y, x + w, y + r)
-    ctx.lineTo(x + w, y + h - r)
-    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h)
-    ctx.lineTo(x + r, y + h)
-    ctx.quadraticCurveTo(x, y + h, x, y + h - r)
-    ctx.lineTo(x, y + r)
-    ctx.quadraticCurveTo(x, y, x + r, y)
-    ctx.closePath()
   }
 
   const shareTeamCard = () => {
@@ -1006,13 +1013,27 @@ function GameConfirmed({ poll, profile }) {
             <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.teamA, marginBottom: 2 }}>
               {nameA}
             </div>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginBottom: 8 }}>⚪ White</div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginBottom: 8 }}>⚪ White</div>
             <PositionSummary players={teamA} />
-            {teamA.map((p, i) => (
-              <div key={i} style={{ display: 'flex', marginBottom: 4 }}>
-                <PlayerChip name={p.name} color={colors.teamA} avatar={p.avatar_url} isMe={p.name === profile?.name} />
-              </div>
-            ))}
+            {teamA.map((p, i) => {
+              const isMe = p.name === profile?.name
+              return (
+                <div key={i} style={{ display: 'flex', marginBottom: 5 }}>
+                  <span style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                    background: isMe ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.1)',
+                    border: `${isMe ? '2px' : '1.5px'} solid ${isMe ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.38)'}`,
+                    borderRadius: 999, padding: '4px 10px 4px 4px',
+                    fontSize: 13, fontWeight: isMe ? 800 : 600, color: '#fff', margin: 2,
+                    boxShadow: isMe ? '0 0 8px rgba(255,255,255,0.25)' : 'none',
+                  }}>
+                    <Avatar name={p.name} src={p.avatar_url} size={22} />
+                    {p.name}
+                    {isMe && <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.06em', background: 'rgba(255,255,255,0.2)', color: '#fff', borderRadius: 4, padding: '1px 5px' }}>YOU</span>}
+                  </span>
+                </div>
+              )
+            })}
           </div>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.teamB, marginBottom: 2 }}>
@@ -1020,11 +1041,26 @@ function GameConfirmed({ poll, profile }) {
             </div>
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginBottom: 8 }}>🎨 <RainbowColors /></div>
             <PositionSummary players={teamB} />
-            {teamB.map((p, i) => (
-              <div key={i} style={{ display: 'flex', marginBottom: 4 }}>
-                <PlayerChip name={p.name} color={colors.teamB} avatar={p.avatar_url} isMe={p.name === profile?.name} />
-              </div>
-            ))}
+            {teamB.map((p, i) => {
+              const isMe = p.name === profile?.name
+              return (
+                <div key={i} style={{ display: 'flex', marginBottom: 5 }}>
+                  <span style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                    background: isMe ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.04)',
+                    border: `${isMe ? '2px' : '1.5px'} solid rgba(255,255,255,0.18)`,
+                    borderRadius: 999, padding: '4px 10px 4px 4px',
+                    fontSize: 13, fontWeight: isMe ? 800 : 600, margin: 2,
+                  }}>
+                    <Avatar name={p.name} src={p.avatar_url} size={22} />
+                    {[...p.name].map((ch, j) => (
+                      <span key={j} style={{ color: RAINBOW[j % RAINBOW.length] }}>{ch}</span>
+                    ))}
+                    {isMe && <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.06em', background: 'rgba(255,255,255,0.1)', color: RAINBOW[0], borderRadius: 4, padding: '1px 5px' }}>YOU</span>}
+                  </span>
+                </div>
+              )
+            })}
           </div>
         </div>
         )}
