@@ -120,6 +120,16 @@ export default async function handler(req, res) {
         return res.status(200).json(data)
       }
 
+      if (action === 'unconfirm') {
+        if (poll.status !== 'confirmed') return res.status(400).json({ error: 'Poll is not confirmed' })
+        const { data, error } = await db
+          .from('polls')
+          .update({ status: 'open', teams: null, game_time: null, score_a: null, score_b: null, version: poll.version + 1 })
+          .eq('id', id).select().single()
+        if (error) throw error
+        return res.status(200).json(data)
+      }
+
       if (action === 'approve') {
         if (poll.status !== 'pending') return res.status(400).json({ error: 'Poll is not pending' })
         const { data, error } = await db

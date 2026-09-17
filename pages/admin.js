@@ -1202,6 +1202,14 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
             📍 Ground
           </Btn>
         )}
+        {isConfirmed && (
+          <Btn small variant="ghost" onClick={async () => {
+            if (!confirm('Revert this confirmed game back to open? Teams and game time will be cleared.')) return
+            doAction('unconfirm')
+          }} disabled={loading}>
+            ↩️ Unconfirm
+          </Btn>
+        )}
         {isCancelled && (
           <Btn small variant="ghost" onClick={() => doAction('reopen')} disabled={loading}>
             ♻️ Reopen poll
