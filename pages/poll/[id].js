@@ -299,7 +299,7 @@ function PlayerStatusBanner({ poll, myEntry, onWaitlist, profile, name, loading,
               {myTeam === 'A' ? nameA : nameB}
             </div>
             <div style={{ fontSize: 13, fontWeight: 700, color: myTeam === 'A' ? 'rgba(255,255,255,0.55)' : 'rgba(239,68,68,0.7)', marginTop: 2 }}>
-              {myTeam === 'A' ? '⚪ Wear white' : '🎨 Wear colors'}
+              {myTeam === 'A' ? '⚪ Wear white' : <span>🎨 Wear <RainbowColors /></span>}
             </div>
           </div>
         )}
@@ -683,6 +683,16 @@ function ConfirmedOptOut({ poll, loading, setLoading, setToast, setPoll }) {
   )
 }
 
+// ── Rainbow "Colors" label ────────────────────────────────────────────────────
+const RAINBOW = ['#ef4444', '#f97316', '#fbbf24', '#4ade80', '#60a5fa', '#a78bfa']
+function RainbowColors() {
+  return (
+    <span>{'Colors'.split('').map((ch, i) => (
+      <span key={i} style={{ color: RAINBOW[i] }}>{ch}</span>
+    ))}</span>
+  )
+}
+
 // ── Confirmed game view ───────────────────────────────────────────────────────
 function GameConfirmed({ poll, profile }) {
   const [copied, setCopied] = useState(false)
@@ -827,7 +837,7 @@ function GameConfirmed({ poll, profile }) {
             <PositionSummary players={teamA} />
             {teamA.map((p, i) => (
               <div key={i} style={{ display: 'flex', marginBottom: 4 }}>
-                <PlayerChip name={p.name} color={colors.teamA} avatar={p.avatar_url} />
+                <PlayerChip name={p.name} color={colors.teamA} avatar={p.avatar_url} isMe={p.name === profile?.name} />
               </div>
             ))}
           </div>
@@ -835,11 +845,11 @@ function GameConfirmed({ poll, profile }) {
             <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.teamB, marginBottom: 2 }}>
               {nameB}
             </div>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginBottom: 8 }}>🎨 Colors</div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginBottom: 8 }}>🎨 <RainbowColors /></div>
             <PositionSummary players={teamB} />
             {teamB.map((p, i) => (
               <div key={i} style={{ display: 'flex', marginBottom: 4 }}>
-                <PlayerChip name={p.name} color={colors.teamB} avatar={p.avatar_url} />
+                <PlayerChip name={p.name} color={colors.teamB} avatar={p.avatar_url} isMe={p.name === profile?.name} />
               </div>
             ))}
           </div>

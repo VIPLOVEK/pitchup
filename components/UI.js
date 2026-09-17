@@ -267,24 +267,26 @@ export function Avatar({ name, src, size = 24 }) {
 }
 
 // ── Player chips ──────────────────────────────────────────────────────────────
-export function PlayerChip({ name, onRemove, color, meta, avatar }) {
+export function PlayerChip({ name, onRemove, color, meta, avatar, isMe }) {
   const c = color || colors.grassLight
   return (
     <span style={{
       display: 'inline-flex',
       alignItems: 'center',
       gap: 6,
-      background: c + '18',
-      border: `1px solid ${c}33`,
+      background: isMe ? c + '30' : c + '18',
+      border: `${isMe ? '2px' : '1px'} solid ${isMe ? c + 'bb' : c + '33'}`,
       borderRadius: radius.full,
-      padding: '4px 10px 4px 4px',
+      padding: isMe ? '3px 10px 3px 3px' : '4px 10px 4px 4px',
       fontSize: 13,
-      fontWeight: 600,
+      fontWeight: isMe ? 800 : 600,
       color: colors.white,
       margin: 3,
+      boxShadow: isMe ? `0 0 8px ${c}44` : 'none',
     }}>
       <Avatar name={name} src={avatar} size={22} />
       {name}
+      {isMe && <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.06em', background: c + '33', color: c, borderRadius: 4, padding: '1px 5px', marginLeft: 1 }}>YOU</span>}
       {meta && <span style={{ color: colors.muted, fontWeight: 500, fontSize: 11 }}>· {meta}</span>}
       {onRemove && (
         <button
