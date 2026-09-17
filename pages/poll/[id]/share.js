@@ -104,13 +104,13 @@ export default function SharePage({ poll, error }) {
         <div style={{ display: 'flex', gap: 16, width: '100%', maxWidth: 480 }}>
           <div style={{ flex: 1, background: `${colors.teamA}18`, border: `2px solid ${colors.teamA}44`, borderRadius: 16, padding: 16 }}>
             <div style={{ fontSize: 13, fontWeight: 900, color: colors.teamA, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>
-              🟦 {nameA}
+              ⚪ {nameA}
             </div>
             {posGroupedBlock(teamA.filter(p => !p.isGuest), colors.teamA)}
           </div>
           <div style={{ flex: 1, background: `${colors.teamB}18`, border: `2px solid ${colors.teamB}44`, borderRadius: 16, padding: 16 }}>
             <div style={{ fontSize: 13, fontWeight: 900, color: colors.teamB, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>
-              🟥 {nameB}
+              🎨 {nameB}
             </div>
             {posGroupedBlock(teamB.filter(p => !p.isGuest), colors.teamB)}
           </div>

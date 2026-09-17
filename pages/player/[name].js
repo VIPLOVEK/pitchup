@@ -70,7 +70,7 @@ export default function PlayerPage({ player, error }) {
                     {g.mvp && <span style={{ fontSize: 11, color: '#f59e0b', fontWeight: 700 }}>⭐ MVP</span>}
                   </div>
                   <div style={{ fontSize: 12, color: colors.muted, marginTop: 2 }}>
-                    {formatSlot(g.date)} · {g.team === 'A' ? '🟦' : '🟥'} {g.teamName}
+                    {formatSlot(g.date)} · {g.team === 'A' ? '⚪' : '🎨'} {g.teamName}
                     {g.goals > 0 && <span style={{ color: colors.grassLight, marginLeft: 6 }}>⚽ {g.goals} goal{g.goals !== 1 ? 's' : ''}</span>}
                     {g.assists > 0 && <span style={{ color: colors.grassLight, marginLeft: 4 }}>↗ {g.assists}a</span>}
                   </div>
