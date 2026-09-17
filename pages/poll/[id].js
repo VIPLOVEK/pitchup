@@ -1053,9 +1053,9 @@ function GameConfirmed({ poll, profile }) {
                     fontSize: 13, fontWeight: isMe ? 800 : 600, margin: 2,
                   }}>
                     <Avatar name={p.name} src={p.avatar_url} size={22} />
-                    {[...p.name].map((ch, j) => (
+                    <span style={{ letterSpacing: 0 }}>{[...p.name].map((ch, j) => (
                       <span key={j} style={{ color: RAINBOW[j % RAINBOW.length] }}>{ch}</span>
-                    ))}
+                    ))}</span>
                     {isMe && <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.06em', background: 'rgba(255,255,255,0.1)', color: RAINBOW[0], borderRadius: 4, padding: '1px 5px' }}>YOU</span>}
                   </span>
                 </div>
