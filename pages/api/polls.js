@@ -54,7 +54,7 @@ export default async function handler(req, res) {
         game_type: ['practice', 'competition', 'watch_party'].includes(gameType) ? gameType : 'game',
         opponent: opponent?.trim() || null,
         no_team_split: noTeamSplit === true,
-        cutoff_hours: [1, 1.5, 2, 3, 6, 12, 24].includes(Number(cutoffHours)) ? Number(cutoffHours) : 1.5,
+        cutoff_hours: cutoffHours === null ? null : ([1, 1.5, 2, 3, 6, 12, 24].includes(Number(cutoffHours)) ? Number(cutoffHours) : 1.5),
         auto_lock_hours: autoLockHours ?? null,
         pitch_fee: pitchFee ?? null,
         split_by_club: splitByClub === true,

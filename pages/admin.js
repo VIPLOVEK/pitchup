@@ -57,7 +57,7 @@ function CreatePollForm({ onCreated, groups, prefill }) {
   const [gameType, setGameType] = useState(prefill?.game_type || 'game')
   const [opponent, setOpponent] = useState(prefill?.opponent || '')
   const [noTeamSplit, setNoTeamSplit] = useState(prefill?.no_team_split || false)
-  const [cutoffHours, setCutoffHours] = useState(prefill?.cutoff_hours ?? 1.5)
+  const [cutoffHours, setCutoffHours] = useState(prefill != null && 'cutoff_hours' in prefill ? prefill.cutoff_hours : 1.5)
   const [autoLockHours, setAutoLockHours] = useState(prefill?.auto_lock_hours ?? null)
   const [pitchFee, setPitchFee] = useState(prefill?.pitch_fee ? String(prefill.pitch_fee) : '')
   const [splitByClub, setSplitByClub] = useState(prefill?.split_by_club || false)
@@ -271,7 +271,8 @@ function CreatePollForm({ onCreated, groups, prefill }) {
       </div>
 
       <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 8px' }}>Poll closes before kickoff</p>
-      <select value={cutoffHours} onChange={e => setCutoffHours(Number(e.target.value))} style={selectStyle}>
+      <select value={cutoffHours === null ? 'none' : cutoffHours} onChange={e => setCutoffHours(e.target.value === 'none' ? null : Number(e.target.value))} style={selectStyle}>
+        <option value="none">No cutoff — manual close only</option>
         <option value={1}>1 hour before</option>
         <option value={1.5}>1.5 hours before (default)</option>
         <option value={2}>2 hours before</option>
@@ -312,7 +313,10 @@ function CreatePollForm({ onCreated, groups, prefill }) {
       <Input value={password} onChange={e => setPassword(e.target.value)} placeholder="Admin password" type="password" />
       {error && <p style={{ color: colors.danger, fontSize: 13, marginBottom: 10 }}>{error}</p>}
       <p style={{ color: colors.muted, fontSize: 12, margin: '0 0 14px' }}>
-        Voting stays open until all {maxPlayers} spots are filled (instant confirm) or until {cutoffHours} hour{cutoffHours !== 1 ? 's' : ''} before kickoff — whichever comes first. If fewer than {minPlayers} players have joined by then, the game is cancelled. Anyone beyond {maxPlayers} goes on the waiting list and is auto-promoted if a spot opens up.
+        {cutoffHours === null
+          ? `No automatic cutoff — you'll confirm or cancel the poll manually from the admin panel. Spots beyond ${maxPlayers} go on the waiting list.`
+          : `Voting stays open until all ${maxPlayers} spots are filled (instant confirm) or until ${cutoffHours} hour${cutoffHours !== 1 ? 's' : ''} before kickoff — whichever comes first. If fewer than ${minPlayers} players have joined by then, the game is cancelled. Anyone beyond ${maxPlayers} goes on the waiting list.`
+        }
       </p>
       <Btn full onClick={handleCreate} disabled={loading}>
         {loading ? 'Creating...' : 'Create poll & get link'}
@@ -461,7 +465,8 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups, teamH
   const [editGameType, setEditGameType] = useState(poll.game_type || 'game')
   const [editOpponent, setEditOpponent] = useState(poll.opponent || '')
   const [editNoTeamSplit, setEditNoTeamSplit] = useState(poll.no_team_split || false)
-  const [editCutoffHours, setEditCutoffHours] = useState(poll.cutoff_hours ?? 1.5)
+  const [editCutoffHours, setEditCutoffHours] = useState(poll.cutoff_hours !== undefined ? poll.cutoff_hours : 1.5)
+  const [editAutoLockHours, setEditAutoLockHours] = useState(poll.auto_lock_hours ?? null)
   const noTeamSplit = poll.no_team_split || false
   const isOpen = poll.status === 'open'
   const isConfirmed = poll.status === 'confirmed'
@@ -1125,7 +1130,8 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups, teamH
           />
 
           <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 8px' }}>Poll closes before kickoff</p>
-          <select value={editCutoffHours} onChange={e => setEditCutoffHours(Number(e.target.value))} style={{ ...selectStyle, marginBottom: 14 }}>
+          <select value={editCutoffHours === null ? 'none' : editCutoffHours} onChange={e => setEditCutoffHours(e.target.value === 'none' ? null : Number(e.target.value))} style={{ ...selectStyle, marginBottom: 10 }}>
+            <option value="none">No cutoff — manual close only</option>
             <option value={1}>1 hour before</option>
             <option value={1.5}>1.5 hours before (default)</option>
             <option value={2}>2 hours before</option>
@@ -1133,6 +1139,14 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups, teamH
             <option value={6}>6 hours before</option>
             <option value={12}>12 hours before</option>
             <option value={24}>24 hours before</option>
+          </select>
+
+          <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 8px' }}>Auto-lock teams before kickoff</p>
+          <select value={editAutoLockHours === null ? 'never' : editAutoLockHours} onChange={e => setEditAutoLockHours(e.target.value === 'never' ? null : Number(e.target.value))} style={{ ...selectStyle, marginBottom: 14 }}>
+            <option value="never">Never (lock manually)</option>
+            <option value={1}>1 hour before</option>
+            <option value={2}>2 hours before</option>
+            <option value={3}>3 hours before</option>
           </select>
 
           {detailsError && <p style={{ color: colors.danger, fontSize: 13, marginBottom: 10 }}>{detailsError}</p>}
@@ -1162,6 +1176,7 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups, teamH
                   opponent: editOpponent || undefined,
                   noTeamSplit: editNoTeamSplit,
                   cutoffHours: editCutoffHours,
+                  autoLockHours: editAutoLockHours,
                 })
                 setEditingDetails(false)
               }}
@@ -1269,6 +1284,26 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups, teamH
           }} disabled={loading}>
             ↩️ Unconfirm
           </Btn>
+        )}
+        {isConfirmed && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+            <span style={{ fontSize: 11, color: colors.muted, whiteSpace: 'nowrap' }}>🔒 Auto-lock:</span>
+            <select
+              value={editAutoLockHours === null ? 'never' : editAutoLockHours}
+              onChange={e => {
+                const val = e.target.value === 'never' ? null : Number(e.target.value)
+                setEditAutoLockHours(val)
+                doAction('setAutoLock', 'PATCH', { autoLockHours: val })
+              }}
+              disabled={loading}
+              style={{ background: colors.pitchMid, border: `1px solid ${colors.grass}33`, borderRadius: 6, color: colors.white, padding: '4px 8px', fontSize: 12, outline: 'none' }}
+            >
+              <option value="never">Never</option>
+              <option value={1}>1h before</option>
+              <option value={2}>2h before</option>
+              <option value={3}>3h before</option>
+            </select>
+          </div>
         )}
         {isCancelled && (
           <Btn small variant="ghost" onClick={() => doAction('reopen')} disabled={loading}>
