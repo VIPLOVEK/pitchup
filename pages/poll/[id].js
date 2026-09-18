@@ -719,6 +719,7 @@ function RainbowColors() {
 function GameConfirmed({ poll, profile }) {
   const [copied, setCopied] = useState(false)
   const [sharing, setSharing] = useState(false)
+  const [resultSharing, setResultSharing] = useState(false)
   const noSplit = poll.no_team_split || false
   const { teamA = [], teamB = [] } = poll.teams || {}
   const squad = noSplit ? [...teamA, ...teamB].filter(p => !p.isGuest) : []
@@ -903,6 +904,128 @@ function GameConfirmed({ poll, profile }) {
     } catch {
       setSharing(false)
     }
+  }
+
+  const generateResultCanvas = () => {
+    const W = 800
+    const allGoals = poll.goals || []
+    const mvpVotes = poll.mvp_votes || []
+    const counts = {}
+    mvpVotes.forEach(v => { counts[v.votedFor] = (counts[v.votedFor] || 0) + 1 })
+    const mvpWinner = Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0] || null
+    const hasMvp = mvpWinner && counts[mvpWinner] >= 1
+    const goalLines = noSplit
+      ? allGoals.length ? [allGoals.map(g => g.name + (g.assist ? ` (↗ ${g.assist})` : '')).join(', ')] : []
+      : ['A', 'B'].flatMap(team => {
+          const tg = allGoals.filter(g => g.team === team)
+          return tg.length ? [`${team === 'A' ? '⚪' : '🎨'} ${tg.map(g => g.name + (g.assist ? ` (↗${g.assist})` : '')).join(', ')}`] : []
+        })
+    const H = 320 + goalLines.length * 26 + (hasMvp ? 52 : 0)
+    const canvas = document.createElement('canvas')
+    canvas.width = W; canvas.height = H
+    const ctx = canvas.getContext('2d')
+    const mid = W / 2
+    const RAINBOW_C = ['#ef4444', '#f97316', '#fbbf24', '#4ade80', '#60a5fa', '#a78bfa']
+
+    // background
+    const grad = ctx.createLinearGradient(0, 0, 0, H)
+    grad.addColorStop(0, '#0d1529'); grad.addColorStop(1, '#0a1020')
+    ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H)
+
+    // header band
+    ctx.fillStyle = 'rgba(255,255,255,0.04)'; ctx.fillRect(0, 0, W, 54)
+    ctx.fillStyle = '#4ade80'; ctx.font = 'bold 12px system-ui, sans-serif'
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+    ctx.fillText('MATCH RESULT  ·  PITCHUP', mid, 28)
+    ctx.textBaseline = 'alphabetic'
+
+    // title
+    ctx.fillStyle = 'rgba(255,255,255,0.65)'; ctx.font = '14px system-ui, sans-serif'
+    ctx.fillText(poll.title, mid, 84)
+
+    // score
+    const scoreA = poll.score_a ?? 0
+    const scoreB = poll.score_b ?? 0
+    const winnerA = scoreA > scoreB, winnerB = scoreB > scoreA
+    ctx.font = 'bold 80px system-ui, sans-serif'
+    ctx.fillStyle = winnerA ? '#ffffff' : 'rgba(255,255,255,0.38)'
+    ctx.textAlign = 'right'; ctx.fillText(String(scoreA), mid - 28, 178)
+    ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.font = 'bold 40px system-ui, sans-serif'
+    ctx.textAlign = 'center'; ctx.fillText('—', mid, 170)
+    ctx.font = 'bold 80px system-ui, sans-serif'
+    ctx.fillStyle = winnerB ? '#ffffff' : 'rgba(255,255,255,0.38)'
+    ctx.textAlign = 'left'; ctx.fillText(String(scoreB), mid + 28, 178)
+
+    // result label
+    const label = noSplit
+      ? scoreA > scoreB ? '🏆 Win!' : scoreA === scoreB ? 'Draw' : '💪 Good effort'
+      : scoreA > scoreB ? `⚪ ${poll.team_a_name || 'Whites'} win` : scoreB > scoreA ? `🎨 ${poll.team_b_name || 'Colors'} win` : 'Draw'
+    ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.font = 'bold 16px system-ui, sans-serif'
+    ctx.textAlign = 'center'; ctx.fillText(label, mid, 208)
+
+    // goal scorers
+    let y = 244
+    if (allGoals.length > 0) {
+      ctx.fillStyle = '#4ade8066'; ctx.font = 'bold 11px system-ui, sans-serif'
+      ctx.fillText('⚽ GOAL SCORERS', mid, y); y += 22
+      ctx.font = '14px system-ui, sans-serif'
+      goalLines.forEach(line => {
+        ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.fillText(line, mid, y); y += 26
+      })
+    }
+
+    // MVP
+    if (hasMvp) {
+      y += 6
+      ctx.fillStyle = '#f59e0b'; ctx.font = 'bold 13px system-ui, sans-serif'
+      // rainbow letters for MVP name
+      const prefix = '⭐ Man of the Match: '
+      ctx.fillText(prefix, mid, y)
+      const prefixW = ctx.measureText(prefix).width
+      const nameStart = mid - prefixW / 2 + prefixW
+      const nameStartLeft = mid - (ctx.measureText(prefix + mvpWinner).width) / 2 + prefixW
+      ctx.font = 'bold 13px system-ui, sans-serif'
+      let cx = nameStartLeft
+      ;[...mvpWinner].forEach((ch, i) => {
+        ctx.fillStyle = RAINBOW_C[i % RAINBOW_C.length]
+        ctx.textAlign = 'left'; ctx.fillText(ch, cx, y)
+        cx += ctx.measureText(ch).width
+      })
+      ctx.textAlign = 'center'
+      y += 22
+      ctx.fillStyle = 'rgba(245,158,11,0.55)'; ctx.font = '11px system-ui, sans-serif'
+      ctx.fillText(`${counts[mvpWinner]} vote${counts[mvpWinner] !== 1 ? 's' : ''}`, mid, y)
+    }
+
+    // footer
+    ctx.fillStyle = 'rgba(255,255,255,0.04)'; ctx.fillRect(0, H - 32, W, 32)
+    ctx.fillStyle = 'rgba(255,255,255,0.22)'; ctx.font = '11px system-ui, sans-serif'
+    ctx.textAlign = 'center'; ctx.fillText('pitchup-soccer.vercel.app', mid, H - 10)
+
+    return canvas
+  }
+
+  const shareResultCard = () => {
+    if (poll.score_a == null) return
+    setResultSharing(true)
+    try {
+      const canvas = generateResultCanvas()
+      canvas.toBlob(async (blob) => {
+        const file = new File([blob], 'pitchup-result.png', { type: 'image/png' })
+        const scoreA = poll.score_a, scoreB = poll.score_b
+        const resultLabel = noSplit
+          ? scoreA > scoreB ? 'Win! 🏆' : scoreA === scoreB ? 'Draw' : 'Loss'
+          : scoreA > scoreB ? `${poll.team_a_name || 'Whites'} win` : scoreB > scoreA ? `${poll.team_b_name || 'Colors'} win` : 'Draw'
+        const text = `${poll.title} — ${scoreA}–${scoreB} ${resultLabel}`
+        try {
+          if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({ files: [file], text })
+          } else {
+            await navigator.clipboard?.writeText(text)
+          }
+        } catch { /* user cancelled */ } finally { setResultSharing(false) }
+      }, 'image/png')
+    } catch { setResultSharing(false) }
   }
 
   return (
@@ -1111,6 +1234,27 @@ function GameConfirmed({ poll, profile }) {
           >
             {copied ? '✓ Copied!' : '💬 Copy text only'}
           </button>
+          {poll.score_a != null && (
+            <button
+              onClick={shareResultCard}
+              disabled={resultSharing}
+              style={{
+                background: 'transparent',
+                color: resultSharing ? colors.muted : colors.accent,
+                border: `1px solid ${colors.accent}44`,
+                borderRadius: 8,
+                padding: '8px 16px',
+                fontWeight: 700,
+                fontSize: 13,
+                cursor: resultSharing ? 'default' : 'pointer',
+                width: '100%',
+                marginTop: 8,
+                transition: 'all 0.2s',
+              }}
+            >
+              {resultSharing ? 'Generating…' : '🏆 Share result card'}
+            </button>
+          )}
         </div>
       </Card>
       <MvpVoting poll={poll} />

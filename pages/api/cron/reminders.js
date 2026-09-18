@@ -2,7 +2,7 @@
 // are short on players and approaching their voting cutoff. Intended to
 // be called periodically (e.g. by Vercel Cron, see vercel.json).
 import { supabaseAdmin, isSupabaseConfigured } from '../../../lib/supabase'
-import { shouldSendReminder, shouldSendConfirmedReminder, shouldSendVoteReminder, shouldSendMvpPush } from '../../../lib/pollStatus'
+import { shouldSendReminder, shouldSendConfirmedReminder, shouldSendVoteReminder, shouldSendMvpPush, shouldSendMatchdayReminder } from '../../../lib/pollStatus'
 import { sendWhatsAppReminder } from '../../../lib/whatsapp'
 import { sendPushToAll } from '../../../lib/push'
 import { formatSlot } from '../../../lib/teams'
@@ -78,6 +78,24 @@ export default async function handler(req, res) {
         } catch (e) {
           console.error(`Confirmed reminder failed for poll ${poll.id}:`, e.message)
         }
+      }
+    }
+
+    // Same-day matchday reminder — fires 2-9h before kickoff
+    const { data: matchdayPolls } = await db.from('polls').select('*').eq('status', 'confirmed')
+      .or('matchday_reminder_sent.is.null,matchday_reminder_sent.eq.false')
+    if (matchdayPolls) {
+      for (const poll of matchdayPolls) {
+        if (!shouldSendMatchdayReminder(poll)) continue
+        try {
+          await sendPushToAll({
+            title: '⚽ Game today!',
+            body: `${poll.title} kicks off at ${poll.game_time ? formatSlot(poll.game_time) : 'soon'} — check your team colour!`,
+            url: `/poll/${poll.id}`,
+          })
+          await db.from('polls').update({ matchday_reminder_sent: true }).eq('id', poll.id)
+          sent++
+        } catch (e) { console.error(`Matchday reminder failed for poll ${poll.id}:`, e.message) }
       }
     }
 

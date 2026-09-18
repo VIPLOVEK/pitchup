@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import Link from 'next/link'
 import Layout from '../components/Layout'
 import { Card, Label, ProgressBar, Btn, Input, Pill, PlayerChip, Toast, CopyBtn, Spinner, WeatherBadge } from '../components/UI'
@@ -386,7 +386,53 @@ function PendingPollCard({ poll, password, onAction }) {
   )
 }
 
-function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
+function UnvotedPlayers({ poll, password }) {
+  const [open, setOpen] = useState(false)
+  const [players, setPlayers] = useState(null)
+  const [loading, setLoading] = useState(false)
+
+  const toggle = async () => {
+    if (players) { setOpen(o => !o); return }
+    setLoading(true)
+    try {
+      const res = await fetch('/api/admin/players', { headers: { authorization: `Bearer ${password}` } })
+      if (res.ok) { setPlayers(await res.json()); setOpen(true) }
+    } finally { setLoading(false) }
+  }
+
+  const votedNames = new Set((poll.players || []).map(p => p.name.toLowerCase()))
+  const notVoted = (players || []).filter(p => !votedNames.has(p.name.toLowerCase()))
+
+  return (
+    <div style={{ marginTop: 10 }}>
+      <button
+        onClick={toggle}
+        disabled={loading}
+        style={{ fontSize: 12, color: colors.muted, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}
+      >
+        {loading ? 'Loading…' : open ? '▲ Hide' : `👥 Who hasn't voted?`}
+        {players && !open && notVoted.length > 0 && <span style={{ color: colors.danger, marginLeft: 4 }}>{notVoted.length} missing</span>}
+      </button>
+      {open && players && (
+        <div style={{ marginTop: 6 }}>
+          {notVoted.length === 0 ? (
+            <span style={{ fontSize: 12, color: colors.grassLight }}>✓ All regulars have voted!</span>
+          ) : (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+              {notVoted.map(p => (
+                <span key={p.id} style={{ fontSize: 12, background: `${colors.danger}18`, border: `1px solid ${colors.danger}33`, borderRadius: 20, padding: '2px 10px', color: colors.muted }}>
+                  {p.name}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups, teamHistory }) {
   const [loading, setLoading] = useState(false)
   const [scoreA, setScoreA] = useState(poll.score_a ?? '')
   const [scoreB, setScoreB] = useState(poll.score_b ?? '')
@@ -527,11 +573,22 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
                 {emoji} {label} ({list.filter(p => !p.isGuest).length})
               </div>
               {teamAvgYear(list) && <div style={{ fontSize: 10, color: '#ffffff55', marginBottom: 6 }}>Avg age ~{new Date().getFullYear() - teamAvgYear(list)}</div>}
-              {list.filter(p => !p.isGuest).map((p, i) => (
-                <div key={i} style={{ fontSize: 13, color: colors.white, padding: '2px 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {p.name}{p.guests ? <span style={{ color: colors.muted, fontSize: 11 }}> +{p.guests}</span> : null}
-                </div>
-              ))}
+              {list.filter(p => !p.isGuest).map((p, i) => {
+                const hist = teamHistory?.[p.name]
+                const total = hist ? hist.w + hist.c : 0
+                return (
+                  <div key={i} style={{ fontSize: 13, color: colors.white, padding: '2px 0', display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
+                      {p.name}{p.guests ? <span style={{ color: colors.muted, fontSize: 11 }}> +{p.guests}</span> : null}
+                    </span>
+                    {total > 1 && (
+                      <span style={{ fontSize: 10, color: colors.muted, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                        {hist.w}w {hist.c}c
+                      </span>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           ))}
         </div>
@@ -560,6 +617,7 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups }) {
             <span style={{ color: colors.muted, fontSize: 13 }}>No players yet.</span>
           )}
         </div>
+        <UnvotedPlayers poll={poll} password={password} />
       )}
 
       {/* Pitch fee tracker */}
@@ -2414,6 +2472,21 @@ export default function AdminPage() {
 
   const appUrl = typeof window !== 'undefined' ? window.location.origin : ''
 
+  const teamHistory = useMemo(() => {
+    const h = {}
+    polls.filter(p => p.teams && (p.status === 'confirmed' || p.status === 'finished')).forEach(p => {
+      ;(p.teams.teamA || []).filter(pl => !pl.isGuest).forEach(pl => {
+        if (!h[pl.name]) h[pl.name] = { w: 0, c: 0 }
+        h[pl.name].w++
+      })
+      ;(p.teams.teamB || []).filter(pl => !pl.isGuest).forEach(pl => {
+        if (!h[pl.name]) h[pl.name] = { w: 0, c: 0 }
+        h[pl.name].c++
+      })
+    })
+    return h
+  }, [polls])
+
   const showToast = msg => { setToast(msg); setTimeout(() => setToast(''), 3000) }
 
   const loadGroups = () => {
@@ -2609,6 +2682,7 @@ export default function AdminPage() {
               onDuplicate={p => { setPrefill(p); setTab('create') }}
               appUrl={appUrl}
               groups={groups}
+              teamHistory={teamHistory}
             />
           ))}
         </div>
