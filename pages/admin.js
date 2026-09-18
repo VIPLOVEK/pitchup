@@ -604,20 +604,22 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups, teamH
           </div>
         </div>
       ) : (
-        <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap' }}>
-          {active.map((p, i) => (
-            <PlayerChip
-              key={i}
-              name={p.name}
-              meta={p.guests ? `+${p.guests} guest${p.guests > 1 ? 's' : ''}` : undefined}
-              onRemove={isOpen ? () => doAction('removePlayer', 'PATCH', { name: p.name }) : undefined}
-            />
-          ))}
-          {poll.players.length === 0 && (
-            <span style={{ color: colors.muted, fontSize: 13 }}>No players yet.</span>
-          )}
-        </div>
-        <UnvotedPlayers poll={poll} password={password} />
+        <>
+          <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap' }}>
+            {active.map((p, i) => (
+              <PlayerChip
+                key={i}
+                name={p.name}
+                meta={p.guests ? `+${p.guests} guest${p.guests > 1 ? 's' : ''}` : undefined}
+                onRemove={isOpen ? () => doAction('removePlayer', 'PATCH', { name: p.name }) : undefined}
+              />
+            ))}
+            {poll.players.length === 0 && (
+              <span style={{ color: colors.muted, fontSize: 13 }}>No players yet.</span>
+            )}
+          </div>
+          {isOpen && <UnvotedPlayers poll={poll} password={password} />}
+        </>
       )}
 
       {/* Pitch fee tracker */}
