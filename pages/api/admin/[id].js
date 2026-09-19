@@ -263,6 +263,23 @@ export default async function handler(req, res) {
         return res.status(200).json(data)
       }
 
+      if (action === 'updateConfirmedDetails') {
+        if (poll.status !== 'confirmed') return res.status(400).json({ error: 'Poll is not confirmed' })
+        const { location, gameTime, minPlayers, maxPlayers } = req.body
+        if (!location) return res.status(400).json({ error: 'Location is required' })
+        if (minPlayers != null && maxPlayers != null && maxPlayers < minPlayers) {
+          return res.status(400).json({ error: 'Max players must be ≥ min players' })
+        }
+        const updates = { version: poll.version + 1 }
+        if (location) updates.location = location
+        if (gameTime) updates.game_time = new Date(gameTime).toISOString()
+        if (minPlayers != null) updates.min_players = Number(minPlayers)
+        if (maxPlayers != null) updates.max_players = Number(maxPlayers)
+        const { data, error } = await db.from('polls').update(updates).eq('id', id).select().single()
+        if (error) throw error
+        return res.status(200).json(data)
+      }
+
       if (action === 'setAutoLock') {
         const { autoLockHours } = req.body
         const val = autoLockHours === null ? null : Number(autoLockHours)

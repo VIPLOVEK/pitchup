@@ -467,6 +467,16 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups, teamH
   const [editNoTeamSplit, setEditNoTeamSplit] = useState(poll.no_team_split || false)
   const [editCutoffHours, setEditCutoffHours] = useState(poll.cutoff_hours !== undefined ? poll.cutoff_hours : 1.5)
   const [editAutoLockHours, setEditAutoLockHours] = useState(poll.auto_lock_hours ?? null)
+  const [editingConfirmedDetails, setEditingConfirmedDetails] = useState(false)
+  const [editGameTime, setEditGameTime] = useState(poll.game_time ? toLocalInputValue(poll.game_time) : '')
+  const [editConfirmedLocation, setEditConfirmedLocation] = useState(() =>
+    LOCATIONS.some(l => l.name === poll.location) ? poll.location : 'Other'
+  )
+  const [editConfirmedCustomLocation, setEditConfirmedCustomLocation] = useState(() =>
+    LOCATIONS.some(l => l.name === poll.location) ? '' : (poll.location || '')
+  )
+  const [editConfirmedMin, setEditConfirmedMin] = useState(poll.min_players)
+  const [editConfirmedMax, setEditConfirmedMax] = useState(poll.max_players)
   const noTeamSplit = poll.no_team_split || false
   const isOpen = poll.status === 'open'
   const isConfirmed = poll.status === 'confirmed'
@@ -738,6 +748,33 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups, teamH
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.muted, marginBottom: 10 }}>
             Who actually played?
           </div>
+
+          {/* Live balance stats */}
+          {!noTeamSplit && (() => {
+            const stats = (list) => {
+              const real = list.filter(p => !p.isGuest)
+              const avgAge = teamAvgYear(real) ? Math.round(new Date().getFullYear() - teamAvgYear(real)) : null
+              const rated = real.filter(p => p.skill_rating != null)
+              const avgSkill = rated.length ? (rated.reduce((s, p) => s + p.skill_rating, 0) / rated.length).toFixed(1) : null
+              return { count: real.length, avgAge, avgSkill }
+            }
+            const a = stats(editTeamA), b = stats(editTeamB)
+            const balanced = Math.abs(a.count - b.count) <= 1
+            return (
+              <div style={{ display: 'flex', gap: 2, marginBottom: 12, background: 'rgba(255,255,255,0.04)', borderRadius: 8, overflow: 'hidden' }}>
+                {[{ s: a, color: colors.teamA, emoji: '⚪', label: poll.team_a_name || 'Whites' }, { s: b, color: colors.teamB, emoji: '🎨', label: poll.team_b_name || 'Colors' }].map(({ s, color, emoji, label }, idx) => (
+                  <div key={idx} style={{ flex: 1, padding: '8px 10px', textAlign: 'center', borderRight: idx === 0 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color, marginBottom: 4 }}>{emoji} {label}</div>
+                    <div style={{ fontSize: 22, fontWeight: 900, color: balanced ? colors.grassLight : colors.cardYellow }}>{s.count}</div>
+                    <div style={{ fontSize: 10, color: colors.muted }}>players</div>
+                    {s.avgAge && <div style={{ fontSize: 10, color: colors.muted, marginTop: 3 }}>~{s.avgAge}y avg age</div>}
+                    {s.avgSkill && <div style={{ fontSize: 10, color: colors.grassLight, marginTop: 2 }}>⭐ {s.avgSkill} skill</div>}
+                  </div>
+                ))}
+              </div>
+            )
+          })()}
+
           {noTeamSplit ? (
             <div style={{ marginBottom: 10 }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: colors.grassLight, marginBottom: 6 }}>👥 Squad</div>
@@ -840,6 +877,55 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups, teamH
           <div style={{ display: 'flex', gap: 8 }}>
             <Btn small onClick={async () => { await doAction('setTeams', 'PATCH', { teamA: editTeamA, teamB: editTeamB, noShows: editNoShows }); setAdjustingTeams(false) }} disabled={loading}>Save</Btn>
             <Btn small variant="ghost" onClick={() => setAdjustingTeams(false)} disabled={loading}>Cancel</Btn>
+          </div>
+        </div>
+      )}
+
+      {/* Edit confirmed game details */}
+      {isConfirmed && editingConfirmedDetails && (
+        <div style={{ marginTop: 12, background: colors.pitchMid, borderRadius: 10, padding: '12px 12px 8px' }}>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.muted, marginBottom: 10 }}>
+            Edit game details
+          </div>
+
+          <p style={{ color: colors.muted, fontSize: 12, margin: '0 0 6px' }}>Venue</p>
+          <select value={editConfirmedLocation} onChange={e => setEditConfirmedLocation(e.target.value)} style={{ ...selectStyle, marginBottom: editConfirmedLocation === 'Other' ? 6 : 10 }}>
+            {LOCATIONS.map(l => <option key={l.name} value={l.name}>{l.name}</option>)}
+            <option value="Other">Other (custom)</option>
+          </select>
+          {editConfirmedLocation === 'Other' && (
+            <input value={editConfirmedCustomLocation} onChange={e => setEditConfirmedCustomLocation(e.target.value)} placeholder="Enter venue name" style={{ ...inputStyle, marginBottom: 10 }} />
+          )}
+
+          <p style={{ color: colors.muted, fontSize: 12, margin: '0 0 6px' }}>Kick-off time</p>
+          <input type="datetime-local" value={editGameTime} onChange={e => setEditGameTime(e.target.value)} style={{ ...inputStyle, marginBottom: 10 }} />
+
+          <p style={{ color: colors.muted, fontSize: 12, margin: '0 0 6px' }}>Player limits</p>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 11, color: colors.muted, marginBottom: 4 }}>Min</div>
+              <input type="number" value={editConfirmedMin} onChange={e => setEditConfirmedMin(Number(e.target.value))} min={2} style={{ ...inputStyle }} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 11, color: colors.muted, marginBottom: 4 }}>Max</div>
+              <input type="number" value={editConfirmedMax} onChange={e => setEditConfirmedMax(Number(e.target.value))} min={editConfirmedMin} style={{ ...inputStyle }} />
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Btn small onClick={async () => {
+              const location = editConfirmedLocation === 'Other' ? editConfirmedCustomLocation.trim() : editConfirmedLocation
+              if (!location) return
+              if (editConfirmedMax < editConfirmedMin) return
+              await doAction('updateConfirmedDetails', 'PATCH', {
+                location,
+                gameTime: editGameTime ? new Date(editGameTime).toISOString() : undefined,
+                minPlayers: editConfirmedMin,
+                maxPlayers: editConfirmedMax,
+              })
+              setEditingConfirmedDetails(false)
+            }} disabled={loading}>Save</Btn>
+            <Btn small variant="ghost" onClick={() => setEditingConfirmedDetails(false)} disabled={loading}>Cancel</Btn>
           </div>
         </div>
       )}
@@ -1275,6 +1361,11 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups, teamH
         {isConfirmed && (
           <Btn small variant="ghost" onClick={() => window.open(`/ground/${poll.id}`, '_blank')} disabled={loading}>
             📍 Ground
+          </Btn>
+        )}
+        {isConfirmed && (
+          <Btn small variant="ghost" onClick={() => setEditingConfirmedDetails(v => !v)} disabled={loading}>
+            ✏️ Edit game
           </Btn>
         )}
         {isConfirmed && (
