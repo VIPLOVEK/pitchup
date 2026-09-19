@@ -1540,6 +1540,7 @@ export default function PollPage({ poll: initialPoll, error }) {
   const [pin, setPin] = useState('')
   const [players, setPlayers] = useState([])
   const [selectedSlots, setSelectedSlots] = useState([])
+  const [expandedSlots, setExpandedSlots] = useState(new Set())
   const [guests, setGuests] = useState(0)
   const [guestPositions, setGuestPositions] = useState([])
   const [note, setNote] = useState('')
@@ -2193,7 +2194,8 @@ export default function PollPage({ poll: initialPoll, error }) {
           {(() => {
             return poll.slots.map((slot, i) => {
               const voters = (poll.players || []).filter(p => (p.slots || []).includes(i))
-              const shown = voters.slice(0, 5)
+              const isExpanded = expandedSlots.has(i)
+              const shown = isExpanded ? voters : voters.slice(0, 5)
               const extra = voters.length - 5
               const selected = selectedSlots.includes(i)
               return (
@@ -2233,7 +2235,24 @@ export default function PollPage({ poll: initialPoll, error }) {
                             {p.name.split(' ')[0]}
                           </span>
                         ))}
-                        {extra > 0 && <span style={{ fontSize: 11, color: colors.muted }}>+{extra} more</span>}
+                        {!isExpanded && extra > 0 && (
+                          <span
+                            role="button"
+                            onClick={e => { e.stopPropagation(); setExpandedSlots(prev => new Set([...prev, i])) }}
+                            style={{ fontSize: 11, color: colors.accent, cursor: 'pointer', fontWeight: 600, padding: '2px 6px', borderRadius: 20, border: `1px solid ${colors.accent}44` }}
+                          >
+                            +{extra} more
+                          </span>
+                        )}
+                        {isExpanded && voters.length > 5 && (
+                          <span
+                            role="button"
+                            onClick={e => { e.stopPropagation(); setExpandedSlots(prev => { const s = new Set(prev); s.delete(i); return s }) }}
+                            style={{ fontSize: 11, color: colors.muted, cursor: 'pointer', padding: '2px 6px' }}
+                          >
+                            ▲ less
+                          </span>
+                        )}
                       </div>
                     )}
                   </div>
