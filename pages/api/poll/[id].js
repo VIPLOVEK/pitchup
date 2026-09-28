@@ -180,10 +180,12 @@ export default async function handler(req, res) {
         if (current.status === 'confirmed') {
           // If the player is (or lands) in the active roster, sync them into
           // the existing team split — same side if already on one, otherwise
-          // the smaller side — instead of reshuffling everyone else.
+          // the smaller side — instead of reshuffling everyone else. Skip
+          // entirely once teams are locked: no one gets auto-inserted into a
+          // locked lineup, that's an explicit admin-only action from here on.
           const nowActive = getActivePlayers(updated)
           const activeEntry = nowActive.find(p => p.name.toLowerCase() === name.trim().toLowerCase())
-          if (activeEntry && updated.teams) {
+          if (activeEntry && updated.teams && !updated.teams_locked) {
             const newTeams = syncPlayerInTeams(updated.teams, activeEntry, { squad: !!updated.no_team_split })
             const { data: reteamed } = await db.from('polls')
               .update({ teams: newTeams, version: updated.version + 1 })
@@ -268,16 +270,18 @@ export default async function handler(req, res) {
       }
 
       // For confirmed polls, remove the departed player from their team
-      // (and slot in anyone freshly promoted from the waitlist) without
-      // touching anyone else's existing team assignment.
+      // (and slot in anyone freshly promoted from the waitlist, unless
+      // teams are locked) without touching anyone else's assignment.
       if (poll.status === 'confirmed' && poll.teams && wasActive.some(p => p.name.toLowerCase() === name.trim().toLowerCase())) {
         try {
           let newTeams = removePlayerFromTeams(poll.teams, name.trim())
-          const nowActive = getActivePlayers(updated)
-          const movedUp = wasWaitlist.find(w => nowActive.some(a => a.name === w.name))
-          if (movedUp) {
-            const freshEntry = nowActive.find(a => a.name === movedUp.name)
-            if (freshEntry) newTeams = syncPlayerInTeams(newTeams, freshEntry, { squad: !!poll.no_team_split })
+          if (!poll.teams_locked) {
+            const nowActive = getActivePlayers(updated)
+            const movedUp = wasWaitlist.find(w => nowActive.some(a => a.name === w.name))
+            if (movedUp) {
+              const freshEntry = nowActive.find(a => a.name === movedUp.name)
+              if (freshEntry) newTeams = syncPlayerInTeams(newTeams, freshEntry, { squad: !!poll.no_team_split })
+            }
           }
           const { data: reteamed, error: teamErr } = await db
             .from('polls')

@@ -465,16 +465,18 @@ export default async function handler(req, res) {
         }
 
         // For confirmed polls, remove the player from their team (and slot
-        // in anyone freshly promoted from the waitlist) without touching
-        // anyone else's existing team assignment.
+        // in anyone freshly promoted from the waitlist, unless teams are
+        // locked) without touching anyone else's existing team assignment.
         if (poll.status === 'confirmed' && poll.teams && getActivePlayers(poll).some(p => p.name === name)) {
           try {
             let newTeams = removePlayerFromTeams(poll.teams, name)
-            const nowActive = getActivePlayers(updatedPoll)
-            const movedUp = wasWaitlist.find(w => nowActive.some(a => a.name === w.name))
-            if (movedUp) {
-              const freshEntry = nowActive.find(a => a.name === movedUp.name)
-              if (freshEntry) newTeams = syncPlayerInTeams(newTeams, freshEntry, { squad: !!poll.no_team_split })
+            if (!poll.teams_locked) {
+              const nowActive = getActivePlayers(updatedPoll)
+              const movedUp = wasWaitlist.find(w => nowActive.some(a => a.name === w.name))
+              if (movedUp) {
+                const freshEntry = nowActive.find(a => a.name === movedUp.name)
+                if (freshEntry) newTeams = syncPlayerInTeams(newTeams, freshEntry, { squad: !!poll.no_team_split })
+              }
             }
             const { data: reteamed, error: teamErr } = await db
               .from('polls').update({ teams: newTeams, version: updatedPoll.version + 1 }).eq('id', id).select().single()
