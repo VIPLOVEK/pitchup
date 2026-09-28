@@ -1,7 +1,7 @@
 // PATCH /api/admin/[id] — close poll, shuffle teams
 // DELETE /api/admin/[id] — delete poll
 import { supabaseAdmin, isSupabaseConfigured } from '../../../lib/supabase'
-import { generateTeams, generateTeamsByAffiliation, pickBestSlot, formatSlot, getActivePlayers, expandWithGuests, getWaitlist, getTotalSpots } from '../../../lib/teams'
+import { generateTeams, generateTeamsByAffiliation, pickBestSlot, formatSlot, getActivePlayers, expandWithGuests, getWaitlist, getTotalSpots, removePlayerFromTeams, syncPlayerInTeams } from '../../../lib/teams'
 import { sendWhatsAppAnnouncement } from '../../../lib/whatsapp'
 import { sendPushToAll, sendPushToPlayer } from '../../../lib/push'
 import { pickTeamNames } from '../../../lib/teamNames'
@@ -313,10 +313,23 @@ export default async function handler(req, res) {
           return p
         }).filter(p => !noShows.includes(p.name))
 
-        const active = getActivePlayers({ ...pollData, players })
-        const teams = pollData.split_by_club
-          ? generateTeamsByAffiliation(active)
-          : generateTeams(expandWithGuests(active))
+        let teams
+        if (pollData.status === 'confirmed' && pollData.teams) {
+          // Incrementally apply the no-shows/confirmations onto the existing
+          // lineup so a manually adjusted team split survives ground-day edits.
+          teams = pollData.teams
+          noShows.forEach(n => { teams = removePlayerFromTeams(teams, n) })
+          const active = getActivePlayers({ ...pollData, players })
+          confirmTentative.forEach(n => {
+            const p = active.find(a => a.name === n)
+            if (p) teams = syncPlayerInTeams(teams, p, { squad: !!pollData.no_team_split })
+          })
+        } else {
+          const active = getActivePlayers({ ...pollData, players })
+          teams = pollData.split_by_club
+            ? generateTeamsByAffiliation(active)
+            : generateTeams(expandWithGuests(active))
+        }
 
         const { data, error } = await db.from('polls')
           .update({ players, teams, version: pollData.version + 1 })
@@ -451,19 +464,22 @@ export default async function handler(req, res) {
           }
         }
 
-        // For confirmed polls, regenerate teams if an active player was removed
-        if (poll.status === 'confirmed' && getActivePlayers(poll).some(p => p.name === name)) {
+        // For confirmed polls, remove the player from their team (and slot
+        // in anyone freshly promoted from the waitlist) without touching
+        // anyone else's existing team assignment.
+        if (poll.status === 'confirmed' && poll.teams && getActivePlayers(poll).some(p => p.name === name)) {
           try {
-            const noShowSet = new Set((updatedPoll.no_shows || []).map(n => n.toLowerCase()))
-            const nowActive = getActivePlayers(updatedPoll).filter(p => !noShowSet.has(p.name.toLowerCase()))
-            const expanded = expandWithGuests(nowActive)
-            const newTeams = poll.no_team_split
-              ? { teamA: expanded, teamB: [] }
-              : generateTeams(expanded)
+            let newTeams = removePlayerFromTeams(poll.teams, name)
+            const nowActive = getActivePlayers(updatedPoll)
+            const movedUp = wasWaitlist.find(w => nowActive.some(a => a.name === w.name))
+            if (movedUp) {
+              const freshEntry = nowActive.find(a => a.name === movedUp.name)
+              if (freshEntry) newTeams = syncPlayerInTeams(newTeams, freshEntry, { squad: !!poll.no_team_split })
+            }
             const { data: reteamed, error: teamErr } = await db
               .from('polls').update({ teams: newTeams, version: updatedPoll.version + 1 }).eq('id', id).select().single()
             if (!teamErr && reteamed) return res.status(200).json(reteamed)
-          } catch (e) { console.error('Team regeneration failed:', e.message) }
+          } catch (e) { console.error('Team update failed:', e.message) }
         }
 
         return res.status(200).json(updatedPoll)
