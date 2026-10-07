@@ -303,6 +303,75 @@ export default async function handler(req, res) {
         return res.status(200).json(data)
       }
 
+      if (action === 'updatePlayerEntry') {
+        const { name, guests, guestPositions, note } = req.body
+        if (!name) return res.status(400).json({ error: 'name is required' })
+        if (guests !== undefined && (!Number.isInteger(guests) || guests < 0 || guests > 5)) {
+          return res.status(400).json({ error: 'guests must be an integer between 0 and 5' })
+        }
+        const { data: pollData, error: fetchErr } = await db.from('polls').select('*').eq('id', id).single()
+        if (fetchErr || !pollData) return res.status(404).json({ error: 'Poll not found' })
+
+        const idx = (pollData.players || []).findIndex(p => p.name.toLowerCase() === name.toLowerCase())
+        if (idx === -1) return res.status(404).json({ error: 'Player not found in this poll' })
+
+        const players = [...pollData.players]
+        players[idx] = {
+          ...players[idx],
+          guests: guests !== undefined ? guests : players[idx].guests,
+          guestPositions: guestPositions !== undefined ? guestPositions : players[idx].guestPositions,
+          note: note !== undefined ? (note?.trim() || null) : players[idx].note,
+        }
+
+        // If this player is already on a confirmed team, re-sync their guest
+        // chips there too so the roster edit is reflected everywhere.
+        let teams = pollData.teams
+        if (pollData.status === 'confirmed' && teams) {
+          teams = syncPlayerInTeams(teams, players[idx], { squad: !!pollData.no_team_split })
+        }
+
+        const { data, error } = await db.from('polls')
+          .update({ players, ...(teams ? { teams } : {}), version: pollData.version + 1 })
+          .eq('id', id).select().single()
+        if (error) throw error
+        return res.status(200).json(data)
+      }
+
+      if (action === 'setDecline') {
+        const { name, declined } = req.body
+        if (!name) return res.status(400).json({ error: 'name is required' })
+        const declines = poll.declines || []
+        const updated = declined
+          ? (declines.some(d => d.toLowerCase() === name.toLowerCase()) ? declines : [...declines, name])
+          : declines.filter(d => d.toLowerCase() !== name.toLowerCase())
+        const { data, error } = await db.from('polls')
+          .update({ declines: updated, version: poll.version + 1 })
+          .eq('id', id).select().single()
+        if (error) throw error
+        return res.status(200).json(data)
+      }
+
+      if (action === 'clearMvpVotes') {
+        const { data, error } = await db.from('polls')
+          .update({ mvp_votes: [], version: poll.version + 1 })
+          .eq('id', id).select().single()
+        if (error) throw error
+        return res.status(200).json(data)
+      }
+
+      if (action === 'deleteComment') {
+        const { commentIndex } = req.body
+        if (typeof commentIndex !== 'number') return res.status(400).json({ error: 'commentIndex required' })
+        const comments = [...(poll.comments || [])]
+        if (commentIndex < 0 || commentIndex >= comments.length) return res.status(400).json({ error: 'Invalid comment index' })
+        comments.splice(commentIndex, 1)
+        const { data, error } = await db.from('polls')
+          .update({ comments, version: poll.version + 1 })
+          .eq('id', id).select().single()
+        if (error) throw error
+        return res.status(200).json(data)
+      }
+
       if (action === 'groundUpdate') {
         const { confirmTentative = [], noShows = [] } = req.body
         const { data: pollData, error: fetchErr } = await db.from('polls').select('*').eq('id', id).single()

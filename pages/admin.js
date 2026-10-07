@@ -436,6 +436,133 @@ function UnvotedPlayers({ poll, password }) {
   )
 }
 
+function ManagePlayerEntries({ poll, password, onAction }) {
+  const [open, setOpen] = useState(false)
+  const [drafts, setDrafts] = useState({}) // name -> { guests, note }
+  const [saving, setSaving] = useState(null)
+
+  const draftFor = (p) => drafts[p.name] ?? { guests: p.guests || 0, note: p.note || '' }
+
+  const save = async (p) => {
+    const d = draftFor(p)
+    setSaving(p.name)
+    try {
+      await onAction('updatePlayerEntry', 'PATCH', { name: p.name, guests: Number(d.guests) || 0, note: d.note })
+    } finally {
+      setSaving(null)
+    }
+  }
+
+  const toggleDecline = async (p) => {
+    const declined = (poll.declines || []).some(d => d.toLowerCase() === p.name.toLowerCase())
+    await onAction('setDecline', 'PATCH', { name: p.name, declined: !declined })
+  }
+
+  const players = poll.players || []
+  if (players.length === 0) return null
+
+  return (
+    <div style={{ marginTop: 10 }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{ fontSize: 12, color: colors.muted, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}
+      >
+        {open ? '▲ Hide' : '📝 Manage entries'} <span style={{ opacity: 0.7 }}>(guests, notes, declines)</span>
+      </button>
+      {open && (
+        <div style={{ marginTop: 8, background: colors.pitchMid, borderRadius: 8, padding: 10 }}>
+          {players.map((p, i) => {
+            const d = draftFor(p)
+            const declined = (poll.declines || []).some(x => x.toLowerCase() === p.name.toLowerCase())
+            return (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 0', borderBottom: i < players.length - 1 ? `1px solid ${colors.grass}18` : 'none', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: declined ? colors.muted : colors.white, flex: '1 0 100px', textDecoration: declined ? 'line-through' : 'none' }}>{p.name}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ fontSize: 10, color: colors.muted }}>Guests</span>
+                  <input
+                    type="number" min={0} max={5}
+                    value={d.guests}
+                    onChange={e => setDrafts(prev => ({ ...prev, [p.name]: { ...d, guests: e.target.value } }))}
+                    style={{ width: 40, background: colors.pitchCard, border: `1px solid ${colors.grass}33`, borderRadius: 6, color: colors.white, padding: '3px 4px', fontSize: 12 }}
+                  />
+                </div>
+                <input
+                  value={d.note}
+                  onChange={e => setDrafts(prev => ({ ...prev, [p.name]: { ...d, note: e.target.value } }))}
+                  placeholder="Note"
+                  style={{ flex: '1 1 100px', background: colors.pitchCard, border: `1px solid ${colors.grass}33`, borderRadius: 6, color: colors.white, padding: '3px 6px', fontSize: 12 }}
+                />
+                <Btn small variant="ghost" onClick={() => save(p)} disabled={saving === p.name}>
+                  {saving === p.name ? '…' : 'Save'}
+                </Btn>
+                <Btn small variant={declined ? 'danger' : 'ghost'} onClick={() => toggleDecline(p)}>
+                  {declined ? 'Declined ✕' : 'Decline'}
+                </Btn>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ModeratePanel({ poll, doAction, loading }) {
+  const [open, setOpen] = useState(false)
+  const mvpVotes = poll.mvp_votes || []
+  const comments = poll.comments || []
+  const counts = {}
+  mvpVotes.forEach(v => { counts[v.votedFor] = (counts[v.votedFor] || 0) + 1 })
+
+  return (
+    <div style={{ marginTop: 10 }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{ fontSize: 12, color: colors.muted, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}
+      >
+        {open ? '▲ Hide' : '🛡️ Moderate'} <span style={{ opacity: 0.7 }}>(MVP votes, comments)</span>
+      </button>
+      {open && (
+        <div style={{ marginTop: 8, background: colors.pitchMid, borderRadius: 8, padding: 12 }}>
+          {mvpVotes.length > 0 && (
+            <div style={{ marginBottom: comments.length > 0 ? 14 : 0 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: colors.muted, letterSpacing: '0.06em', textTransform: 'uppercase' }}>⭐ MVP votes ({mvpVotes.length})</span>
+                <Btn small variant="danger" onClick={() => { if (window.confirm('Clear all MVP votes for this game?')) doAction('clearMvpVotes') }} disabled={loading}>Clear all</Btn>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([name, n]) => (
+                  <span key={name} style={{ fontSize: 12, background: 'rgba(245,158,11,0.12)', color: '#f59e0b', borderRadius: 20, padding: '2px 10px' }}>{name} · {n}</span>
+                ))}
+              </div>
+            </div>
+          )}
+          {comments.length > 0 && (
+            <div>
+              <span style={{ fontSize: 11, fontWeight: 700, color: colors.muted, letterSpacing: '0.06em', textTransform: 'uppercase' }}>💬 Comments ({comments.length})</span>
+              <div style={{ marginTop: 6 }}>
+                {comments.map((c, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 6, padding: '5px 0', borderBottom: i < comments.length - 1 ? `1px solid ${colors.grass}18` : 'none' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: colors.white }}>{c.name}</span>
+                      <span style={{ fontSize: 12, color: colors.muted, marginLeft: 6 }}>{c.text}</span>
+                    </div>
+                    <button
+                      onClick={() => { if (window.confirm('Delete this comment?')) doAction('deleteComment', 'PATCH', { commentIndex: i }) }}
+                      disabled={loading}
+                      style={{ background: 'none', border: 'none', color: colors.danger, cursor: 'pointer', fontSize: 14, padding: '0 2px', flexShrink: 0 }}
+                    >×</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups, teamHistory }) {
   const [loading, setLoading] = useState(false)
   const [scoreA, setScoreA] = useState(poll.score_a ?? '')
@@ -636,6 +763,8 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups, teamH
           {isOpen && <UnvotedPlayers poll={poll} password={password} />}
         </>
       )}
+
+      <ManagePlayerEntries poll={poll} password={password} onAction={doAction} />
 
       {/* Pitch fee tracker */}
       {isConfirmed && poll.pitch_fee && (() => {
@@ -1079,6 +1208,11 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups, teamH
             </button>
           </div>
         </div>
+      )}
+
+      {/* MVP votes & comments moderation */}
+      {isConfirmed && ((poll.mvp_votes || []).length > 0 || (poll.comments || []).length > 0) && (
+        <ModeratePanel poll={poll} doAction={doAction} loading={loading} />
       )}
 
       {/* Audience editor */}
