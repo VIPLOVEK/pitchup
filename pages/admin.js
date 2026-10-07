@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import Link from 'next/link'
 import Layout from '../components/Layout'
-import { Card, Label, ProgressBar, Btn, Input, Pill, PlayerChip, Toast, CopyBtn, Spinner, WeatherBadge } from '../components/UI'
+import { Card, Label, ProgressBar, Btn, Input, Pill, PlayerChip, Toast, CopyBtn, Spinner, WeatherBadge, Avatar } from '../components/UI'
 import { colors, radius, groupColorPalette } from '../lib/tokens'
 import { getActivePlayers, getWaitlist, getTotalSpots, getTentativePlayers, teamAvgYear } from '../lib/teams'
 import { LOCATIONS, findLocation } from '../lib/locations'
@@ -1433,6 +1433,7 @@ function RosterTab({ password, showToast }) {
   const [players, setPlayers] = useState(null)
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
+  const [editingId, setEditingId] = useState(null)
 
   useEffect(() => {
     fetch('/api/admin/players', { headers: { authorization: `Bearer ${password}` } })
@@ -1579,14 +1580,16 @@ function RosterTab({ password, showToast }) {
         <p style={{ color: colors.muted, fontSize: 13, textAlign: 'center', padding: '12px 0' }}>No players match "{search}"</p>
       )}
       {visible.map(p => (
+        <div key={p.id} style={{ borderBottom: `1px solid ${colors.grass}22` }}>
         <div
-          key={p.id}
           style={{
             display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
-            flexWrap: 'wrap', padding: '10px 0', borderBottom: `1px solid ${colors.grass}22`, gap: 10,
+            flexWrap: 'wrap', padding: '10px 0', gap: 10,
           }}
         >
-          <div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+            <Avatar name={p.name} src={p.avatar_url} size={32} />
+            <div>
             <div style={{ fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
               {p.name}
               {p.auto_join && (
@@ -1603,6 +1606,7 @@ function RosterTab({ password, showToast }) {
                   {p.noShows} no-show{p.noShows > 1 ? 's' : ''}
                 </span>
               )}
+            </div>
             </div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
@@ -1658,7 +1662,10 @@ function RosterTab({ password, showToast }) {
                   </div>
                 )}
             </div>
-            <div style={{ display: 'flex', gap: 6 }}>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              <Btn small variant="ghost" onClick={() => setEditingId(id => id === p.id ? null : p.id)}>
+                {editingId === p.id ? 'Close' : '✏️ Edit profile'}
+              </Btn>
               <Btn small variant="ghost" onClick={() => setAutoJoin(p, !p.auto_join)}>
                 {p.auto_join ? '⚡ Turn off auto-join' : 'Turn on auto-join'}
               </Btn>
@@ -1667,8 +1674,147 @@ function RosterTab({ password, showToast }) {
             </div>
           </div>
         </div>
+        {editingId === p.id && (
+          <PlayerEditPanel
+            player={p}
+            password={password}
+            showToast={showToast}
+            onSaved={updated => setPlayers(ps => ps.map(x => x.id === p.id ? { ...x, ...updated } : x))}
+          />
+        )}
+        </div>
       ))}
     </Card>
+  )
+}
+
+function PlayerEditPanel({ player, password, showToast, onSaved }) {
+  const [name, setName] = useState(player.name)
+  const [phone, setPhone] = useState(player.phone || '')
+  const [yearOfBirth, setYearOfBirth] = useState(player.year_of_birth || '')
+  const [autoJoinUntil, setAutoJoinUntil] = useState(player.auto_join_until || '')
+  const [blackoutRanges, setBlackoutRanges] = useState(player.blackout_ranges || [])
+  const [newFrom, setNewFrom] = useState('')
+  const [newTo, setNewTo] = useState('')
+  const [newPin, setNewPin] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const addRange = () => {
+    if (!newFrom || !newTo || newFrom > newTo) return
+    setBlackoutRanges(r => [...r, { from: newFrom, to: newTo }])
+    setNewFrom(''); setNewTo('')
+  }
+  const removeRange = (i) => setBlackoutRanges(r => r.filter((_, idx) => idx !== i))
+
+  const call = async (body) => {
+    const res = await fetch(`/api/admin/players/${player.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', authorization: `Bearer ${password}` },
+      body: JSON.stringify(body),
+    })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error)
+    return data
+  }
+
+  const save = async () => {
+    setSaving(true)
+    try {
+      const data = await call({
+        action: 'updateProfile',
+        name: name.trim(),
+        phone,
+        yearOfBirth: yearOfBirth || null,
+        autoJoinUntil: autoJoinUntil || null,
+        blackoutRanges,
+      })
+      onSaved(data)
+      showToast(`${data.name}'s profile updated ✓`)
+    } catch (e) {
+      showToast(e.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const savePin = async () => {
+    if (!/^\d{4,6}$/.test(newPin)) { showToast('PIN must be 4-6 digits'); return }
+    try {
+      await call({ action: 'setPin', newPin })
+      setNewPin('')
+      showToast(`${player.name}'s PIN was set ✓`)
+    } catch (e) {
+      showToast(e.message)
+    }
+  }
+
+  const clearAvatar = async () => {
+    try {
+      const data = await call({ action: 'clearAvatar' })
+      onSaved(data)
+      showToast(`${player.name}'s avatar removed ✓`)
+    } catch (e) {
+      showToast(e.message)
+    }
+  }
+
+  return (
+    <div style={{ background: colors.pitchMid, borderRadius: 10, padding: '12px 12px 14px', marginBottom: 10 }}>
+      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.muted, marginBottom: 10 }}>
+        Edit profile
+      </div>
+
+      {player.avatar_url && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+          <Avatar name={player.name} src={player.avatar_url} size={40} />
+          <Btn small variant="ghost" onClick={clearAvatar}>Remove avatar</Btn>
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+        <div style={{ flex: 2 }}>
+          <div style={{ fontSize: 11, color: colors.muted, marginBottom: 4 }}>Name</div>
+          <input value={name} onChange={e => setName(e.target.value)} style={inputStyle} />
+        </div>
+        <div style={{ flex: 2 }}>
+          <div style={{ fontSize: 11, color: colors.muted, marginBottom: 4 }}>Phone</div>
+          <input value={phone} onChange={e => setPhone(e.target.value)} style={inputStyle} />
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 11, color: colors.muted, marginBottom: 4 }}>Birth year</div>
+          <input type="number" value={yearOfBirth} onChange={e => setYearOfBirth(e.target.value)} placeholder="YYYY" style={inputStyle} />
+        </div>
+      </div>
+
+      <div style={{ fontSize: 11, color: colors.muted, marginBottom: 4 }}>Auto-join until <span style={{ opacity: 0.7 }}>(blank = indefinitely)</span></div>
+      <input type="date" value={autoJoinUntil} onChange={e => setAutoJoinUntil(e.target.value)} style={{ ...inputStyle, marginBottom: 10 }} />
+
+      <div style={{ fontSize: 11, color: colors.muted, marginBottom: 6 }}>Blackout ranges</div>
+      {blackoutRanges.map((r, i) => (
+        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+          <span style={{ fontSize: 12, color: colors.grassLight, fontWeight: 600, flex: 1 }}>{r.from} → {r.to}</span>
+          <button onClick={() => removeRange(i)} style={{ background: 'none', border: 'none', color: colors.danger, cursor: 'pointer', fontSize: 16, padding: '0 4px' }}>×</button>
+        </div>
+      ))}
+      <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 14 }}>
+        <input type="date" value={newFrom} onChange={e => setNewFrom(e.target.value)} style={{ ...inputStyle, flex: 1 }} />
+        <span style={{ color: colors.muted, fontSize: 12 }}>→</span>
+        <input type="date" value={newTo} onChange={e => setNewTo(e.target.value)} style={{ ...inputStyle, flex: 1 }} />
+        <Btn small variant="ghost" onClick={addRange} disabled={!newFrom || !newTo || newFrom > newTo}>+ Add</Btn>
+      </div>
+
+      <Btn small onClick={save} disabled={saving || !name.trim()}>
+        {saving ? 'Saving…' : 'Save profile'}
+      </Btn>
+
+      <div style={{ marginTop: 16, paddingTop: 12, borderTop: `1px solid ${colors.grass}22` }}>
+        <div style={{ fontSize: 11, color: colors.muted, marginBottom: 6 }}>Set a specific PIN <span style={{ opacity: 0.7 }}>(bypasses the player needing to reset it themselves)</span></div>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <input value={newPin} onChange={e => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="4-6 digit PIN" style={{ ...inputStyle, flex: 1 }} />
+          <Btn small variant="ghost" onClick={savePin} disabled={!newPin}>Set PIN</Btn>
+        </div>
+      </div>
+    </div>
   )
 }
 
