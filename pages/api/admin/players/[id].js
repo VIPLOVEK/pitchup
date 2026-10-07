@@ -111,6 +111,26 @@ export default async function handler(req, res) {
       }
     }
 
+    if (action === 'setAutoJoin') {
+      const { autoJoin } = req.body
+      try {
+        const { data, error } = await db
+          .from('players')
+          // Admin override bypasses the player's own PIN — used to turn
+          // auto-join off for someone (e.g. they're away) without needing
+          // their PIN, or to confirm it's on.
+          .update({ auto_join: autoJoin === true })
+          .eq('id', id)
+          .select('id, name, auto_join, auto_join_until')
+          .single()
+        if (error) throw error
+        if (!data) return res.status(404).json({ error: 'Player not found' })
+        return res.status(200).json(data)
+      } catch (e) {
+        return res.status(500).json({ error: e.message })
+      }
+    }
+
     return res.status(400).json({ error: 'Unknown action' })
   }
 

@@ -16,7 +16,7 @@ export default async function handler(req, res) {
     const db = supabaseAdmin()
     const { data: players, error } = await db
       .from('players')
-      .select('id, name, phone, positions, skill_rating, position_skills, created_at')
+      .select('id, name, phone, positions, skill_rating, position_skills, auto_join, auto_join_until, created_at')
       .order('name')
     if (error) throw error
 

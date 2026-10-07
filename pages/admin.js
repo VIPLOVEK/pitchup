@@ -1504,6 +1504,22 @@ function RosterTab({ password, showToast }) {
     }
   }
 
+  const setAutoJoin = async (player, autoJoin) => {
+    try {
+      const res = await fetch(`/api/admin/players/${player.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', authorization: `Bearer ${password}` },
+        body: JSON.stringify({ action: 'setAutoJoin', autoJoin }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setPlayers(ps => ps.map(p => p.id === player.id ? { ...p, auto_join: data.auto_join } : p))
+      showToast(`${player.name}'s auto-join turned ${autoJoin ? 'on' : 'off'} ✓`)
+    } catch (e) {
+      showToast(e.message)
+    }
+  }
+
   const togglePosition = async (player, position) => {
     const current = player.positions || []
     const positions = current.includes(position)
@@ -1543,7 +1559,7 @@ function RosterTab({ password, showToast }) {
 
   return (
     <Card>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, gap: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2, gap: 10 }}>
         <Label style={{ margin: 0 }}>{players.length} player{players.length === 1 ? '' : 's'}</Label>
         <input
           value={search}
@@ -1556,6 +1572,9 @@ function RosterTab({ password, showToast }) {
           }}
         />
       </div>
+      <p style={{ color: colors.muted, fontSize: 12, margin: '0 0 10px' }}>
+        ⚡ {players.filter(p => p.auto_join).length} player{players.filter(p => p.auto_join).length === 1 ? '' : 's'} have auto-join on — they're added automatically when a game confirms.
+      </p>
       {visible.length === 0 && q && (
         <p style={{ color: colors.muted, fontSize: 13, textAlign: 'center', padding: '12px 0' }}>No players match "{search}"</p>
       )}
@@ -1568,7 +1587,14 @@ function RosterTab({ password, showToast }) {
           }}
         >
           <div>
-            <div style={{ fontWeight: 700, fontSize: 14 }}>{p.name}</div>
+            <div style={{ fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+              {p.name}
+              {p.auto_join && (
+                <span title={p.auto_join_until ? `Auto-join until ${p.auto_join_until}` : 'Auto-join on'} style={{ fontSize: 10, fontWeight: 800, color: colors.accent, background: colors.accent + '22', borderRadius: 4, padding: '1px 5px' }}>
+                  ⚡ AUTO-JOIN
+                </span>
+              )}
+            </div>
             {p.phone && <div style={{ color: colors.muted, fontSize: 12, marginTop: 2 }}>📱 {p.phone}</div>}
             <div style={{ color: colors.muted, fontSize: 12, marginTop: 2 }}>
               ⚽ {p.gamesPlayed} game{p.gamesPlayed === 1 ? '' : 's'} played
@@ -1633,6 +1659,9 @@ function RosterTab({ password, showToast }) {
                 )}
             </div>
             <div style={{ display: 'flex', gap: 6 }}>
+              <Btn small variant="ghost" onClick={() => setAutoJoin(p, !p.auto_join)}>
+                {p.auto_join ? '⚡ Turn off auto-join' : 'Turn on auto-join'}
+              </Btn>
               <Btn small variant="ghost" onClick={() => resetPin(p)}>Reset PIN</Btn>
               <Btn small variant="danger" onClick={() => deletePlayer(p)}>Delete</Btn>
             </div>
