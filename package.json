@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@sentry/nextjs": "^10.62.0",
@@ -16,5 +18,8 @@
     "react-dom": "^18",
     "twilio": "^5.1.0",
     "web-push": "^3.6.7"
+  },
+  "devDependencies": {
+    "vitest": "^5.0.3"
   }
 }
