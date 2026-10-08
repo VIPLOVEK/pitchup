@@ -5,7 +5,7 @@ import Layout from '../../components/Layout'
 import { Card, Label, ProgressBar, Btn, Input, Pill, PlayerChip, Avatar, Toast, GoalCelebration, WeatherBadge } from '../../components/UI'
 import { supabase } from '../../lib/supabase'
 import { colors, radius } from '../../lib/tokens'
-import { formatSlot, getActivePlayers, getWaitlist, getTotalSpots, expandWithGuests, getTentativePlayers } from '../../lib/teams'
+import { formatSlot, getActivePlayers, getWaitlist, getTotalSpots, expandWithGuests, getTentativePlayers, teamAvgYear } from '../../lib/teams'
 import { getCutoffTime } from '../../lib/pollStatus'
 import { findLocation } from '../../lib/locations'
 
@@ -727,6 +727,18 @@ function GameConfirmed({ poll, profile }) {
   const nameB = poll.team_b_name || 'Team B'
   const gameTime = formatSlot(poll.game_time)
   const confirmedCount = [...teamA, ...teamB].length
+
+  // Team balance stats — shown so players can see for themselves the teams
+  // are fair, without needing to ask the admin.
+  const teamStats = (team) => {
+    const real = team.filter(p => !p.isGuest)
+    const avgAge = teamAvgYear(real) ? Math.round(new Date().getFullYear() - teamAvgYear(real)) : null
+    const rated = real.filter(p => p.skill_rating != null)
+    const avgSkill = rated.length ? (rated.reduce((s, p) => s + p.skill_rating, 0) / rated.length).toFixed(1) : null
+    return { avgAge, avgSkill }
+  }
+  const statsA = teamStats(teamA)
+  const statsB = teamStats(teamB)
   const whatsappText = noSplit ? [
     `⚽ *Game is ON!* ${confirmedCount} players confirmed.`,
     ``,
@@ -1136,7 +1148,14 @@ function GameConfirmed({ poll, profile }) {
             <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.teamA, marginBottom: 2 }}>
               {nameA}
             </div>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginBottom: 8 }}>⚪ White</div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginBottom: 2 }}>⚪ White</div>
+            {(statsA.avgSkill || statsA.avgAge) && (
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 8 }}>
+                {statsA.avgSkill && <span>⭐ {statsA.avgSkill} avg</span>}
+                {statsA.avgSkill && statsA.avgAge && ' · '}
+                {statsA.avgAge && <span>~{statsA.avgAge}y avg age</span>}
+              </div>
+            )}
             <PositionSummary players={teamA} />
             {teamA.map((p, i) => {
               const isMe = p.name === profile?.name
@@ -1162,7 +1181,14 @@ function GameConfirmed({ poll, profile }) {
             <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.teamB, marginBottom: 2 }}>
               {nameB}
             </div>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginBottom: 8 }}>🎨 <RainbowColors /></div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginBottom: 2 }}>🎨 <RainbowColors /></div>
+            {(statsB.avgSkill || statsB.avgAge) && (
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 8 }}>
+                {statsB.avgSkill && <span>⭐ {statsB.avgSkill} avg</span>}
+                {statsB.avgSkill && statsB.avgAge && ' · '}
+                {statsB.avgAge && <span>~{statsB.avgAge}y avg age</span>}
+              </div>
+            )}
             <PositionSummary players={teamB} />
             {teamB.map((p, i) => {
               const isMe = p.name === profile?.name

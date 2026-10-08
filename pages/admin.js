@@ -1568,6 +1568,9 @@ function RosterTab({ password, showToast }) {
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
   const [editingId, setEditingId] = useState(null)
+  const [positionFilter, setPositionFilter] = useState('all')
+  const [skillFilter, setSkillFilter] = useState('all')
+  const [sortBy, setSortBy] = useState('games')
 
   useEffect(() => {
     fetch('/api/admin/players', { headers: { authorization: `Bearer ${password}` } })
@@ -1688,7 +1691,23 @@ function RosterTab({ password, showToast }) {
     )
   }
 
-  const sorted = [...players].sort((a, b) => b.gamesPlayed - a.gamesPlayed)
+  // When filtering by a specific position, rank/filter by that position's
+  // skill rather than the player's overall rating — a player can be
+  // "Advanced" at Forward but only "Average" at Midfielder.
+  const effectiveSkill = (p) => {
+    if (positionFilter !== 'all' && p.position_skills?.[positionFilter] != null) return p.position_skills[positionFilter]
+    return p.skill_rating || DEFAULT_SKILL_RATING
+  }
+
+  let filtered = players
+  if (positionFilter !== 'all') filtered = filtered.filter(p => (p.positions || []).includes(positionFilter))
+  if (skillFilter !== 'all') filtered = filtered.filter(p => effectiveSkill(p) === Number(skillFilter))
+
+  const sorted = [...filtered].sort((a, b) => {
+    if (sortBy === 'skill') return effectiveSkill(b) - effectiveSkill(a)
+    if (sortBy === 'name') return a.name.localeCompare(b.name)
+    return b.gamesPlayed - a.gamesPlayed
+  })
   const q = search.trim().toLowerCase()
   const visible = q ? sorted.filter(p => p.name.toLowerCase().includes(q) || p.phone?.includes(q)) : sorted
 
@@ -1710,8 +1729,36 @@ function RosterTab({ password, showToast }) {
       <p style={{ color: colors.muted, fontSize: 12, margin: '0 0 10px' }}>
         ⚡ {players.filter(p => p.auto_join).length} player{players.filter(p => p.auto_join).length === 1 ? '' : 's'} have auto-join on — they're added automatically when a game confirms.
       </p>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
+        <select value={positionFilter} onChange={e => setPositionFilter(e.target.value)} style={skillSelectStyle}>
+          <option value="all">All positions</option>
+          {POSITIONS.map(pos => <option key={pos} value={pos}>{pos}</option>)}
+        </select>
+        <select value={skillFilter} onChange={e => setSkillFilter(e.target.value)} style={skillSelectStyle}>
+          <option value="all">All levels</option>
+          {Object.entries(SKILL_LABELS).map(([value, label]) => (
+            <option key={value} value={value}>{value} · {label}</option>
+          ))}
+        </select>
+        <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={skillSelectStyle}>
+          <option value="games">Sort: Games played</option>
+          <option value="skill">Sort: Skill{positionFilter !== 'all' ? ` (${positionFilter})` : ''}</option>
+          <option value="name">Sort: Name</option>
+        </select>
+        {(positionFilter !== 'all' || skillFilter !== 'all') && (
+          <button
+            onClick={() => { setPositionFilter('all'); setSkillFilter('all') }}
+            style={{ fontSize: 12, color: colors.muted, background: 'transparent', border: 'none', cursor: 'pointer' }}
+          >
+            ✕ Clear filters
+          </button>
+        )}
+      </div>
       {visible.length === 0 && q && (
         <p style={{ color: colors.muted, fontSize: 13, textAlign: 'center', padding: '12px 0' }}>No players match "{search}"</p>
+      )}
+      {visible.length === 0 && !q && (positionFilter !== 'all' || skillFilter !== 'all') && (
+        <p style={{ color: colors.muted, fontSize: 13, textAlign: 'center', padding: '12px 0' }}>No players match this filter.</p>
       )}
       {visible.map(p => (
         <div key={p.id} style={{ borderBottom: `1px solid ${colors.grass}22` }}>
