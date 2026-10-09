@@ -931,11 +931,9 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups, teamH
                     <span style={{ fontSize: 12, color: p.isGuest ? colors.muted : colors.white, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {p.isGuest ? `↳ ${p.name}` : p.name}
                     </span>
-                    {!p.isGuest && (
-                      <button onClick={() => movePlayer(p, team)} title={`Move to Team ${team === 'A' ? 'B' : 'A'}`} style={{ background: 'none', border: `1px solid ${colors.grass}33`, color: colors.muted, cursor: 'pointer', fontSize: 10, borderRadius: 4, padding: '1px 5px', flexShrink: 0 }}>
-                        {team === 'A' ? '→B' : 'A←'}
-                      </button>
-                    )}
+                    <button onClick={() => movePlayer(p, team)} title={`Move to Team ${team === 'A' ? 'B' : 'A'}`} style={{ background: 'none', border: `1px solid ${colors.grass}33`, color: colors.muted, cursor: 'pointer', fontSize: 10, borderRadius: 4, padding: '1px 5px', flexShrink: 0 }}>
+                      {team === 'A' ? '→B' : 'A←'}
+                    </button>
                     <button onClick={() => p.isGuest ? removeGuest(p, team) : markNoShow(p, team)} title="Remove" style={{ background: 'none', border: 'none', color: colors.danger, cursor: 'pointer', fontSize: 16, padding: '0 2px', lineHeight: 1, flexShrink: 0 }}>×</button>
                   </div>
                 ))}
