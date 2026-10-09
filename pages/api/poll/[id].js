@@ -1,8 +1,9 @@
 // GET  /api/poll/[id] — fetch poll state
 // POST /api/poll/[id] — cast a vote
 import { supabaseAdmin, isSupabaseConfigured } from '../../../lib/supabase'
-import { formatSlot, getActivePlayers, getWaitlist, removePlayerFromTeams, syncPlayerInTeams } from '../../../lib/teams'
+import { formatSlot, getActivePlayers, getWaitlist, removePlayerFromTeams, syncPlayerInTeams, applyGroupOpposition } from '../../../lib/teams'
 import { evaluatePollUpdate } from '../../../lib/pollStatus'
+import { buildOppositionRules } from '../../../lib/oppositionRules'
 import { sendWhatsAppAnnouncement, sendWhatsAppCancellation } from '../../../lib/whatsapp'
 import { sendPushToAll, sendPushToPlayer } from '../../../lib/push'
 import { verifyPin } from '../../../lib/players'
@@ -14,6 +15,11 @@ import { verifyPin } from '../../../lib/players'
 async function applyPollUpdate(db, poll) {
   const update = evaluatePollUpdate(poll)
   if (!update) return poll
+
+  if (update.status === 'confirmed' && update.teams) {
+    const rules = await buildOppositionRules(db, getActivePlayers(poll))
+    update.teams = applyGroupOpposition(update.teams, rules)
+  }
 
   const { data: updated, error } = await db
     .from('polls')

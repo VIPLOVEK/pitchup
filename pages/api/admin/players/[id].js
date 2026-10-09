@@ -203,6 +203,23 @@ export default async function handler(req, res) {
       }
     }
 
+    if (action === 'setOpposeGroup') {
+      const { groupId } = req.body
+      try {
+        const { data, error } = await db
+          .from('players')
+          .update({ oppose_group_id: groupId || null })
+          .eq('id', id)
+          .select('id, name, oppose_group_id')
+          .single()
+        if (error) throw error
+        if (!data) return res.status(404).json({ error: 'Player not found' })
+        return res.status(200).json(data)
+      } catch (e) {
+        return res.status(500).json({ error: e.message })
+      }
+    }
+
     if (action === 'setAutoJoin') {
       const { autoJoin } = req.body
       try {

@@ -1569,12 +1569,17 @@ function RosterTab({ password, showToast }) {
   const [positionFilter, setPositionFilter] = useState('all')
   const [skillFilter, setSkillFilter] = useState('all')
   const [sortBy, setSortBy] = useState('games')
+  const [groups, setGroups] = useState([])
 
   useEffect(() => {
     fetch('/api/admin/players', { headers: { authorization: `Bearer ${password}` } })
       .then(res => res.ok ? res.json() : Promise.reject(new Error('Failed to load roster')))
       .then(setPlayers)
       .catch(e => setError(e.message))
+    fetch('/api/admin/groups', { headers: { authorization: `Bearer ${password}` } })
+      .then(res => res.ok ? res.json() : [])
+      .then(setGroups)
+      .catch(() => {})
   }, [password])
 
   const resetPin = async (player) => {
@@ -1858,6 +1863,7 @@ function RosterTab({ password, showToast }) {
             player={p}
             password={password}
             showToast={showToast}
+            groups={groups}
             onSaved={updated => setPlayers(ps => ps.map(x => x.id === p.id ? { ...x, ...updated } : x))}
           />
         )}
@@ -1867,7 +1873,7 @@ function RosterTab({ password, showToast }) {
   )
 }
 
-function PlayerEditPanel({ player, password, showToast, onSaved }) {
+function PlayerEditPanel({ player, password, showToast, groups, onSaved }) {
   const [name, setName] = useState(player.name)
   const [phone, setPhone] = useState(player.phone || '')
   const [yearOfBirth, setYearOfBirth] = useState(player.year_of_birth || '')
@@ -1877,6 +1883,8 @@ function PlayerEditPanel({ player, password, showToast, onSaved }) {
   const [newTo, setNewTo] = useState('')
   const [newPin, setNewPin] = useState('')
   const [saving, setSaving] = useState(false)
+  const [opposeGroupId, setOpposeGroupId] = useState(player.oppose_group_id || '')
+  const [savingOppose, setSavingOppose] = useState(false)
 
   const addRange = () => {
     if (!newFrom || !newTo || newFrom > newTo) return
@@ -1937,6 +1945,20 @@ function PlayerEditPanel({ player, password, showToast, onSaved }) {
     }
   }
 
+  const saveOpposeGroup = async (groupId) => {
+    setOpposeGroupId(groupId)
+    setSavingOppose(true)
+    try {
+      const data = await call({ action: 'setOpposeGroup', groupId: groupId || null })
+      onSaved(data)
+      showToast(groupId ? `${player.name} will now always play against the majority of that group ✓` : `${player.name}'s team-balance rule cleared ✓`)
+    } catch (e) {
+      showToast(e.message)
+    } finally {
+      setSavingOppose(false)
+    }
+  }
+
   return (
     <div style={{ background: colors.pitchMid, borderRadius: 10, padding: '12px 12px 14px', marginBottom: 10 }}>
       <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.muted, marginBottom: 10 }}>
@@ -1992,6 +2014,21 @@ function PlayerEditPanel({ player, password, showToast, onSaved }) {
           <input value={newPin} onChange={e => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="4-6 digit PIN" style={{ ...inputStyle, flex: 1 }} />
           <Btn small variant="ghost" onClick={savePin} disabled={!newPin}>Set PIN</Btn>
         </div>
+      </div>
+
+      <div style={{ marginTop: 16, paddingTop: 12, borderTop: `1px solid ${colors.grass}22` }}>
+        <div style={{ fontSize: 11, color: colors.muted, marginBottom: 6 }}>
+          Team balance rule <span style={{ opacity: 0.7 }}>(always play against the majority of a group, together with any guest they bring)</span>
+        </div>
+        <select
+          value={opposeGroupId}
+          onChange={e => saveOpposeGroup(e.target.value)}
+          disabled={savingOppose}
+          style={selectStyle}
+        >
+          <option value="">None</option>
+          {groups.map(g => <option key={g.id} value={g.id}>Always oppose: {g.name}</option>)}
+        </select>
       </div>
     </div>
   )

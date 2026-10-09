@@ -1,7 +1,8 @@
 // PATCH /api/admin/[id] — close poll, shuffle teams
 // DELETE /api/admin/[id] — delete poll
 import { supabaseAdmin, isSupabaseConfigured } from '../../../lib/supabase'
-import { generateTeams, generateTeamsByAffiliation, pickBestSlot, formatSlot, getActivePlayers, expandWithGuests, getWaitlist, getTotalSpots, removePlayerFromTeams, syncPlayerInTeams } from '../../../lib/teams'
+import { generateTeams, generateTeamsByAffiliation, pickBestSlot, formatSlot, getActivePlayers, expandWithGuests, getWaitlist, getTotalSpots, removePlayerFromTeams, syncPlayerInTeams, applyGroupOpposition } from '../../../lib/teams'
+import { buildOppositionRules } from '../../../lib/oppositionRules'
 import { sendWhatsAppAnnouncement } from '../../../lib/whatsapp'
 import { sendPushToAll, sendPushToPlayer } from '../../../lib/push'
 import { pickTeamNames } from '../../../lib/teamNames'
@@ -76,11 +77,12 @@ export default async function handler(req, res) {
 
         const refreshedActive = await withSkillRatings(db, getActivePlayers(poll))
         const expanded = expandWithGuests(refreshedActive)
+        const oppositionRules = await buildOppositionRules(db, refreshedActive)
         const teams = poll.no_team_split
           ? { teamA: expanded, teamB: [] }
           : poll.split_by_club
             ? generateTeamsByAffiliation(refreshedActive)
-            : generateTeams(expanded)
+            : applyGroupOpposition(generateTeams(expanded), oppositionRules)
         const { data, error } = await db
           .from('polls').update({ status: 'confirmed', teams, game_time: gameTime, version: poll.version + 1 }).eq('id', id).select().single()
         if (error) throw error
@@ -155,9 +157,10 @@ export default async function handler(req, res) {
         if (poll.no_team_split) return res.status(400).json({ error: 'Cannot reshuffle a no-split game' })
         const noShowSet = new Set((poll.no_shows || []).map(n => n.toLowerCase()))
         const active = await withSkillRatings(db, getActivePlayers(poll).filter(p => !noShowSet.has(p.name.toLowerCase())))
+        const shuffleOppositionRules = await buildOppositionRules(db, active)
         const teams = poll.split_by_club
           ? generateTeamsByAffiliation(active)
-          : generateTeams(expandWithGuests(active))
+          : applyGroupOpposition(generateTeams(expandWithGuests(active)), shuffleOppositionRules)
         const { teamAName, teamBName } = pickTeamNames()
         const { data, error } = await db
           .from('polls').update({ teams, team_a_name: teamAName, team_b_name: teamBName, version: poll.version + 1 }).eq('id', id).select().single()
@@ -395,9 +398,10 @@ export default async function handler(req, res) {
           })
         } else {
           const active = getActivePlayers({ ...pollData, players })
+          const groundOppositionRules = await buildOppositionRules(db, active)
           teams = pollData.split_by_club
             ? generateTeamsByAffiliation(active)
-            : generateTeams(expandWithGuests(active))
+            : applyGroupOpposition(generateTeams(expandWithGuests(active)), groundOppositionRules)
         }
 
         const { data, error } = await db.from('polls')
