@@ -563,7 +563,7 @@ function ModeratePanel({ poll, doAction, loading }) {
   )
 }
 
-function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups, teamHistory }) {
+function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups, teamHistory, showToast }) {
   const [loading, setLoading] = useState(false)
   const [scoreA, setScoreA] = useState(poll.score_a ?? '')
   const [scoreB, setScoreB] = useState(poll.score_b ?? '')
@@ -613,6 +613,11 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups, teamH
   const waitlist = getWaitlist(poll)
   const tentatives = getTentativePlayers(poll)
 
+  // Returns true on success, false on failure — so callers can decide
+  // whether it's safe to e.g. close an edit panel. A failed save (poll
+  // status changed under us, validation error, etc.) is surfaced to the
+  // admin instead of silently vanishing, which previously made it look
+  // like an edit had succeeded when the server had actually rejected it.
   const doAction = async (action, method = 'PATCH', extra = {}) => {
     setLoading(true)
     try {
@@ -621,11 +626,17 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups, teamH
         headers: { 'Content-Type': 'application/json', authorization: `Bearer ${password}` },
         ...(method === 'PATCH' ? { body: JSON.stringify({ action, ...extra }) } : {}),
       })
-      if (!res.ok) throw new Error('Action failed')
+      if (!res.ok) {
+        const body = await res.json().catch(() => null)
+        throw new Error(body?.error || 'Action failed')
+      }
       const data = method === 'DELETE' ? null : await res.json()
       onAction(poll.id, data)
+      return true
     } catch (e) {
       console.error(e)
+      showToast?.(e.message)
+      return false
     } finally {
       setLoading(false)
     }
@@ -1002,7 +1013,7 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups, teamH
           })()}
 
           <div style={{ display: 'flex', gap: 8 }}>
-            <Btn small onClick={async () => { await doAction('setTeams', 'PATCH', { teamA: editTeamA, teamB: editTeamB, noShows: editNoShows }); setAdjustingTeams(false) }} disabled={loading}>Save</Btn>
+            <Btn small onClick={async () => { const ok = await doAction('setTeams', 'PATCH', { teamA: editTeamA, teamB: editTeamB, noShows: editNoShows }); if (ok) setAdjustingTeams(false) }} disabled={loading}>Save</Btn>
             <Btn small variant="ghost" onClick={() => setAdjustingTeams(false)} disabled={loading}>Cancel</Btn>
           </div>
         </div>
@@ -1044,13 +1055,13 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups, teamH
               const location = editConfirmedLocation === 'Other' ? editConfirmedCustomLocation.trim() : editConfirmedLocation
               if (!location) return
               if (editConfirmedMax < editConfirmedMin) return
-              await doAction('updateConfirmedDetails', 'PATCH', {
+              const ok = await doAction('updateConfirmedDetails', 'PATCH', {
                 location,
                 gameTime: editGameTime ? new Date(editGameTime).toISOString() : undefined,
                 minPlayers: editConfirmedMin,
                 maxPlayers: editConfirmedMax,
               })
-              setEditingConfirmedDetails(false)
+              if (ok) setEditingConfirmedDetails(false)
             }} disabled={loading}>Save</Btn>
             <Btn small variant="ghost" onClick={() => setEditingConfirmedDetails(false)} disabled={loading}>Cancel</Btn>
           </div>
@@ -1247,8 +1258,8 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups, teamH
             <Btn
               small
               onClick={async () => {
-                await doAction('setAudience', 'PATCH', { visibility: audienceVisibility, groupIds: audienceGroupIds })
-                setEditingAudience(false)
+                const ok = await doAction('setAudience', 'PATCH', { visibility: audienceVisibility, groupIds: audienceGroupIds })
+                if (ok) setEditingAudience(false)
               }}
               disabled={loading || (audienceVisibility === 'groups' && audienceGroupIds.length === 0)}
             >
@@ -1383,7 +1394,7 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups, teamH
                   return
                 }
                 setDetailsError('')
-                await doAction('updateDetails', 'PATCH', {
+                const ok = await doAction('updateDetails', 'PATCH', {
                   title: editTitle,
                   location: editLocation,
                   slots: filledSlots.map(s => new Date(s).toISOString()),
@@ -1396,7 +1407,7 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups, teamH
                   cutoffHours: editCutoffHours,
                   autoLockHours: editAutoLockHours,
                 })
-                setEditingDetails(false)
+                if (ok) setEditingDetails(false)
               }}
               disabled={loading}
             >
@@ -3202,6 +3213,7 @@ export default function AdminPage() {
               appUrl={appUrl}
               groups={groups}
               teamHistory={teamHistory}
+              showToast={showToast}
             />
           ))}
         </div>
