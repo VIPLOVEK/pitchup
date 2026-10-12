@@ -1540,7 +1540,10 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups, teamH
           </div>
         )}
         {isCancelled && (
-          <Btn small variant="ghost" onClick={() => doAction('reopen')} disabled={loading}>
+          <Btn small variant="ghost" onClick={async () => {
+            const ok = await doAction('reopen')
+            if (ok) showToast?.('Poll reopened — set to "No cutoff" so it won\'t immediately expire again. Edit details to set a real cutoff if you want one.')
+          }} disabled={loading}>
             ♻️ Reopen poll
           </Btn>
         )}

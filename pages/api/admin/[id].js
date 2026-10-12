@@ -116,8 +116,13 @@ export default async function handler(req, res) {
       }
 
       if (action === 'reopen') {
+        // Also switch to "No cutoff — manual close only": a poll usually
+        // got cancelled because its cutoff had already passed, and leaving
+        // that cutoff in place means the very next page load (anyone's)
+        // would immediately re-evaluate and re-cancel it right back. The
+        // admin can always set a real cutoff again via Edit details.
         const { data, error } = await db
-          .from('polls').update({ status: 'open', version: poll.version + 1 }).eq('id', id).select().single()
+          .from('polls').update({ status: 'open', cutoff_hours: null, version: poll.version + 1 }).eq('id', id).select().single()
         if (error) throw error
         return res.status(200).json(data)
       }
