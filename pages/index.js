@@ -4,7 +4,7 @@ import Layout from '../components/Layout'
 import { Card, Label, ProgressBar, Pill } from '../components/UI'
 import { colors, radius } from '../lib/tokens'
 import { getActivePlayers, getTotalSpots } from '../lib/teams'
-import { getCutoffTime } from '../lib/pollStatus'
+import { getCutoffTime, effectiveDate, isPollActive, isPollPast } from '../lib/pollStatus'
 import { LOCATIONS } from '../lib/locations'
 
 function RequestGameModal({ onClose }) {
@@ -396,12 +396,6 @@ export default function Home({ polls, groupPolls = [], groups, announcement, tod
     } catch {}
   }, [])
 
-  function effectiveDate(poll) {
-    if (poll.game_time) return new Date(poll.game_time)
-    if (poll.slots?.length) return new Date(Math.min(...poll.slots.map(s => new Date(s))))
-    return new Date(8640000000000000)
-  }
-
   function daysUntil(date) {
     const d1 = new Date(date); d1.setHours(0, 0, 0, 0)
     const d2 = new Date(now); d2.setHours(0, 0, 0, 0)
@@ -432,31 +426,11 @@ export default function Home({ polls, groupPolls = [], groups, announcement, tod
     return `Kickoff in ${mins}m`
   }
 
-  const endOfDay = (date) => {
-    const d = new Date(date)
-    d.setHours(23, 59, 59, 999)
-    return d
-  }
-
   const activePolls = visiblePolls
-    .filter(p => {
-      if (p.status !== 'open' && p.status !== 'confirmed') return false
-      // confirmed with no date → keep (date TBD)
-      if (p.status === 'confirmed' && !p.game_time) return true
-      // confirmed games stay active until end of the day they're played
-      if (p.status === 'confirmed' && p.game_time) return endOfDay(p.game_time) > now
-      // open polls: keep if voting is still open (any slot cutoff in future), or slot time is in future
-      const cutoff = getCutoffTime(p.slots, p.cutoff_hours)
-      if (cutoff && cutoff > now) return true
-      return effectiveDate(p) > now
-    })
+    .filter(p => isPollActive(p, now))
     .sort((a, b) => effectiveDate(a) - effectiveDate(b))
 
-  const pastPolls = visiblePolls.filter(p =>
-    p.status === 'cancelled' || p.status === 'finished' ||
-    (p.status === 'confirmed' && p.game_time && endOfDay(p.game_time) <= now) ||
-    (p.status === 'open' && !getCutoffTime(p.slots, p.cutoff_hours) && effectiveDate(p) <= now)
-  )
+  const pastPolls = visiblePolls.filter(p => isPollPast(p, now))
 
   function isToday(poll) {
     return poll.game_time && new Date(poll.game_time).toDateString() === today
