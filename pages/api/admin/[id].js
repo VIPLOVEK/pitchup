@@ -3,6 +3,7 @@
 import { supabaseAdmin, isSupabaseConfigured } from '../../../lib/supabase'
 import { generateTeams, generateTeamsByAffiliation, pickBestSlot, formatSlot, getActivePlayers, expandWithGuests, getWaitlist, getTotalSpots, removePlayerFromTeams, syncPlayerInTeams, applyGroupOpposition, remapSlotVotes } from '../../../lib/teams'
 import { buildOppositionRules } from '../../../lib/oppositionRules'
+import { buildColorBias } from '../../../lib/colorBias'
 import { sendWhatsAppAnnouncement } from '../../../lib/whatsapp'
 import { sendPushToAll, sendPushToPlayer } from '../../../lib/push'
 import { pickTeamNames } from '../../../lib/teamNames'
@@ -78,11 +79,12 @@ export default async function handler(req, res) {
         const refreshedActive = await withSkillRatings(db, getActivePlayers(poll))
         const expanded = expandWithGuests(refreshedActive)
         const oppositionRules = await buildOppositionRules(db, refreshedActive)
+        const colorBias = await buildColorBias(db)
         const teams = poll.no_team_split
           ? { teamA: expanded, teamB: [] }
           : poll.split_by_club
             ? generateTeamsByAffiliation(refreshedActive)
-            : applyGroupOpposition(generateTeams(expanded), oppositionRules)
+            : applyGroupOpposition(generateTeams(expanded, { colorBias }), oppositionRules)
         const { data, error } = await db
           .from('polls').update({ status: 'confirmed', teams, game_time: gameTime, version: poll.version + 1 }).eq('id', id).select().single()
         if (error) throw error
@@ -163,9 +165,10 @@ export default async function handler(req, res) {
         const noShowSet = new Set((poll.no_shows || []).map(n => n.toLowerCase()))
         const active = await withSkillRatings(db, getActivePlayers(poll).filter(p => !noShowSet.has(p.name.toLowerCase())))
         const shuffleOppositionRules = await buildOppositionRules(db, active)
+        const shuffleColorBias = await buildColorBias(db)
         const teams = poll.split_by_club
           ? generateTeamsByAffiliation(active)
-          : applyGroupOpposition(generateTeams(expandWithGuests(active)), shuffleOppositionRules)
+          : applyGroupOpposition(generateTeams(expandWithGuests(active), { colorBias: shuffleColorBias }), shuffleOppositionRules)
         const { teamAName, teamBName } = pickTeamNames()
         const { data, error } = await db
           .from('polls').update({ teams, team_a_name: teamAName, team_b_name: teamBName, version: poll.version + 1 }).eq('id', id).select().single()
@@ -404,9 +407,10 @@ export default async function handler(req, res) {
         } else {
           const active = getActivePlayers({ ...pollData, players })
           const groundOppositionRules = await buildOppositionRules(db, active)
+          const groundColorBias = await buildColorBias(db)
           teams = pollData.split_by_club
             ? generateTeamsByAffiliation(active)
-            : applyGroupOpposition(generateTeams(expandWithGuests(active)), groundOppositionRules)
+            : applyGroupOpposition(generateTeams(expandWithGuests(active), { colorBias: groundColorBias }), groundOppositionRules)
         }
 
         const { data, error } = await db.from('polls')
