@@ -1,7 +1,7 @@
 // PATCH /api/admin/[id] — close poll, shuffle teams
 // DELETE /api/admin/[id] — delete poll
 import { supabaseAdmin, isSupabaseConfigured } from '../../../lib/supabase'
-import { generateTeams, generateTeamsByAffiliation, pickBestSlot, formatSlot, getActivePlayers, expandWithGuests, getWaitlist, getTotalSpots, removePlayerFromTeams, syncPlayerInTeams, applyGroupOpposition } from '../../../lib/teams'
+import { generateTeams, generateTeamsByAffiliation, pickBestSlot, formatSlot, getActivePlayers, expandWithGuests, getWaitlist, getTotalSpots, removePlayerFromTeams, syncPlayerInTeams, applyGroupOpposition, remapSlotVotes } from '../../../lib/teams'
 import { buildOppositionRules } from '../../../lib/oppositionRules'
 import { sendWhatsAppAnnouncement } from '../../../lib/whatsapp'
 import { sendPushToAll, sendPushToPlayer } from '../../../lib/push'
@@ -488,12 +488,7 @@ export default async function handler(req, res) {
           return res.status(400).json({ error: 'Max players must be greater than or equal to min players' })
         }
 
-        // Keep existing players/votes, but drop any slot-vote indices that
-        // no longer exist if slots were removed.
-        const updatedPlayers = (poll.players || []).map(p => ({
-          ...p,
-          slots: (p.slots || []).filter(i => i < slots.length),
-        }))
+        const updatedPlayers = remapSlotVotes(poll.players, poll.slots, slots)
 
         const { data, error } = await db
           .from('polls')
