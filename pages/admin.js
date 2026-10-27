@@ -670,6 +670,13 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups, teamH
     if (team === 'A') setEditTeamA(p => [...p, player])
     else setEditTeamB(p => [...p, player])
   }
+  // Admin override for this game only — doesn't touch the player's saved
+  // profile position, just what this confirmed game's teams/pitch view use.
+  const setPlayerPosition = (player, team, position) => {
+    const update = p => p.name === player.name ? { ...p, positions: position ? [position] : [] } : p
+    if (team === 'A') setEditTeamA(p => p.map(update))
+    else setEditTeamB(p => p.map(update))
+  }
 
   const statusLabel = isConfirmed ? 'Confirmed ✅' : isCancelled ? 'Cancelled ❌' : 'Open 🟢'
   const gameTypeLabel = poll.game_type === 'practice' ? '🏃 Practice' : poll.game_type === 'competition' ? '🏆 Competition' : poll.game_type === 'watch_party' ? '📺 Watch Party' : null
@@ -942,6 +949,17 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups, teamH
                     <span style={{ fontSize: 12, color: p.isGuest ? colors.muted : colors.white, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {p.isGuest ? `↳ ${p.name}` : p.name}
                     </span>
+                    {!p.isGuest && (
+                      <select
+                        value={p.positions?.[0] || ''}
+                        onChange={e => setPlayerPosition(p, team, e.target.value)}
+                        title="Position for this game (doesn't change their profile)"
+                        style={{ background: colors.pitchCard, border: `1px solid ${colors.grass}33`, color: p.positions?.[0] ? colors.white : colors.muted, borderRadius: 4, padding: '1px 3px', fontSize: 10, flexShrink: 0, maxWidth: 58 }}
+                      >
+                        <option value="">Any</option>
+                        {POSITIONS.map(pos => <option key={pos} value={pos}>{pos}</option>)}
+                      </select>
+                    )}
                     <button onClick={() => movePlayer(p, team)} title={`Move to Team ${team === 'A' ? 'B' : 'A'}`} style={{ background: 'none', border: `1px solid ${colors.grass}33`, color: colors.muted, cursor: 'pointer', fontSize: 10, borderRadius: 4, padding: '1px 5px', flexShrink: 0 }}>
                       {team === 'A' ? '→B' : 'A←'}
                     </button>
