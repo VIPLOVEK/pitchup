@@ -3,6 +3,7 @@ import { useRouter } from 'next/router'
 import Link from 'next/link'
 import Layout from '../../components/Layout'
 import { Card, Label, ProgressBar, Btn, Input, Pill, PlayerChip, Avatar, Toast, GoalCelebration, WeatherBadge } from '../../components/UI'
+import TeamFormationPitch from '../../components/TeamFormationPitch'
 import { supabase } from '../../lib/supabase'
 import { colors, radius } from '../../lib/tokens'
 import { formatSlot, getActivePlayers, getWaitlist, getTotalSpots, expandWithGuests, getTentativePlayers, teamAvgYear } from '../../lib/teams'
@@ -1127,6 +1128,9 @@ function GameConfirmed({ poll, profile }) {
               })
             )}
           </div>
+        )}
+        {!noSplit && (
+          <TeamFormationPitch teamA={teamA} teamB={teamB} nameA={nameA} nameB={nameB} myName={profile?.name} />
         )}
         {noSplit ? (
           <div>
