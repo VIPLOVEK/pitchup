@@ -1,10 +1,13 @@
 import { colors } from '../lib/tokens'
-import { Avatar } from './UI'
 
 const RAINBOW = ['#ef4444', '#f97316', '#fbbf24', '#4ade80', '#60a5fa', '#a78bfa']
 
 function RainbowText({ text }) {
   return <>{[...text].map((ch, i) => <span key={i} style={{ color: RAINBOW[i % RAINBOW.length] }}>{ch}</span>)}</>
+}
+
+function initialsFor(name) {
+  return (name || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase()
 }
 
 // Groups a team's players into position rows (goalkeeper nearest their own
@@ -43,15 +46,26 @@ function sizeForDensity(maxRowSize) {
   return { avatar: 23, font: 8, labelW: 46 }
 }
 
+// Every player's avatar ring (and initials-fallback background) is tinted
+// by team, not by player — so teammates read as one group at a glance,
+// the same way a real photo would've shown team colors. "Me" gets a glow
+// on top of the team color rather than a different color, so I'm still
+// visibly on my own team.
 function PlayerToken({ p, isColors, isMe, size, style }) {
-  const ringColor = isMe
-    ? colors.accent
-    : isColors ? RAINBOW[(p.name?.length || 0) % RAINBOW.length] : 'rgba(248,244,234,0.55)'
+  const teamColor = isColors ? colors.teamB : colors.teamA
   const displayName = p.isGuest ? p.name.split("'s Guest")[0] + ' +1' : p.name
   return (
     <div style={{ position: 'absolute', transform: 'translate(-50%, -50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, ...style }}>
-      <div style={{ borderRadius: '50%', border: `${isMe ? 2.5 : 2}px solid ${ringColor}`, boxShadow: isMe ? `0 0 10px ${colors.accent}88` : 'none', lineHeight: 0 }}>
-        <Avatar name={p.name} src={p.avatar_url} size={size.avatar} />
+      <div style={{
+        width: size.avatar, height: size.avatar, borderRadius: '50%',
+        border: `${isMe ? 2.5 : 2}px solid ${teamColor}`,
+        boxShadow: isMe ? `0 0 10px ${teamColor}cc` : 'none',
+        overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: teamColor, flexShrink: 0,
+      }}>
+        {p.avatar_url
+          ? <img src={p.avatar_url} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          : <span style={{ fontSize: size.avatar * 0.4, fontWeight: 800, color: isColors ? colors.white : '#0a1526' }}>{initialsFor(p.name)}</span>}
       </div>
       <span style={{
         fontSize: size.font, fontWeight: isMe ? 800 : 600,
@@ -60,7 +74,7 @@ function PlayerToken({ p, isColors, isMe, size, style }) {
         color: isColors ? undefined : (isMe ? colors.accent : colors.white),
       }}>
         {isColors ? <RainbowText text={displayName} /> : displayName}
-        {isMe && !isColors && ' (you)'}
+        {isMe && ' (you)'}
       </span>
     </div>
   )
