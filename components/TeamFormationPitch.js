@@ -36,22 +36,33 @@ function rowsFromTeam(team) {
   return rows
 }
 
-// Y position (%) for row `i` of `rowCount`, spread between the team's own
-// goal line and the halfway line. `fromBottom` mirrors the spread for the
-// team defending the bottom goal, so both teams' forwards end up closest
-// to the halfway line in the middle of the pitch.
-function rowY(i, rowCount, fromBottom) {
-  const margin = 9, span = 39
-  const t = margin + ((i + 0.5) / rowCount) * span
-  return fromBottom ? 100 - t : t
+// Space (in px) reserved at each end of the pitch for the goal box/team
+// label, and around the halfway line, before any player rows start.
+const MARGIN_PX = 58
+const HALFWAY_GAP_PX = 16
+
+// Picks avatar/font size and the fixed pixel spacing between row centers,
+// based on how many rows deep the taller side goes — not how wide a row
+// is, since rows are capped at 3 players and width is rarely the tight
+// dimension. More rows means a smaller token and a shorter row interval,
+// but ROW_PX always stays tall enough to fit an avatar + its name label
+// without the next row's token encroaching on it.
+function sizeForDensity(maxRows) {
+  if (maxRows <= 3) return { avatar: 36, font: 11, labelW: 82, rowPx: 76 }
+  if (maxRows <= 5) return { avatar: 30, font: 10, labelW: 66, rowPx: 64 }
+  return { avatar: 25, font: 9, labelW: 52, rowPx: 54 }
 }
 
-// Shrinks avatar/label size as the busiest row gets more crowded, so names
-// stay legible instead of overlapping on a narrow phone screen.
-function sizeForDensity(maxRowSize) {
-  if (maxRowSize <= 4) return { avatar: 34, font: 10, labelW: 76 }
-  if (maxRowSize <= 6) return { avatar: 28, font: 9, labelW: 58 }
-  return { avatar: 23, font: 8, labelW: 46 }
+// Y position (px) for row `i` of `rowCount`, spaced rowPx apart starting
+// just past the team's own goal. `fromBottom` mirrors the placement for
+// the team defending the bottom goal, so both teams' forwards end up
+// closest to the halfway line in the middle of the pitch. Rows aren't
+// stretched to fill the available half — a side with fewer rows just
+// leaves empty space near the halfway line — so spacing never has to
+// shrink to accommodate the other side's row count.
+function rowY(i, pitchHeight, fromBottom, rowPx) {
+  const t = MARGIN_PX + (i + 0.5) * rowPx
+  return fromBottom ? pitchHeight - t : t
 }
 
 // Every player's avatar ring (and initials-fallback background) is tinted
@@ -98,15 +109,14 @@ function PlayerToken({ p, isColors, isMe, size, style }) {
 export default function TeamFormationPitch({ teamA, teamB, nameA, nameB, myName }) {
   const rowsA = rowsFromTeam(teamA)
   const rowsB = rowsFromTeam(teamB)
-  const maxRowSize = Math.max(1, ...rowsA.map(r => r.length), ...rowsB.map(r => r.length))
-  const size = sizeForDensity(maxRowSize)
-  const maxRows = Math.max(rowsA.length, rowsB.length)
-  const pitchHeight = Math.max(480, 110 + maxRows * 95)
+  const maxRows = Math.max(1, rowsA.length, rowsB.length)
+  const size = sizeForDensity(maxRows)
+  const pitchHeight = Math.max(480, 2 * (MARGIN_PX + maxRows * size.rowPx + HALFWAY_GAP_PX))
 
   const renderRows = (rows, isColors, fromBottom) =>
     rows.map((row, ri) => row.map((p, pi) => {
       const x = ((pi + 1) / (row.length + 1)) * 100
-      const y = rowY(ri, rows.length, fromBottom)
+      const y = rowY(ri, pitchHeight, fromBottom, size.rowPx)
       return (
         <PlayerToken
           key={p.name}
@@ -114,7 +124,7 @@ export default function TeamFormationPitch({ teamA, teamB, nameA, nameB, myName 
           isColors={isColors}
           isMe={myName && p.name === myName}
           size={size}
-          style={{ left: `${x}%`, top: `${y}%` }}
+          style={{ left: `${x}%`, top: `${y}px` }}
         />
       )
     }))
