@@ -10,22 +10,30 @@ function initialsFor(name) {
   return (name || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase()
 }
 
-// Groups a team's players into position rows (goalkeeper nearest their own
-// goal, forwards nearest the halfway line). Anyone with no position
-// preference set is folded into the midfield row — midfield is the most
-// tactically neutral spot, so an unset position doesn't visually read as
-// "this player is a forward". Guests are included, using whatever position
-// they signed up under (or midfield, if none).
+const POSITION_RANK = { Goalkeeper: 0, Defender: 1, Midfielder: 2, Forward: 3 }
+
+// Spreads a team's players across several rows so no single row gets
+// overcrowded into one long line. Players are loosely ordered by position
+// first (defenders toward the team's own goal, forwards toward the
+// halfway line — an unset position sorts as midfield, the most neutral
+// placement) and then split into rows of at most ~3, so a large roster
+// gets more rows instead of a wider, more cramped one.
 function rowsFromTeam(team) {
-  const buckets = { Goalkeeper: [], Defender: [], Midfielder: [], Forward: [] }
-  team.forEach(p => {
-    const pos = p.positions?.[0]
-    ;(buckets[pos] ? buckets[pos] : buckets.Midfielder).push(p)
-  })
-  const rows = ['Goalkeeper', 'Defender', 'Midfielder', 'Forward']
-    .map(k => buckets[k])
-    .filter(row => row.length > 0)
-  return rows.length ? rows : [[]]
+  if (team.length === 0) return [[]]
+  const rankOf = p => POSITION_RANK[p.positions?.[0]] ?? POSITION_RANK.Midfielder
+  const sorted = [...team].sort((a, b) => rankOf(a) - rankOf(b))
+  const rowCount = Math.min(6, Math.max(1, Math.ceil(team.length / 3)))
+  const base = Math.floor(sorted.length / rowCount)
+  let extra = sorted.length % rowCount
+  const rows = []
+  let idx = 0
+  for (let r = 0; r < rowCount; r++) {
+    const size = base + (extra > 0 ? 1 : 0)
+    if (extra > 0) extra--
+    rows.push(sorted.slice(idx, idx + size))
+    idx += size
+  }
+  return rows
 }
 
 // Y position (%) for row `i` of `rowCount`, spread between the team's own
@@ -92,6 +100,8 @@ export default function TeamFormationPitch({ teamA, teamB, nameA, nameB, myName 
   const rowsB = rowsFromTeam(teamB)
   const maxRowSize = Math.max(1, ...rowsA.map(r => r.length), ...rowsB.map(r => r.length))
   const size = sizeForDensity(maxRowSize)
+  const maxRows = Math.max(rowsA.length, rowsB.length)
+  const pitchHeight = Math.max(480, 110 + maxRows * 95)
 
   const renderRows = (rows, isColors, fromBottom) =>
     rows.map((row, ri) => row.map((p, pi) => {
@@ -114,7 +124,7 @@ export default function TeamFormationPitch({ teamA, teamB, nameA, nameB, myName 
       background: 'linear-gradient(180deg, #0a1526 0%, #0d1e35 100%)',
       borderRadius: 16, border: '1px solid rgba(245,240,225,0.06)',
       position: 'relative', overflow: 'hidden', padding: 10,
-      height: 480, marginBottom: 16,
+      height: pitchHeight, marginBottom: 16,
     }}>
       {/* Pitch markings */}
       <div style={{ position: 'absolute', inset: 10, border: '1.5px solid rgba(245,240,225,0.09)', borderRadius: 6 }} />
