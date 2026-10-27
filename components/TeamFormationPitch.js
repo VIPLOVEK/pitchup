@@ -10,59 +10,95 @@ function initialsFor(name) {
   return (name || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase()
 }
 
-const POSITION_RANK = { Goalkeeper: 0, Defender: 1, Midfielder: 2, Forward: 3 }
-
-// Spreads a team's players across several rows so no single row gets
-// overcrowded into one long line. Players are loosely ordered by position
-// first (defenders toward the team's own goal, forwards toward the
-// halfway line — an unset position sorts as midfield, the most neutral
-// placement) and then split into rows of at most ~3, so a large roster
-// gets more rows instead of a wider, more cramped one.
-function rowsFromTeam(team) {
-  if (team.length === 0) return [[]]
-  const rankOf = p => POSITION_RANK[p.positions?.[0]] ?? POSITION_RANK.Midfielder
-  const sorted = [...team].sort((a, b) => rankOf(a) - rankOf(b))
-  const rowCount = Math.min(6, Math.max(1, Math.ceil(team.length / 3)))
-  const base = Math.floor(sorted.length / rowCount)
-  let extra = sorted.length % rowCount
-  const rows = []
-  let idx = 0
-  for (let r = 0; r < rowCount; r++) {
-    const size = base + (extra > 0 ? 1 : 0)
-    if (extra > 0) extra--
-    rows.push(sorted.slice(idx, idx + size))
-    idx += size
-  }
-  return rows
+// Popular outfield formations, as [defenders, forwards] keyed by outfield
+// player count (GK not counted) — midfielders always fill the remainder,
+// so the three counts are guaranteed to add up to outfieldCount exactly
+// rather than risking a hand-typed total that's quietly wrong. Chosen to
+// match recognizable small-sided and full-sided shapes — e.g. 10 outfield
+// is the classic 4-4-2, 6 outfield is 7-a-side's 3-2-1.
+const DEF_FWD_TABLE = {
+  3: [1, 1], 4: [1, 1], 5: [2, 1], 6: [3, 1], 7: [3, 1], 8: [3, 2], 9: [3, 2],
+  10: [4, 2], 11: [4, 3], 12: [4, 3], 13: [5, 3], 14: [5, 4],
 }
 
-// Space (in px) reserved at each end of the pitch for the goal box/team
-// label, and around the halfway line, before any player rows start.
-const MARGIN_PX = 58
-const HALFWAY_GAP_PX = 16
-
-// Picks avatar/font size and the fixed pixel spacing between row centers,
-// based on how many rows deep the taller side goes — not how wide a row
-// is, since rows are capped at 3 players and width is rarely the tight
-// dimension. More rows means a smaller token and a shorter row interval,
-// but ROW_PX always stays tall enough to fit an avatar + its name label
-// without the next row's token encroaching on it.
-function sizeForDensity(maxRows) {
-  if (maxRows <= 3) return { avatar: 36, font: 11, labelW: 82, rowPx: 76 }
-  if (maxRows <= 5) return { avatar: 30, font: 10, labelW: 66, rowPx: 64 }
-  return { avatar: 25, font: 9, labelW: 52, rowPx: 54 }
+// For rosters bigger than the table covers, fall back to a proportional
+// defense/forward split instead of a named formation.
+function formationCounts(outfieldCount) {
+  if (outfieldCount <= 0) return []
+  if (outfieldCount === 1) return [1]
+  if (outfieldCount === 2) return [1, 1]
+  const [rawDef, rawFwd] = DEF_FWD_TABLE[outfieldCount] || [
+    Math.round(outfieldCount * 0.36), Math.round(outfieldCount * 0.28),
+  ]
+  const def = Math.max(1, Math.min(rawDef, outfieldCount - 2))
+  const fwd = Math.max(1, Math.min(rawFwd, outfieldCount - def - 1))
+  const mid = outfieldCount - def - fwd
+  return [def, mid, fwd]
 }
 
-// Y position (px) for row `i` of `rowCount`, spaced rowPx apart starting
-// just past the team's own goal. `fromBottom` mirrors the placement for
-// the team defending the bottom goal, so both teams' forwards end up
-// closest to the halfway line in the middle of the pitch. Rows aren't
-// stretched to fill the available half — a side with fewer rows just
-// leaves empty space near the halfway line — so spacing never has to
-// shrink to accommodate the other side's row count.
-function rowY(i, pitchHeight, fromBottom, rowPx) {
-  const t = MARGIN_PX + (i + 0.5) * rowPx
-  return fromBottom ? pitchHeight - t : t
+function labelsFor(counts) {
+  if (counts.length === 1) return ['Midfielder']
+  if (counts.length === 2) return ['Defender', 'Forward']
+  return ['Defender', 'Midfielder', 'Forward']
+}
+
+// Slots players into formation lines, preferring each player's own stated
+// position for the matching line. Overflow beyond a line's slot count (too
+// many players who picked the same position) spills into a shared pool
+// that backfills any line still short — including players with no position
+// set — so the final line sizes always match the formation exactly. If the
+// counts ever don't add up to the full roster, any leftover never just
+// vanishes — it's tacked onto the last line rather than silently dropped.
+function assignToLines(players, labels, counts) {
+  const pools = labels.map(() => [])
+  const flex = []
+  players.forEach(p => {
+    const li = labels.indexOf(p.positions?.[0])
+    ;(li === -1 ? flex : pools[li]).push(p)
+  })
+  pools.forEach((pool, i) => { while (pool.length > counts[i]) flex.push(pool.pop()) })
+  pools.forEach((pool, i) => { while (pool.length < counts[i] && flex.length) pool.push(flex.shift()) })
+  if (flex.length) pools[pools.length - 1].push(...flex)
+  return pools
+}
+
+// Builds a team's lineup as a popular formation for its size (e.g. a
+// 10-outfield team gets 4-4-2), reserving a goalkeeper line only when
+// someone on the team has actually set Goalkeeper as their position.
+// Each player lands on the line matching their own position when
+// possible; an admin's per-game position edit (see the team editor)
+// changes who fills which slot the next time this renders.
+function buildFormation(team) {
+  if (team.length === 0) return []
+  const gkIdx = team.length >= 2 ? team.findIndex(p => p.positions?.[0] === 'Goalkeeper') : -1
+  const gk = gkIdx === -1 ? null : team[gkIdx]
+  const remaining = gk ? team.filter((_, i) => i !== gkIdx) : team
+  const counts = formationCounts(remaining.length)
+  const labels = labelsFor(counts)
+  const pools = assignToLines(remaining, labels, counts)
+  const lines = []
+  if (gk) lines.push({ label: 'Goalkeeper', players: [gk] })
+  labels.forEach((label, i) => { if (counts[i] > 0) lines.push({ label, players: pools[i] }) })
+  return lines
+}
+
+// Fixed Y position (px from the team's own goal line) for each line type,
+// so the formation always reads like a real lineup — a line's vertical
+// slot never shifts just because another line (e.g. no GK) is absent.
+const LINE_Y = { Goalkeeper: 28, Defender: 95, Midfielder: 160, Forward: 222 }
+const HALF_HEIGHT = 278
+
+function lineY(label, fromBottom) {
+  const t = LINE_Y[label]
+  return fromBottom ? HALF_HEIGHT * 2 - t : t
+}
+
+// Avatar/font size shrinks only for a genuinely wide line (formation line
+// counts are small for most team sizes, so this rarely kicks in).
+function sizeForWidth(maxLineSize) {
+  if (maxLineSize <= 3) return { avatar: 36, font: 11, labelW: 82 }
+  if (maxLineSize <= 5) return { avatar: 28, font: 9, labelW: 60 }
+  return { avatar: 22, font: 8, labelW: 46 }
 }
 
 // Every player's avatar ring (and initials-fallback background) is tinted
@@ -100,23 +136,24 @@ function PlayerToken({ p, isColors, isMe, size, style }) {
 }
 
 /**
- * A single vertical pitch, split into two halves, with each team's players
- * laid out in position rows (GK near their own goal, forwards near the
- * halfway line) — a visual complement to the detailed team list below it.
- * Purely illustrative: row/column placement is derived from each player's
- * preferred position, not a literal tactical formation.
+ * A single vertical pitch, split into two halves, with each team laid out
+ * as a popular formation for its size (e.g. 10 outfield players reads as
+ * a 4-4-2) — a visual complement to the detailed team list below it.
+ * Players land on the line matching their own preferred position where
+ * possible; admin position edits (team editor) reshuffle who's on which
+ * line the next time this renders, not the formation shape itself.
  */
 export default function TeamFormationPitch({ teamA, teamB, nameA, nameB, myName }) {
-  const rowsA = rowsFromTeam(teamA)
-  const rowsB = rowsFromTeam(teamB)
-  const maxRows = Math.max(1, rowsA.length, rowsB.length)
-  const size = sizeForDensity(maxRows)
-  const pitchHeight = Math.max(480, 2 * (MARGIN_PX + maxRows * size.rowPx + HALFWAY_GAP_PX))
+  const linesA = buildFormation(teamA)
+  const linesB = buildFormation(teamB)
+  const maxLineSize = Math.max(1, ...linesA.map(l => l.players.length), ...linesB.map(l => l.players.length))
+  const size = sizeForWidth(maxLineSize)
+  const pitchHeight = HALF_HEIGHT * 2
 
-  const renderRows = (rows, isColors, fromBottom) =>
-    rows.map((row, ri) => row.map((p, pi) => {
-      const x = ((pi + 1) / (row.length + 1)) * 100
-      const y = rowY(ri, pitchHeight, fromBottom, size.rowPx)
+  const renderLines = (lines, isColors, fromBottom) =>
+    lines.map(({ label, players }) => players.map((p, pi) => {
+      const x = ((pi + 1) / (players.length + 1)) * 100
+      const y = lineY(label, fromBottom)
       return (
         <PlayerToken
           key={p.name}
@@ -158,8 +195,8 @@ export default function TeamFormationPitch({ teamA, teamB, nameA, nameB, myName 
 
       {/* Players */}
       <div style={{ position: 'absolute', inset: 0, zIndex: 2 }}>
-        {renderRows(rowsA, false, false)}
-        {renderRows(rowsB, true, true)}
+        {renderLines(linesA, false, false)}
+        {renderLines(linesB, true, true)}
       </div>
     </div>
   )
