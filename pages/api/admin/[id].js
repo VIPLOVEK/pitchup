@@ -1,7 +1,7 @@
 // PATCH /api/admin/[id] — close poll, shuffle teams
 // DELETE /api/admin/[id] — delete poll
 import { supabaseAdmin, isSupabaseConfigured } from '../../../lib/supabase'
-import { generateTeams, generateTeamsByAffiliation, pickBestSlot, formatSlot, getActivePlayers, expandWithGuests, getWaitlist, getTotalSpots, removePlayerFromTeams, syncPlayerInTeams, applyGroupOpposition, remapSlotVotes } from '../../../lib/teams'
+import { generateTeams, generateTeamsByAffiliation, pickBestSlot, formatSlot, getActivePlayers, expandWithGuests, getWaitlist, getTotalSpots, removePlayerFromTeams, syncPlayerInTeams, applyGroupOpposition, applyTeamPins, remapSlotVotes } from '../../../lib/teams'
 import { buildOppositionRules } from '../../../lib/oppositionRules'
 import { buildColorBias } from '../../../lib/colorBias'
 import { sendWhatsAppAnnouncement } from '../../../lib/whatsapp'
@@ -84,7 +84,7 @@ export default async function handler(req, res) {
           ? { teamA: expanded, teamB: [] }
           : poll.split_by_club
             ? generateTeamsByAffiliation(refreshedActive)
-            : applyGroupOpposition(generateTeams(expanded, { colorBias }), oppositionRules)
+            : applyTeamPins(applyGroupOpposition(generateTeams(expanded, { colorBias }), oppositionRules), poll.team_pins)
         const { data, error } = await db
           .from('polls').update({ status: 'confirmed', teams, game_time: gameTime, version: poll.version + 1 }).eq('id', id).select().single()
         if (error) throw error
@@ -168,12 +168,48 @@ export default async function handler(req, res) {
         const shuffleColorBias = await buildColorBias(db)
         const teams = poll.split_by_club
           ? generateTeamsByAffiliation(active)
-          : applyGroupOpposition(generateTeams(expandWithGuests(active), { colorBias: shuffleColorBias }), shuffleOppositionRules)
+          : applyTeamPins(applyGroupOpposition(generateTeams(expandWithGuests(active), { colorBias: shuffleColorBias }), shuffleOppositionRules), poll.team_pins)
         const { teamAName, teamBName } = pickTeamNames()
         const { data, error } = await db
           .from('polls').update({ teams, team_a_name: teamAName, team_b_name: teamBName, version: poll.version + 1 }).eq('id', id).select().single()
         if (error) throw error
         return res.status(200).json(data)
+      }
+
+      if (action === 'setPin') {
+        // Pins (or unpins) a player to a side while the poll is still
+        // open, so the auto-balance draft keeps them fixed there on every
+        // future regeneration — preview, reshuffle, and the real confirm —
+        // while the rest of the team stays auto-managed around them.
+        const { name, side } = req.body
+        if (!name) return res.status(400).json({ error: 'name is required' })
+        if (side !== 'A' && side !== 'B' && side !== null) {
+          return res.status(400).json({ error: "side must be 'A', 'B', or null to unpin" })
+        }
+        const pins = { ...(poll.team_pins || {}) }
+        if (side === null) delete pins[name]
+        else pins[name] = side
+        const { data, error } = await db
+          .from('polls').update({ team_pins: pins, version: poll.version + 1 }).eq('id', id).select().single()
+        if (error) throw error
+        return res.status(200).json(data)
+      }
+
+      if (action === 'previewTeams') {
+        // Computes what teams would look like right now for an open poll
+        // — honoring any pins — without persisting anything, so admin can
+        // check the shape and adjust pins before the real confirm.
+        if (poll.no_team_split) return res.status(400).json({ error: 'No team preview for a no-split game' })
+        const active = await withSkillRatings(db, getActivePlayers(poll))
+        const previewOppositionRules = await buildOppositionRules(db, active)
+        const previewColorBias = await buildColorBias(db)
+        const teams = poll.split_by_club
+          ? generateTeamsByAffiliation(active)
+          : applyTeamPins(
+              applyGroupOpposition(generateTeams(expandWithGuests(active), { colorBias: previewColorBias }), previewOppositionRules),
+              poll.team_pins
+            )
+        return res.status(200).json({ preview: teams })
       }
 
       if (action === 'randomizeNames') {
@@ -410,7 +446,7 @@ export default async function handler(req, res) {
           const groundColorBias = await buildColorBias(db)
           teams = pollData.split_by_club
             ? generateTeamsByAffiliation(active)
-            : applyGroupOpposition(generateTeams(expandWithGuests(active), { colorBias: groundColorBias }), groundOppositionRules)
+            : applyTeamPins(applyGroupOpposition(generateTeams(expandWithGuests(active), { colorBias: groundColorBias }), groundOppositionRules), pollData.team_pins)
         }
 
         const { data, error } = await db.from('polls')

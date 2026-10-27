@@ -579,6 +579,10 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups, teamH
   const [adjustingTeams, setAdjustingTeams] = useState(false)
   const [editTeamA, setEditTeamA] = useState([])
   const [editTeamB, setEditTeamB] = useState([])
+  const [previewingTeams, setPreviewingTeams] = useState(false)
+  const [previewResult, setPreviewResult] = useState(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [previewError, setPreviewError] = useState('')
   const [editNoShows, setEditNoShows] = useState([])
   const [editingDetails, setEditingDetails] = useState(false)
   const [detailsError, setDetailsError] = useState('')
@@ -641,6 +645,39 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups, teamH
     } finally {
       setLoading(false)
     }
+  }
+
+  // Computes a live "what would teams look like right now" preview for an
+  // open poll — including any pins — without persisting anything. Kept
+  // separate from doAction since the response isn't a poll object.
+  const fetchPreview = async () => {
+    setPreviewLoading(true)
+    setPreviewError('')
+    try {
+      const res = await fetch(`/api/admin/${poll.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', authorization: `Bearer ${password}` },
+        body: JSON.stringify({ action: 'previewTeams' }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => null)
+        throw new Error(body?.error || 'Preview failed')
+      }
+      const data = await res.json()
+      setPreviewResult(data.preview)
+    } catch (e) {
+      setPreviewError(e.message)
+    } finally {
+      setPreviewLoading(false)
+    }
+  }
+
+  // Pins/unpins a player to a side; re-fetches the preview afterward so the
+  // head-to-head view and the rest of the auto-balanced roster reflect it
+  // immediately, without the admin needing a separate refresh tap.
+  const setPlayerPin = async (name, side) => {
+    const ok = await doAction('setPin', 'PATCH', { name, side })
+    if (ok) await fetchPreview()
   }
 
   const openTeamEditor = () => {
@@ -887,6 +924,79 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups, teamH
               </span>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Open-poll team preview — shows what teams would look like right now
+          (including any pins) without confirming anything, so admin can
+          spot and fix an imbalance before the real confirm. */}
+      {isOpen && previewingTeams && (
+        <div style={{ marginTop: 12, background: colors.pitchMid, borderRadius: 10, padding: '12px 12px 8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.muted }}>
+              👀 Preview — not confirmed yet
+            </div>
+            <Btn small variant="ghost" onClick={fetchPreview} disabled={previewLoading}>
+              🔄 Refresh
+            </Btn>
+          </div>
+
+          {previewLoading && <p style={{ color: colors.muted, fontSize: 12 }}>Computing preview…</p>}
+          {previewError && <p style={{ color: colors.danger, fontSize: 12 }}>{previewError}</p>}
+
+          {previewResult && !previewLoading && (
+            <>
+              <PositionHeadToHead
+                teamA={previewResult.teamA}
+                teamB={previewResult.teamB}
+                nameA={poll.team_a_name || 'Team A'}
+                nameB={poll.team_b_name || 'Team B'}
+              />
+              <p style={{ fontSize: 11, color: colors.muted, margin: '0 0 8px' }}>
+                This is a live preview — nothing is saved until the game is actually confirmed. Pins below are saved now and will be honored whenever teams are generated (preview, reshuffle, or confirm).
+              </p>
+              <div style={{ fontSize: 11, fontWeight: 700, color: colors.muted, marginBottom: 6 }}>📌 Pin a player to a side</div>
+              {active.filter(p => !p.tentative).map((p, i) => {
+                const pinned = poll.team_pins?.[p.name]
+                return (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 0' }}>
+                    <span style={{ fontSize: 12, color: colors.white, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {p.name}
+                    </span>
+                    {pinned && (
+                      <span style={{ fontSize: 10, fontWeight: 700, color: pinned === 'A' ? colors.teamA : colors.teamB, background: 'rgba(255,255,255,0.06)', borderRadius: 10, padding: '1px 7px' }}>
+                        📌 {pinned === 'A' ? (poll.team_a_name || 'A') : (poll.team_b_name || 'B')}
+                      </span>
+                    )}
+                    <button
+                      onClick={() => setPlayerPin(p.name, 'A')}
+                      disabled={loading || pinned === 'A'}
+                      style={{ background: 'none', border: `1px solid ${colors.teamA}44`, color: colors.teamA, cursor: pinned === 'A' ? 'default' : 'pointer', fontSize: 10, borderRadius: 4, padding: '1px 6px', opacity: pinned === 'A' ? 0.4 : 1 }}
+                    >
+                      ⚪ A
+                    </button>
+                    <button
+                      onClick={() => setPlayerPin(p.name, 'B')}
+                      disabled={loading || pinned === 'B'}
+                      style={{ background: 'none', border: `1px solid ${colors.teamB}44`, color: colors.teamB, cursor: pinned === 'B' ? 'default' : 'pointer', fontSize: 10, borderRadius: 4, padding: '1px 6px', opacity: pinned === 'B' ? 0.4 : 1 }}
+                    >
+                      🎨 B
+                    </button>
+                    {pinned && (
+                      <button
+                        onClick={() => setPlayerPin(p.name, null)}
+                        disabled={loading}
+                        title="Unpin"
+                        style={{ background: 'none', border: 'none', color: colors.danger, cursor: 'pointer', fontSize: 14, padding: '0 2px', lineHeight: 1 }}
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
+            </>
+          )}
         </div>
       )}
 
@@ -1494,6 +1604,20 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups, teamH
         {isConfirmed && !adjustingTeams && (
           <Btn small variant="ghost" onClick={openTeamEditor} disabled={loading}>
             👥 Adjust who played
+          </Btn>
+        )}
+        {isOpen && !noTeamSplit && (
+          <Btn
+            small
+            variant="ghost"
+            onClick={() => {
+              const next = !previewingTeams
+              setPreviewingTeams(next)
+              if (next) fetchPreview()
+            }}
+            disabled={loading}
+          >
+            👀 {previewingTeams ? 'Hide' : 'Preview'} teams
           </Btn>
         )}
         {isConfirmed && (
