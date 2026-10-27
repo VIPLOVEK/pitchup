@@ -6,6 +6,7 @@ import { colors, radius, groupColorPalette } from '../lib/tokens'
 import { getActivePlayers, getWaitlist, getTotalSpots, getTentativePlayers, teamAvgYear } from '../lib/teams'
 import { LOCATIONS, findLocation } from '../lib/locations'
 import { SKILL_LABELS, DEFAULT_SKILL_RATING, POSITIONS } from '../lib/positions'
+import PositionHeadToHead from '../components/PositionHeadToHead'
 
 const selectStyle = {
   width: '100%',
@@ -921,6 +922,15 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups, teamH
               </div>
             )
           })()}
+
+          {!noTeamSplit && (
+            <PositionHeadToHead
+              teamA={editTeamA}
+              teamB={editTeamB}
+              nameA={poll.team_a_name || 'Team A'}
+              nameB={poll.team_b_name || 'Team B'}
+            />
+          )}
 
           {noTeamSplit ? (
             <div style={{ marginBottom: 10 }}>
