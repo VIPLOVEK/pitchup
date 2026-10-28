@@ -439,16 +439,27 @@ function UnvotedPlayers({ poll, password }) {
 
 function ManagePlayerEntries({ poll, password, onAction }) {
   const [open, setOpen] = useState(false)
-  const [drafts, setDrafts] = useState({}) // name -> { guests, note }
+  const [drafts, setDrafts] = useState({}) // name -> { guests, note, skillRating, position }
   const [saving, setSaving] = useState(null)
 
-  const draftFor = (p) => drafts[p.name] ?? { guests: p.guests || 0, note: p.note || '' }
+  const draftFor = (p) => drafts[p.name] ?? {
+    guests: p.guests || 0, note: p.note || '',
+    skillRating: p.skill_rating ?? '', position: p.positions?.[0] ?? '',
+  }
 
   const save = async (p) => {
     const d = draftFor(p)
     setSaving(p.name)
     try {
-      await onAction('updatePlayerEntry', 'PATCH', { name: p.name, guests: Number(d.guests) || 0, note: d.note })
+      const body = { name: p.name, guests: Number(d.guests) || 0, note: d.note }
+      // Skill/position here only mean anything for a player with no
+      // profile — for a profiled player the real draft always pulls their
+      // skill from the players table, so this field is hidden for them.
+      if (!p.playerId) {
+        body.skillRating = d.skillRating === '' ? null : Number(d.skillRating)
+        body.positions = d.position ? [d.position] : []
+      }
+      await onAction('updatePlayerEntry', 'PATCH', body)
     } finally {
       setSaving(null)
     }
@@ -493,6 +504,34 @@ function ManagePlayerEntries({ poll, password, onAction }) {
                   placeholder="Note"
                   style={{ flex: '1 1 100px', background: colors.pitchCard, border: `1px solid ${colors.grass}33`, borderRadius: 6, color: colors.white, padding: '3px 6px', fontSize: 12 }}
                 />
+                {p.playerId ? (
+                  <span style={{ fontSize: 10, color: colors.muted, fontStyle: 'italic' }} title="Has a profile — edit skill/position in Roster">
+                    👤 profile
+                  </span>
+                ) : (
+                  <>
+                    <select
+                      value={d.skillRating}
+                      onChange={e => setDrafts(prev => ({ ...prev, [p.name]: { ...d, skillRating: e.target.value } }))}
+                      title="Skill for this game (no profile — this is a stand-in rating)"
+                      style={{ background: colors.pitchCard, border: `1px solid ${colors.grass}33`, color: d.skillRating ? colors.white : colors.muted, borderRadius: 6, padding: '3px 4px', fontSize: 11 }}
+                    >
+                      <option value="">No rating</option>
+                      {Object.entries(SKILL_LABELS).map(([value, label]) => (
+                        <option key={value} value={value}>{value} · {label}</option>
+                      ))}
+                    </select>
+                    <select
+                      value={d.position}
+                      onChange={e => setDrafts(prev => ({ ...prev, [p.name]: { ...d, position: e.target.value } }))}
+                      title="Position for this game (no profile)"
+                      style={{ background: colors.pitchCard, border: `1px solid ${colors.grass}33`, color: d.position ? colors.white : colors.muted, borderRadius: 6, padding: '3px 4px', fontSize: 11 }}
+                    >
+                      <option value="">Any</option>
+                      {POSITIONS.map(pos => <option key={pos} value={pos}>{pos}</option>)}
+                    </select>
+                  </>
+                )}
                 <Btn small variant="ghost" onClick={() => save(p)} disabled={saving === p.name}>
                   {saving === p.name ? '…' : 'Save'}
                 </Btn>

@@ -351,10 +351,16 @@ export default async function handler(req, res) {
       }
 
       if (action === 'updatePlayerEntry') {
-        const { name, guests, guestPositions, note } = req.body
+        const { name, guests, guestPositions, note, skillRating, positions } = req.body
         if (!name) return res.status(400).json({ error: 'name is required' })
         if (guests !== undefined && (!Number.isInteger(guests) || guests < 0 || guests > 5)) {
           return res.status(400).json({ error: 'guests must be an integer between 0 and 5' })
+        }
+        if (skillRating !== undefined && skillRating !== null && (!Number.isInteger(skillRating) || skillRating < 1 || skillRating > 5)) {
+          return res.status(400).json({ error: 'skillRating must be an integer between 1 and 5' })
+        }
+        if (positions !== undefined && !Array.isArray(positions)) {
+          return res.status(400).json({ error: 'positions must be an array' })
         }
         const { data: pollData, error: fetchErr } = await db.from('polls').select('*').eq('id', id).single()
         if (fetchErr || !pollData) return res.status(404).json({ error: 'Poll not found' })
@@ -362,12 +368,22 @@ export default async function handler(req, res) {
         const idx = (pollData.players || []).findIndex(p => p.name.toLowerCase() === name.toLowerCase())
         if (idx === -1) return res.status(404).json({ error: 'Player not found in this poll' })
 
+        // Skill/position here are a this-game-only stand-in for players who
+        // never created a profile — withSkillRatings() always overwrites
+        // from the players table for anyone with a playerId, so setting
+        // these for a profiled player would silently do nothing.
+        if ((skillRating !== undefined || positions !== undefined) && pollData.players[idx].playerId) {
+          return res.status(400).json({ error: 'This player has a profile — edit their skill/position in Roster instead.' })
+        }
+
         const players = [...pollData.players]
         players[idx] = {
           ...players[idx],
           guests: guests !== undefined ? guests : players[idx].guests,
           guestPositions: guestPositions !== undefined ? guestPositions : players[idx].guestPositions,
           note: note !== undefined ? (note?.trim() || null) : players[idx].note,
+          skill_rating: skillRating !== undefined ? skillRating : players[idx].skill_rating,
+          positions: positions !== undefined ? positions : players[idx].positions,
         }
 
         // If this player is already on a confirmed team, re-sync their guest
