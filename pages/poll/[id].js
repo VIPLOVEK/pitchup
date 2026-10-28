@@ -1119,11 +1119,11 @@ function GameConfirmed({ poll, profile, setToast }) {
                 : poll.score_a === poll.score_b ? 'Draw' : poll.score_a > poll.score_b ? `⚪ ${nameA} wins` : `🎨 ${nameB} wins`}
             </div>
           </div>
-        ) : (
+        ) : noSplit ? (
           <div style={{ textAlign: 'center', fontWeight: 900, fontSize: 28, color: colors.accent, letterSpacing: '0.1em', margin: '0 0 20px', textShadow: `0 0 20px ${colors.accent}66` }}>
-            {noSplit && poll.opponent ? `vs ${poll.opponent}` : 'VS'}
+            {poll.opponent ? `vs ${poll.opponent}` : 'VS'}
           </div>
-        )}
+        ) : null}
         {(poll.goals || []).length > 0 && (
           <div style={{ marginBottom: 16 }}>
             <div style={{ fontSize: 11, color: colors.muted, fontWeight: 600, letterSpacing: '0.08em', marginBottom: 8 }}>
