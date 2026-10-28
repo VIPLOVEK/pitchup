@@ -10,6 +10,33 @@ import { formatSlot, getActivePlayers, getWaitlist, getTotalSpots, expandWithGue
 import { getCutoffTime } from '../../lib/pollStatus'
 import { findLocation } from '../../lib/locations'
 
+// ── Share-this-poll link (visible to every visitor, not just admin) ────────────
+function SharePollLink({ poll, inviteText, setToast }) {
+  const handleShare = async () => {
+    const url = window.location.href
+    const shareData = { title: poll.title, text: inviteText, url }
+    if (navigator.share && navigator.canShare?.(shareData)) {
+      try { await navigator.share(shareData) } catch (_) { /* user cancelled */ }
+    } else {
+      await navigator.clipboard.writeText(url)
+      setToast('Link copied!')
+      setTimeout(() => setToast(''), 2500)
+    }
+  }
+  return (
+    <button
+      onClick={handleShare}
+      style={{
+        background: '#25D366', color: '#fff', border: 'none', borderRadius: 8,
+        padding: '8px 16px', fontWeight: 700, fontSize: 13, cursor: 'pointer',
+        display: 'inline-flex', alignItems: 'center', gap: 6,
+      }}
+    >
+      🔗 Share poll link
+    </button>
+  )
+}
+
 // ── Venue info (map link + boot type) ──────────────────────────────────────────
 function VenueInfo({ location }) {
   const venue = findLocation(location)
@@ -717,7 +744,7 @@ function RainbowColors() {
 }
 
 // ── Confirmed game view ───────────────────────────────────────────────────────
-function GameConfirmed({ poll, profile }) {
+function GameConfirmed({ poll, profile, setToast }) {
   const [copied, setCopied] = useState(false)
   const [sharing, setSharing] = useState(false)
   const [resultSharing, setResultSharing] = useState(false)
@@ -1044,10 +1071,15 @@ function GameConfirmed({ poll, profile }) {
   return (
     <div>
       <Card highlight>
-        <Label>Game confirmed 🎉</Label>
-        <h1 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 4px', letterSpacing: '-0.5px', color: colors.accent }}>
-          {poll.title}
-        </h1>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+          <div>
+            <Label>Game confirmed 🎉</Label>
+            <h1 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 4px', letterSpacing: '-0.5px', color: colors.accent }}>
+              {poll.title}
+            </h1>
+          </div>
+          <SharePollLink poll={poll} inviteText={`${poll.title} is on at ${poll.location} — ${gameTime}. See you there!`} setToast={setToast} />
+        </div>
         <p style={{ color: colors.muted, fontSize: 13, margin: '0 0 8px' }}>{poll.location}</p>
         <div style={{ marginBottom: 12 }}>
           <VenueInfo location={poll.location} />
@@ -1719,7 +1751,7 @@ export default function PollPage({ poll: initialPoll, error }) {
         <PlayerStatusBanner poll={poll} myEntry={myEntry} onWaitlist={onWaitlist}
           profile={profile} name={name}
           loading={loading} setLoading={setLoading} setToast={setToast} setPoll={setPoll} />
-        <GameConfirmed poll={poll} profile={profile} />
+        <GameConfirmed poll={poll} profile={profile} setToast={setToast} />
         <WaitlistCard poll={poll} waitlist={waitlist} myEntry={myEntry} onWaitlist={onWaitlist}
           name={name} setName={setName} profile={profile}
           loading={loading} setLoading={setLoading} setToast={setToast} setPoll={setPoll} />
@@ -1881,37 +1913,6 @@ export default function PollPage({ poll: initialPoll, error }) {
                 Leave game
               </Btn>
             )}
-            <div style={{ marginTop: 20, borderTop: `1px solid ${colors.grass}22`, paddingTop: 16 }}>
-              <p style={{ color: colors.muted, fontSize: 12, marginBottom: 10 }}>
-                Know someone who should play? Send them the link!
-              </p>
-              <button
-                onClick={async () => {
-                  const url = window.location.href
-                  const shareData = { title: poll.title, text: `Join us for ${poll.title} at ${poll.location} — vote on a time!`, url }
-                  if (navigator.share && navigator.canShare?.(shareData)) {
-                    try { await navigator.share(shareData) } catch (_) {}
-                  } else {
-                    await navigator.clipboard.writeText(url)
-                    setToast('Link copied!')
-                    setTimeout(() => setToast(''), 2500)
-                  }
-                }}
-                style={{
-                  background: '#25D366',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: 8,
-                  padding: '10px 20px',
-                  fontWeight: 700,
-                  fontSize: 13,
-                  cursor: 'pointer',
-                  width: '100%',
-                }}
-              >
-                📤 Invite a friend
-              </button>
-            </div>
           </div>
         </Card>
         {active.length >= poll.min_players && <DraftTeams poll={poll} active={active} />}
@@ -1948,6 +1949,9 @@ export default function PollPage({ poll: initialPoll, error }) {
           {poll.game_type === 'practice' && <span style={{ fontSize: 11, fontWeight: 700, color: '#fb923c', background: 'rgba(251,146,60,0.12)', border: '1px solid rgba(251,146,60,0.25)', borderRadius: 20, padding: '2px 8px', flexShrink: 0 }}>🏃 Practice</span>}
           {poll.game_type === 'competition' && <span style={{ fontSize: 11, fontWeight: 700, color: '#facc15', background: 'rgba(250,204,21,0.12)', border: '1px solid rgba(250,204,21,0.25)', borderRadius: 20, padding: '2px 8px', flexShrink: 0 }}>🏆 Competition</span>}
           {poll.game_type === 'watch_party' && <span style={{ fontSize: 11, fontWeight: 700, color: '#60a5fa', background: 'rgba(96,165,250,0.12)', border: '1px solid rgba(96,165,250,0.25)', borderRadius: 20, padding: '2px 8px', flexShrink: 0 }}>📺 Watch Party</span>}
+          <div style={{ marginLeft: 'auto' }}>
+            <SharePollLink poll={poll} inviteText={`Join us for ${poll.title} at ${poll.location} — vote on a time!`} setToast={setToast} />
+          </div>
         </div>
         {poll.opponent && (
           <p style={{ fontSize: 13, fontWeight: 700, margin: '0 0 4px', color: poll.game_type === 'competition' ? '#facc15' : '#fb923c' }}>vs {poll.opponent}</p>
