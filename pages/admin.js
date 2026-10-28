@@ -475,12 +475,9 @@ function ManagePlayerEntries({ poll, password, onAction }) {
 
   return (
     <div style={{ marginTop: 10 }}>
-      <button
-        onClick={() => setOpen(o => !o)}
-        style={{ fontSize: 12, color: colors.muted, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}
-      >
-        {open ? '▲ Hide' : '📝 Manage entries'} <span style={{ opacity: 0.7 }}>(guests, notes, declines)</span>
-      </button>
+      <Btn small variant="ghost" onClick={() => setOpen(o => !o)}>
+        {open ? '▲ Hide entries' : '📝 Manage entries (guests, skill, notes)'}
+      </Btn>
       {open && (
         <div style={{ marginTop: 8, background: colors.pitchMid, borderRadius: 8, padding: 10 }}>
           {players.map((p, i) => {
