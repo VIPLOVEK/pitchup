@@ -3,7 +3,7 @@ import Link from 'next/link'
 import Layout from '../components/Layout'
 import { Card, Label, ProgressBar, Btn, Input, Pill, PlayerChip, Toast, CopyBtn, Spinner, WeatherBadge, Avatar } from '../components/UI'
 import { colors, radius, groupColorPalette } from '../lib/tokens'
-import { getActivePlayers, getWaitlist, getTotalSpots, getTentativePlayers, teamAvgYear } from '../lib/teams'
+import { getActivePlayers, getWaitlist, getTotalSpots, getTentativePlayers, teamAvgYear, expandWithGuests } from '../lib/teams'
 import { LOCATIONS, findLocation } from '../lib/locations'
 import { SKILL_LABELS, DEFAULT_SKILL_RATING, POSITIONS } from '../lib/positions'
 import PositionHeadToHead from '../components/PositionHeadToHead'
@@ -995,12 +995,12 @@ function PollCard({ poll, password, onAction, onDuplicate, appUrl, groups, teamH
                 This is a live preview — nothing is saved until the game is actually confirmed. Pins below are saved now and will be honored whenever teams are generated (preview, reshuffle, or confirm).
               </p>
               <div style={{ fontSize: 11, fontWeight: 700, color: colors.muted, marginBottom: 6 }}>📌 Pin a player to a side</div>
-              {active.filter(p => !p.tentative).map((p, i) => {
+              {expandWithGuests(active.filter(p => !p.tentative)).map((p, i) => {
                 const pinned = poll.team_pins?.[p.name]
                 return (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 0' }}>
-                    <span style={{ fontSize: 12, color: colors.white, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {p.name}
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 0', marginLeft: p.isGuest ? 14 : 0 }}>
+                    <span style={{ fontSize: 12, color: p.isGuest ? colors.muted : colors.white, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {p.isGuest ? `↳ ${p.name}` : p.name}
                     </span>
                     {pinned && (
                       <span style={{ fontSize: 10, fontWeight: 700, color: pinned === 'A' ? colors.teamA : colors.teamB, background: 'rgba(255,255,255,0.06)', borderRadius: 10, padding: '1px 7px' }}>
